@@ -63,6 +63,40 @@ if (hasLoot) {
   if (!floorText.includes('FLOOR 2')) throw new Error(`expected FLOOR 2, got: ${floorText}`);
 }
 
+// Return to hub to test inventory flow.
+page.on('dialog', d => d.accept()); // auto-accept the "Return to hub?" confirm
+await page.click('#hub-btn');
+await page.waitForSelector('.roster-card', { timeout: 3000 });
+
+// Stash should have at least 1 item now.
+const stashCount = await page.evaluate(() => {
+  const m = document.querySelector('.cur:nth-child(4) b');
+  return m ? Number(m.textContent) : 0;
+});
+console.log(`stash count: ${stashCount}`);
+if (stashCount < 1) throw new Error('expected at least 1 item in shared stash');
+
+// Click first roster card → unit detail
+await page.click('.roster-card');
+await page.waitForSelector('.paper-doll', { timeout: 3000 });
+
+// Capture HP before
+const hpBefore = await page.$eval('.detail-stats .stat:first-child b', el => Number(el.textContent));
+console.log(`HP before equip: ${hpBefore}`);
+
+// Equip Best by Score
+await page.click('#best-btn');
+await new Promise(r => setTimeout(r, 200));
+
+const hpAfter = await page.$eval('.detail-stats .stat:first-child b', el => Number(el.textContent));
+console.log(`HP after equip: ${hpAfter}`);
+
+// At least one slot should now show non-empty (some loot equipped) OR stats matched.
+const equippedNonEmpty = await page.$$eval('.equip-slot:not(.empty):not(.starter)', els => els.length);
+console.log(`equipped non-starter slots: ${equippedNonEmpty}`);
+
+await page.screenshot({ path: 'scripts/smoke_unit_detail.png' });
+
 if (errors.length) {
   console.error('ERRORS:');
   for (const e of errors) console.error('  ' + e);

@@ -1,5 +1,8 @@
 import { getData, getState } from '../state.js';
-import { executeAbility, buffMultiplier, pruneExpired } from './abilities.js';
+import {
+  executeAbility, buffMultiplier, effectiveStat, pruneExpired,
+  isIncapacitated, isSilenced, tickDots, applyPassiveBuffs
+} from './abilities.js';
 import * as F from './formulas.js';
 
 const TICK_HZ = 30;
@@ -44,6 +47,9 @@ export function createBattle({ dungeonId, floor }) {
   battle.onKill = (caster, target) => {
     battle.log.push({ type: 'kill', text: `${caster.displayName} defeated ${target.displayName}.`, t: battle.now });
   };
+  // apply persistent passive buffs (Aura of Valor, Inspiring Presence, etc.)
+  for (const u of battle.playerUnits) applyPassiveBuffs(u, battle.playerUnits);
+  for (const u of battle.enemyUnits) applyPassiveBuffs(u, battle.enemyUnits);
   return battle;
 }
 
@@ -65,7 +71,9 @@ function stepBattle(battle, dt) {
     regenMana(u, dt);
     tickHots(u, battle);
     tickRegen(u, battle);
-    tickAbilities(u, battle, dt);
+    tickDots(u, battle);
+    if (u.dead) continue;
+    if (!isIncapacitated(u, battle.now)) tickAbilities(u, battle, dt);
   }
   // expire floating fx
   battle.fx = battle.fx.filter(f => battle.now - f.t < 1.4);
@@ -111,15 +119,18 @@ function tickRegen(u, battle) {
 }
 
 function tickAbilities(u, battle, dt) {
+  // attack-speed buffs scale how fast cooldowns tick
+  const speedMul = Math.max(0.1, buffMultiplier(u, 'attackSpeedPct', battle.now));
   for (const slot of Object.keys(u.abilities)) {
     const a = u.abilities[slot];
-    if (a.cooldown > 0) a.cooldown = Math.max(0, a.cooldown - dt);
+    if (a.cooldown > 0) a.cooldown = Math.max(0, a.cooldown - dt * speedMul);
   }
-  // tries spell2 → spell1 → attack (heaviest first)
+  const silenced = isSilenced(u, battle.now);
   const order = u.isEnemy ? ['attack'] : ['spell2', 'spell1', 'attack'];
   for (const slot of order) {
     const a = u.abilities[slot];
     if (!a || a.cooldown > 0) continue;
+    if (silenced && slot !== 'attack') continue;
     if (a.ability.manaCost > u.mp) continue;
     if (a.ability.type === 'passive') continue;
     if (slot === 'attack' && a.id === 'starter_attack') continue;
@@ -198,6 +209,8 @@ function buildPlayerUnit(cls, unit, slotPos) {
     stats,
     abilities,
     buffs: [], hots: [], regen: [],
+    dots: [], shields: [], marks: [],
+    statuses: {},
     tauntedBy: null,
     dead: false,
     isEnemy: false
@@ -250,6 +263,8 @@ function buildEnemy(template, floor, row, col) {
       attack: { id: 'enemy_attack', ability: ENEMY_ATTACK_TPL, stoneLevel: Math.min(100, floor + 10), cooldown: 0 }
     },
     buffs: [], hots: [], regen: [],
+    dots: [], shields: [], marks: [],
+    statuses: {},
     tauntedBy: null,
     dead: false,
     isEnemy: true
@@ -266,8 +281,9 @@ export function reviveSurvivors(playerUnits) {
     }
     u.mp = u.maxMp;
     u.buffs = []; u.hots = []; u.regen = []; u.tauntedBy = null;
+    u.dots = []; u.shields = []; u.marks = []; u.statuses = {};
     for (const slot of Object.keys(u.abilities)) u.abilities[slot].cooldown = 0;
   }
 }
 
-export { buffMultiplier };
+export { buffMultiplier, effectiveStat };

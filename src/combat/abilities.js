@@ -1,7 +1,7 @@
 import * as F from './formulas.js';
 
-// Effect handler registry. v0.1 implements a working subset; unknown effect
-// types log once and no-op. Add handlers here as the game grows.
+// Effect handler registry. Unknown effect types log once and no-op so the
+// engine can grow safely as handlers land.
 
 const warned = new Set();
 function warnOnce(t) {
@@ -29,9 +29,10 @@ function scalar(value, ability, stoneLevel) {
 }
 
 function alive(units) { return units.filter(u => !u.dead); }
+function targetable(units, now) { return units.filter(u => !u.dead && !((u.statuses?.untargetable ?? 0) > now)); }
 
 function resolveTargets(selector, ctx) {
-  const { caster, allies, enemies } = ctx;
+  const { caster, allies, enemies, now } = ctx;
   switch (selector) {
     case 'self': return [caster];
     case 'party': return alive(allies);
@@ -40,18 +41,18 @@ function resolveTargets(selector, ctx) {
     case 'single_enemy':
     case 'single_enemy_front':
     case 'single_enemy_front_plus_adjacent': {
-      const front = alive(enemies).filter(e => e.row === 'front');
+      const front = targetable(enemies, now).filter(e => e.row === 'front');
       if (front.length) return [lowestHp(front)];
-      const back = alive(enemies);
+      const back = targetable(enemies, now);
       return back.length ? [lowestHp(back)] : [];
     }
-    case 'all_enemies': return alive(enemies);
+    case 'all_enemies': return targetable(enemies, now);
     case 'enemy_line': {
-      const front = alive(enemies).filter(e => e.row === 'front');
-      return front.length ? front : alive(enemies);
+      const front = targetable(enemies, now).filter(e => e.row === 'front');
+      return front.length ? front : targetable(enemies, now);
     }
     case 'random_enemies': {
-      const pool = alive(enemies);
+      const pool = targetable(enemies, now);
       return pool.length ? [pool[Math.floor(Math.random() * pool.length)]] : [];
     }
 
@@ -65,43 +66,107 @@ function resolveTargets(selector, ctx) {
       const pool = alive(allies).sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp));
       return pool.slice(0, 2);
     }
-
     case 'nearest_ally': {
       const pool = alive(allies).filter(a => a !== caster);
       return pool.length ? [pool[0]] : [caster];
     }
+    case 'single_marked_enemy': {
+      const marked = targetable(enemies, now).filter(e => (e.marks ?? []).some(m => m.expires > now));
+      if (marked.length) return [marked[0]];
+      return targetable(enemies, now).slice(0, 1);
+    }
 
     default:
-      return alive(enemies).slice(0, 1);
+      return targetable(enemies, now).slice(0, 1);
   }
 }
 
 function lowestHp(units)    { return units.reduce((a, b) => a.hp <= b.hp ? a : b); }
 function lowestHpPct(units) { return units.reduce((a, b) => (a.hp / a.maxHp) <= (b.hp / b.maxHp) ? a : b); }
 
-function applyDamage(target, amount, ctx) {
+// ============================================================================
+// Effective stat with buffs applied
+// ============================================================================
+
+export function buffMultiplier(unit, stat, now) {
+  let mul = 1;
+  for (const b of unit.buffs) {
+    if (b.expires <= now) continue;
+    if (b.stat === stat) mul *= (1 + (b.amountPct ?? 0) / 100);
+  }
+  return mul;
+}
+
+export function effectiveStat(unit, stat, now) {
+  return (unit.stats[stat] ?? 0) * buffMultiplier(unit, stat, now);
+}
+
+// ============================================================================
+// Damage application — checks shields, damageTakenPct, status (frozen takes more)
+// ============================================================================
+
+function applyDamage(target, raw, ctx) {
   if (target.dead) return;
-  target.hp = Math.max(0, target.hp - amount);
-  ctx.fx?.push({ type: 'dmg', target, amount, t: ctx.now });
-  if (target.hp <= 0) {
-    target.dead = true;
-    ctx.fx?.push({ type: 'death', target, t: ctx.now });
-    ctx.onKill?.(ctx.caster, target);
+  let amount = raw;
+
+  // damage taken modifier (e.g. Shield Wall reduces; Frozen amplifies via tag)
+  amount *= buffMultiplier(target, 'damageTakenPct', ctx.now);
+  if ((target.statuses?.frozen ?? 0) > ctx.now) amount *= 1.30;
+  amount = Math.max(1, Math.round(amount));
+
+  // shields absorb first
+  let remaining = amount;
+  for (const s of target.shields ?? []) {
+    if (s.expires <= ctx.now || s.amount <= 0) continue;
+    const absorbed = Math.min(remaining, s.amount);
+    s.amount -= absorbed;
+    remaining -= absorbed;
+    if (remaining <= 0) break;
+  }
+  target.shields = (target.shields ?? []).filter(s => s.amount > 0 && s.expires > ctx.now);
+
+  if (remaining > 0) {
+    target.hp = Math.max(0, target.hp - remaining);
+    ctx.fx?.push({ type: 'dmg', target, amount: remaining, t: ctx.now });
+    if (target.hp <= 0) {
+      target.dead = true;
+      ctx.fx?.push({ type: 'death', target, t: ctx.now });
+      ctx.onKill?.(ctx.caster, target);
+    }
+  } else {
+    ctx.fx?.push({ type: 'absorb', target, amount, t: ctx.now });
   }
 }
 
+function applyHeal(target, amount, ctx) {
+  if (target.dead || amount <= 0) return;
+  const before = target.hp;
+  target.hp = Math.min(target.maxHp, target.hp + amount);
+  if (target.hp - before > 0) ctx.fx?.push({ type: 'heal', target, amount: target.hp - before, t: ctx.now });
+}
+
+function setStatus(target, key, expires) {
+  target.statuses ??= {};
+  target.statuses[key] = Math.max(target.statuses[key] ?? 0, expires);
+}
+
+// ============================================================================
+// Handlers
+// ============================================================================
+
 const HANDLERS = {
+
   damage(effect, ctx) {
     const targets = resolveTargets(effect.targets, ctx);
     if (!targets.length) return;
     const power = scalar(effect.powerScalar ?? 1, ctx.ability, ctx.stoneLevel);
     const stat = effect.stat ?? 'patk';
-    const atk = ctx.caster.stats[stat] ?? ctx.caster.stats.patk;
+    const atk = effectiveStat(ctx.caster, stat, ctx.now) || ctx.caster.stats.patk;
     const defStat = (effect.damageType === 'physical' || stat === 'patk') ? 'pdef' : 'mdef';
-    const hits = effect.hits ? scalar(effect.hits, ctx.ability, ctx.stoneLevel) : 1;
+    const hits = effect.hits ? Math.max(1, Math.round(scalar(effect.hits, ctx.ability, ctx.stoneLevel))) : 1;
     const ignorePct = effect.ignoreDefPct ? scalar(effect.ignoreDefPct, ctx.ability, ctx.stoneLevel) : 0;
     for (const t of targets) {
-      const def = (t.stats[defStat] ?? 0) * (1 - ignorePct / 100);
+      const def = effectiveStat(t, defStat, ctx.now) * (1 - ignorePct / 100);
       let total = 0;
       for (let i = 0; i < hits; i++) total += F.damage(power, atk, def, ctx.floor);
       applyDamage(t, total, ctx);
@@ -111,14 +176,7 @@ const HANDLERS = {
   heal(effect, ctx) {
     const targets = resolveTargets(effect.targets, ctx);
     const pct = scalar(effect.amountPctMax, ctx.ability, ctx.stoneLevel) / 100;
-    for (const t of targets) {
-      if (t.dead) continue;
-      const amt = Math.round(t.maxHp * pct);
-      const before = t.hp;
-      t.hp = Math.min(t.maxHp, t.hp + amt);
-      const healed = t.hp - before;
-      if (healed > 0) ctx.fx?.push({ type: 'heal', target: t, amount: healed, t: ctx.now });
-    }
+    for (const t of targets) applyHeal(t, Math.round(t.maxHp * pct), ctx);
   },
 
   buff(effect, ctx) {
@@ -137,9 +195,7 @@ const HANDLERS = {
   taunt(effect, ctx) {
     const targets = resolveTargets(effect.targets, ctx);
     const dur = scalar(effect.duration ?? 2, ctx.ability, ctx.stoneLevel);
-    for (const t of targets) {
-      t.tauntedBy = { caster: ctx.caster, expires: ctx.now + dur };
-    }
+    for (const t of targets) t.tauntedBy = { caster: ctx.caster, expires: ctx.now + dur };
   },
 
   hot(effect, ctx) {
@@ -147,36 +203,296 @@ const HANDLERS = {
     const pctPerTick = scalar(effect.amountPctMaxPerTick, ctx.ability, ctx.stoneLevel) / 100;
     const tick = scalar(effect.tick ?? 1, ctx.ability, ctx.stoneLevel) || 1;
     const ticks = effect.ticks
-      ? Math.round(scalar(effect.ticks, ctx.ability, ctx.stoneLevel))
-      : Math.round(scalar(effect.duration ?? 4, ctx.ability, ctx.stoneLevel) / tick);
-    for (const t of targets) {
-      t.hots.push({ pctPerTick, tick, ticksLeft: ticks, nextAt: ctx.now + tick });
-    }
+      ? Math.max(1, Math.round(scalar(effect.ticks, ctx.ability, ctx.stoneLevel)))
+      : Math.max(1, Math.round(scalar(effect.duration ?? 4, ctx.ability, ctx.stoneLevel) / tick));
+    for (const t of targets) t.hots.push({ pctPerTick, tick, ticksLeft: ticks, nextAt: ctx.now + tick });
   },
 
   regen(effect, ctx) {
     const targets = resolveTargets(effect.targets, ctx);
     const pct = scalar(effect.amountPctMax, ctx.ability, ctx.stoneLevel) / 100;
     const dur = scalar(effect.duration ?? 5, ctx.ability, ctx.stoneLevel) || 5;
+    for (const t of targets) t.regen.push({ pct, expires: ctx.now + dur, lastTick: ctx.now });
+  },
+
+  // ---- v0.2: status & dot effects ----
+
+  dot(effect, ctx) {
+    const targets = resolveTargets(effect.targets, ctx);
+    const dpsPct = scalar(effect.dpsPct, ctx.ability, ctx.stoneLevel) / 100;
+    const dur = scalar(effect.duration, ctx.ability, ctx.stoneLevel) || 4;
+    const tag = effect.tag ?? 'dot';
     for (const t of targets) {
-      t.regen.push({ pct, expires: ctx.now + dur, lastTick: ctx.now });
+      t.dots ??= [];
+      t.dots.push({ tag, dpsPct, expires: ctx.now + dur, lastTick: ctx.now, source: ctx.caster });
     }
+  },
+
+  stackDot(effect, ctx) {
+    const targets = resolveTargets(effect.targets, ctx);
+    const dpsPct = scalar(effect.amountPct, ctx.ability, ctx.stoneLevel) / 100;
+    const dur = scalar(effect.duration, ctx.ability, ctx.stoneLevel) || 4;
+    const tag = effect.tag ?? 'dot';
+    for (const t of targets) {
+      t.dots ??= [];
+      t.dots.push({ tag, dpsPct, expires: ctx.now + dur, lastTick: ctx.now, source: ctx.caster });
+    }
+  },
+
+  detonateDot(effect, ctx) {
+    const targets = resolveTargets(effect.targets, ctx);
+    const tag = effect.tag ?? 'dot';
+    const mult = scalar(effect.multiplier, ctx.ability, ctx.stoneLevel) || 1.5;
+    for (const t of targets) {
+      const stacks = (t.dots ?? []).filter(d => d.tag === tag && d.expires > ctx.now);
+      if (!stacks.length) continue;
+      let total = 0;
+      for (const d of stacks) {
+        const remainingTime = Math.max(0, d.expires - ctx.now);
+        total += t.maxHp * d.dpsPct * remainingTime;
+      }
+      const dmg = Math.max(1, Math.round(total * mult));
+      applyDamage(t, dmg, ctx);
+      t.dots = (t.dots ?? []).filter(d => d.tag !== tag);
+    }
+  },
+
+  slow(effect, ctx) {
+    const targets = resolveTargets(effect.targets, ctx);
+    const amountPct = scalar(effect.amountPct, ctx.ability, ctx.stoneLevel);
+    const dur = scalar(effect.duration ?? 3, ctx.ability, ctx.stoneLevel);
+    for (const t of targets) {
+      t.buffs.push({ stat: 'attackSpeedPct', amountPct: -amountPct, expires: ctx.now + dur, tag: 'slow' });
+      setStatus(t, 'slowed', ctx.now + dur);
+    }
+  },
+
+  stackingSlow(effect, ctx) {
+    const targets = resolveTargets(effect.targets, ctx);
+    const perTickPct = scalar(effect.perTickPct, ctx.ability, ctx.stoneLevel);
+    const dur = scalar(effect.duration ?? 4, ctx.ability, ctx.stoneLevel);
+    for (const t of targets) {
+      t.buffs.push({ stat: 'attackSpeedPct', amountPct: -perTickPct, expires: ctx.now + dur, tag: 'slow' });
+      setStatus(t, 'slowed', ctx.now + dur);
+    }
+  },
+
+  stun(effect, ctx) {
+    const targets = resolveTargets(effect.targets, ctx);
+    const dur = scalar(effect.duration, ctx.ability, ctx.stoneLevel) || 1.5;
+    for (const t of targets) setStatus(t, 'stunned', ctx.now + dur);
+  },
+
+  freeze(effect, ctx) {
+    const targets = resolveTargets(effect.targets, ctx);
+    const dur = scalar(effect.duration ?? effect.freezeDuration ?? 2, ctx.ability, ctx.stoneLevel);
+    for (const t of targets) setStatus(t, 'frozen', ctx.now + dur);
+  },
+
+  silence(effect, ctx) {
+    const targets = resolveTargets(effect.targets, ctx);
+    const dur = scalar(effect.duration ?? effect.silenceDuration ?? 2, ctx.ability, ctx.stoneLevel);
+    for (const t of targets) setStatus(t, 'silenced', ctx.now + dur);
+  },
+
+  blind(effect, ctx) {
+    const targets = resolveTargets(effect.targets, ctx);
+    const dur = scalar(effect.duration ?? 1, ctx.ability, ctx.stoneLevel);
+    for (const t of targets) setStatus(t, 'blinded', ctx.now + dur);
+  },
+
+  root(effect, ctx) {
+    const targets = resolveTargets(effect.targets, ctx);
+    const dur = scalar(effect.duration ?? 2, ctx.ability, ctx.stoneLevel);
+    for (const t of targets) setStatus(t, 'rooted', ctx.now + dur);
+  },
+
+  shield(effect, ctx) {
+    const targets = resolveTargets(effect.targets, ctx);
+    const dur = scalar(effect.duration ?? 5, ctx.ability, ctx.stoneLevel) || 5;
+    for (const t of targets) {
+      let amount;
+      if (effect.amountPctMaxMP) {
+        amount = Math.round((effectiveStat(t, 'mp', ctx.now) || t.maxMp) * scalar(effect.amountPctMaxMP, ctx.ability, ctx.stoneLevel) / 100);
+      } else if (effect.amountPctMax) {
+        amount = Math.round(t.maxHp * scalar(effect.amountPctMax, ctx.ability, ctx.stoneLevel) / 100);
+      } else {
+        amount = scalar(effect.amount ?? 0, ctx.ability, ctx.stoneLevel);
+      }
+      t.shields ??= [];
+      t.shields.push({ amount, expires: ctx.now + dur });
+    }
+  },
+
+  cleanse(effect, ctx) {
+    const targets = resolveTargets(effect.targets, ctx);
+    const count = scalar(effect.count ?? 99, ctx.ability, ctx.stoneLevel);
+    for (const t of targets) {
+      t.dots = [];
+      t.statuses = { ...(t.statuses ?? {}) };
+      for (const k of ['stunned','frozen','silenced','blinded','rooted','slowed']) delete t.statuses[k];
+      // also drop debuff-like negative buffs (amountPct < 0)
+      let removed = 0;
+      t.buffs = t.buffs.filter(b => {
+        if (removed >= count) return true;
+        if (b.amountPct < 0 || b.tag === 'slow') { removed++; return false; }
+        return true;
+      });
+    }
+  },
+
+  dispel(effect, ctx) {
+    const targets = resolveTargets(effect.targets, ctx);
+    const count = Math.max(1, Math.round(scalar(effect.count ?? 1, ctx.ability, ctx.stoneLevel)));
+    for (const t of targets) {
+      let removed = 0;
+      t.buffs = t.buffs.filter(b => {
+        if (removed >= count) return true;
+        if ((b.amountPct ?? 0) > 0) { removed++; return false; }
+        return true;
+      });
+    }
+  },
+
+  untargetable(effect, ctx) {
+    const targets = resolveTargets(effect.targets, ctx);
+    const dur = scalar(effect.duration ?? 2, ctx.ability, ctx.stoneLevel);
+    for (const t of targets) setStatus(t, 'untargetable', ctx.now + dur);
+  },
+
+  immunity(effect, ctx) {
+    const targets = resolveTargets(effect.targets, ctx);
+    const dur = scalar(effect.duration ?? 2, ctx.ability, ctx.stoneLevel);
+    const tag = effect.tag ?? 'all';
+    for (const t of targets) setStatus(t, `immune_${tag}`, ctx.now + dur);
+  },
+
+  chain(effect, ctx) {
+    const targets = resolveTargets(effect.targets, ctx);
+    if (!targets.length) return;
+    const power = scalar(effect.powerScalar ?? 1, ctx.ability, ctx.stoneLevel);
+    const hops = Math.max(1, Math.round(scalar(effect.hops ?? effect.extraTargets ?? 1, ctx.ability, ctx.stoneLevel)));
+    const decayPct = scalar(effect.perHopDecayPct ?? effect.decayPct ?? 10, ctx.ability, ctx.stoneLevel) / 100;
+    const stat = effect.stat ?? 'matk';
+    const atk = effectiveStat(ctx.caster, stat, ctx.now);
+    const defStat = stat === 'matk' ? 'mdef' : 'pdef';
+    const pool = targetable(ctx.enemies, ctx.now);
+    let curPower = power;
+    let hit = 0;
+    const hitSet = new Set();
+    let cur = targets[0];
+    while (cur && hit < hops + 1) {
+      hitSet.add(cur);
+      const def = effectiveStat(cur, defStat, ctx.now);
+      applyDamage(cur, F.damage(curPower, atk, def, ctx.floor), ctx);
+      hit++;
+      curPower *= (1 - decayPct);
+      cur = pool.find(e => !hitSet.has(e) && !e.dead);
+    }
+  },
+
+  chainHeal(effect, ctx) {
+    const start = resolveTargets(effect.targets, ctx);
+    if (!start.length) return;
+    const pct = scalar(effect.amountPctMax, ctx.ability, ctx.stoneLevel) / 100;
+    const hops = Math.max(1, Math.round(scalar(effect.hops ?? 3, ctx.ability, ctx.stoneLevel)));
+    const decay = scalar(effect.decayPct ?? 50, ctx.ability, ctx.stoneLevel) / 100;
+    const pool = alive(ctx.allies);
+    const hit = new Set();
+    let curPct = pct;
+    let cur = start[0];
+    let count = 0;
+    while (cur && count < hops) {
+      hit.add(cur);
+      applyHeal(cur, Math.round(cur.maxHp * curPct), ctx);
+      curPct *= decay;
+      cur = pool.filter(a => !hit.has(a)).reduce((acc, b) => !acc || (b.hp / b.maxHp) < (acc.hp / acc.maxHp) ? b : acc, null);
+      count++;
+    }
+  },
+
+  mark(effect, ctx) {
+    const targets = resolveTargets(effect.targets, ctx);
+    const dur = scalar(effect.duration ?? 4, ctx.ability, ctx.stoneLevel);
+    const tag = effect.tag ?? 'marked';
+    for (const t of targets) {
+      t.marks ??= [];
+      t.marks.push({ tag, expires: ctx.now + dur });
+    }
+  },
+
+  executeIfBelow(effect, ctx) {
+    const targets = resolveTargets(effect.targets, ctx);
+    const threshold = scalar(effect.thresholdPct, ctx.ability, ctx.stoneLevel) / 100;
+    for (const t of targets) {
+      if (t.hp / t.maxHp <= threshold) applyDamage(t, t.hp, ctx);
+    }
+  },
+
+  pull(effect, ctx) {
+    const targets = resolveTargets(effect.targets, ctx);
+    for (const t of targets) t.row = 'front';
+  },
+
+  reflect(effect, ctx) {
+    const targets = resolveTargets(effect.targets, ctx);
+    const pct = scalar(effect.amountPct, ctx.ability, ctx.stoneLevel);
+    const dur = scalar(effect.duration ?? 4, ctx.ability, ctx.stoneLevel);
+    for (const t of targets) t.buffs.push({ stat: `reflect_${effect.school ?? 'all'}`, amountPct: pct, expires: ctx.now + dur });
   }
 };
 
-// ----- buff query helpers used by engine.computeEffectiveStat -----
-
-export function buffMultiplier(unit, stat, now) {
-  let mul = 1;
-  for (const b of unit.buffs) {
-    if (b.expires <= now) continue;
-    if (b.stat === stat) mul *= (1 + b.amountPct / 100);
-  }
-  return mul;
-}
+// ============================================================================
+// Status / pruning helpers (called from engine)
+// ============================================================================
 
 export function pruneExpired(unit, now) {
   unit.buffs = unit.buffs.filter(b => b.expires > now);
   unit.regen = unit.regen.filter(r => r.expires > now);
   if (unit.tauntedBy && unit.tauntedBy.expires <= now) unit.tauntedBy = null;
+  if (unit.dots) unit.dots = unit.dots.filter(d => d.expires > now);
+  if (unit.shields) unit.shields = unit.shields.filter(s => s.expires > now && s.amount > 0);
+  if (unit.marks) unit.marks = unit.marks.filter(m => m.expires > now);
+  if (unit.statuses) {
+    for (const k of Object.keys(unit.statuses)) {
+      if ((unit.statuses[k] ?? 0) <= now) delete unit.statuses[k];
+    }
+  }
+}
+
+export function hasStatus(unit, name, now) { return (unit.statuses?.[name] ?? 0) > now; }
+export function isIncapacitated(unit, now) { return hasStatus(unit, 'stunned', now) || hasStatus(unit, 'frozen', now); }
+export function isSilenced(unit, now) { return hasStatus(unit, 'silenced', now); }
+
+export function tickDots(unit, battle) {
+  if (!unit.dots || !unit.dots.length) return;
+  for (const d of unit.dots) {
+    if (battle.now - d.lastTick >= 1.0 && d.expires > battle.now) {
+      const dmg = Math.max(1, Math.round(unit.maxHp * d.dpsPct));
+      const before = unit.hp;
+      unit.hp = Math.max(0, unit.hp - dmg);
+      if (unit.hp - before < 0) battle.fx?.push({ type: 'dmg', target: unit, amount: before - unit.hp, t: battle.now });
+      if (unit.hp <= 0) {
+        unit.dead = true;
+        battle.fx?.push({ type: 'death', target: unit, t: battle.now });
+        battle.onKill?.(d.source ?? unit, unit);
+      }
+      d.lastTick = battle.now;
+    }
+  }
+}
+
+export function applyPassiveBuffs(caster, allParty) {
+  const slot = caster.abilities?.passive;
+  if (!slot || !slot.ability) return;
+  for (const effect of slot.ability.effects) {
+    if (effect.type !== 'buff') continue;
+    const isPersistent = effect.duration === 'permanent' || effect.whileAlive;
+    if (!isPersistent) continue;
+    const amountPct = F.scaleParam(slot.ability.scaling, effect.amountPct ?? effect.amount ?? 0, slot.stoneLevel);
+    const targets = effect.targets === 'party' ? allParty : [caster];
+    for (const t of targets) {
+      t.buffs.push({ stat: effect.stat, amountPct, expires: Infinity, source: 'passive', whileAlive: !!effect.whileAlive, sourceUnit: caster });
+    }
+  }
 }

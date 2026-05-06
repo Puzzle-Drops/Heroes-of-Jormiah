@@ -1,4 +1,7 @@
-import { getData, getState, persist, resetSave } from './state.js';
+import {
+  getData, getState, persist, resetSave,
+  dropItemToStash, equipItem, unequipSlot, equipBestByScore, slotsForItem
+} from './state.js';
 import { createBattle, tickBattle, reviveSurvivors } from './combat/engine.js';
 import { generateItemForDungeon } from './combat/loot.js';
 import { renderBattle, placeUnits, preloadBattleSprites } from './render.js';
@@ -59,6 +62,7 @@ export function showHub() {
 
 function renderTopbar() {
   const state = getState();
+  const stashCount = state.sharedStash?.length ?? 0;
   return `
     <div class="topbar">
       <div class="title">CRUCIBLE</div>
@@ -66,6 +70,7 @@ function renderTopbar() {
         <div class="cur">Gold <b>${state.currencies.gold}</b></div>
         <div class="cur">Dust <b>${state.currencies.dust}</b></div>
         <div class="cur">Spirit <b>${state.currencies.spirit}</b></div>
+        <div class="cur">Stash <b>${stashCount}</b></div>
       </div>
       <button id="reset-btn" style="margin-left: 16px; font-size: 10px; padding: 6px 10px;">Reset Save</button>
     </div>
@@ -78,11 +83,12 @@ function renderRosterCard(classId, inParty) {
   const unit = getState().roster[classId];
   if (!cls || !unit) return '';
   const fam = data.familiesById[cls.family];
+  const equippedNonStarter = Object.values(unit.equipment).filter(it => it && !it.isStarter).length;
   return `
     <div class="roster-card ${inParty ? 'in-party' : ''}" data-class="${classId}">
       <div class="name">${cls.displayName}</div>
       <div class="family">${fam?.name ?? cls.family}</div>
-      <div class="lvl">Lvl ${unit.level} · XP ${unit.xp}</div>
+      <div class="lvl">Lvl ${unit.level} · XP ${unit.xp}${equippedNonStarter ? ` · ${equippedNonStarter} eq` : ''}</div>
     </div>
   `;
 }
@@ -108,6 +114,171 @@ function bindHub() {
       showHub();
     }
   });
+  for (const card of document.querySelectorAll('.roster-card[data-class]')) {
+    card.addEventListener('click', () => showUnitDetail(card.dataset.class));
+  }
+  const stashBtn = document.getElementById('stash-btn');
+  if (stashBtn) stashBtn.addEventListener('click', () => showUnitDetail(getState().party[0]));
+}
+
+// ============================================================================
+// UNIT DETAIL SCREEN
+// ============================================================================
+const SLOT_LAYOUT_TOP = ['weapon', 'helm', 'chest', 'legs', 'gloves', 'boots'];
+const SLOT_LAYOUT_BOTTOM = ['ring1', 'ring2', 'amulet', 'stone_attack', 'stone_spell1', 'stone_spell2', 'stone_passive'];
+const STAT_KEYS = ['hp', 'mp', 'patk', 'matk', 'pdef', 'mdef'];
+const STAT_LABEL = { hp: 'HP', mp: 'MP', patk: 'P.ATK', matk: 'M.ATK', pdef: 'P.DEF', mdef: 'M.DEF' };
+const SLOT_LABEL = {
+  weapon: 'Wpn', helm: 'Helm', chest: 'Chest', legs: 'Legs', gloves: 'Gloves', boots: 'Boots',
+  ring1: 'Ring 1', ring2: 'Ring 2', amulet: 'Amulet',
+  stone_attack: 'Atk Stone', stone_spell1: 'Spell I Stone', stone_spell2: 'Spell II Stone', stone_passive: 'Passive Stone'
+};
+
+export function showUnitDetail(classId) {
+  stopBattle();
+  const data = getData();
+  const state = getState();
+  const cls = data.classesById[classId];
+  const unit = state.roster[classId];
+  if (!cls || !unit) { showHub(); return; }
+
+  const totalStats = computeUnitStats(cls, unit);
+  const sortedStash = state.sharedStash.slice().sort((a, b) => (b.qualityScore ?? 0) - (a.qualityScore ?? 0));
+
+  root().innerHTML = `
+    <div class="hub">
+      ${renderTopbar()}
+      <div class="hub-main detail">
+        <div class="panel">
+          <div class="detail-head">
+            <button id="back-btn" class="back">← Roster</button>
+            <div class="detail-title">
+              <div class="display">${cls.displayName}</div>
+              <div class="sub">${data.familiesById[cls.family]?.name ?? cls.family} · ${cls.tagline}</div>
+            </div>
+            <div class="detail-stats">
+              ${STAT_KEYS.map(s => `<div class="stat"><span class="k">${STAT_LABEL[s]}</span><b>${Math.round(totalStats[s])}</b></div>`).join('')}
+            </div>
+          </div>
+          <div class="paper-doll">
+            <div class="row">${SLOT_LAYOUT_TOP.map(s => renderEquipSlot(s, unit.equipment[s])).join('')}</div>
+            <div class="row">${SLOT_LAYOUT_BOTTOM.map(s => renderEquipSlot(s, unit.equipment[s])).join('')}</div>
+          </div>
+          <div class="abilities-strip">
+            ${['attack','spell1','spell2','passive'].map(slot => renderAbilityChip(cls, unit, slot)).join('')}
+          </div>
+        </div>
+        <div class="panel">
+          <div class="stash-head">
+            <h2>Shared Stash</h2>
+            <button id="best-btn">Equip Best by Score</button>
+          </div>
+          <div class="stash-list">
+            ${sortedStash.length
+              ? sortedStash.map(it => renderStashRow(it)).join('')
+              : `<div class="empty">No items yet — clear floors to fill the stash.</div>`}
+          </div>
+        </div>
+      </div>
+      <div class="dungeon-bar"><button id="hub-back-btn">Return to Hub</button></div>
+    </div>
+  `;
+  bindUnitDetail(classId);
+}
+
+function renderEquipSlot(slotId, item) {
+  if (!item) {
+    return `<div class="equip-slot empty" data-slot="${slotId}"><div class="slot-label">${SLOT_LABEL[slotId]}</div><div class="slot-empty">empty</div></div>`;
+  }
+  const starter = item.isStarter ? ' starter' : '';
+  return `
+    <div class="equip-slot r-${item.rarity}${starter}" data-slot="${slotId}" data-item="${item.id}">
+      <div class="slot-label">${SLOT_LABEL[slotId]}</div>
+      <div class="slot-name r-${item.rarity}">${item.displayName ?? (item.isStarter ? 'Starter Stone' : 'Unknown')}</div>
+      <div class="slot-stats">${itemStatsLine(item)}</div>
+      ${item.isStarter ? '<div class="slot-tag">starter · level 1</div>' : `<div class="slot-tag">${item.rarity}</div>`}
+    </div>
+  `;
+}
+
+function renderAbilityChip(cls, unit, slot) {
+  const aId = cls.abilities[slot];
+  const stoneItem = unit.equipment[`stone_${slot}`];
+  const lvl = stoneItem?.abilityLevel ?? 0;
+  return `
+    <div class="ability-chip">
+      <div class="chip-slot">${slot.toUpperCase()}</div>
+      <div class="chip-name">${prettyAbility(aId)}</div>
+      <div class="chip-lvl">stone L${lvl}</div>
+    </div>
+  `;
+}
+
+function renderStashRow(item) {
+  return `
+    <div class="stash-row r-${item.rarity}" data-item="${item.id}">
+      <div class="rcol name r-${item.rarity}">${item.displayName}</div>
+      <div class="rcol stats">${itemStatsLine(item)}</div>
+      <div class="rcol meta">Q ${(item.qualityScore * 100).toFixed(0)}%</div>
+      <div class="rcol act"><button class="equip-btn" data-item="${item.id}">Equip</button></div>
+    </div>
+  `;
+}
+
+function itemStatsLine(item) {
+  if (!item.stats) return '';
+  return STAT_KEYS
+    .filter(s => (item.stats[s] ?? 0) > 0)
+    .map(s => `<span>${STAT_LABEL[s]} +${item.stats[s]}</span>`)
+    .join(' ');
+}
+
+function prettyAbility(id) { return id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); }
+
+function computeUnitStats(cls, unit) {
+  const out = {};
+  for (const k of STAT_KEYS) out[k] = (cls.baseStats[k] ?? 0) + (cls.perLevelStats[k] ?? 0) * (unit.level - 1);
+  for (const slot in unit.equipment) {
+    const it = unit.equipment[slot];
+    if (!it || !it.stats) continue;
+    for (const k of STAT_KEYS) out[k] += it.stats[k] ?? 0;
+  }
+  return out;
+}
+
+function bindUnitDetail(classId) {
+  document.getElementById('back-btn').addEventListener('click', showHub);
+  document.getElementById('hub-back-btn').addEventListener('click', showHub);
+  document.getElementById('best-btn').addEventListener('click', () => {
+    const n = equipBestByScore(classId);
+    showUnitDetail(classId);
+    if (!n) flash('No upgrades found in stash.');
+  });
+  for (const row of document.querySelectorAll('.stash-row')) {
+    const id = row.dataset.item;
+    const item = getState().sharedStash.find(s => s.id === id);
+    if (!item) continue;
+    row.querySelector('.equip-btn').addEventListener('click', () => {
+      equipItem(classId, item);
+      showUnitDetail(classId);
+    });
+  }
+  for (const slot of document.querySelectorAll('.equip-slot:not(.empty):not(.starter)')) {
+    slot.style.cursor = 'pointer';
+    slot.title = 'Click to unequip';
+    slot.addEventListener('click', () => {
+      unequipSlot(classId, slot.dataset.slot);
+      showUnitDetail(classId);
+    });
+  }
+}
+
+function flash(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1500);
 }
 
 // ============================================================================
@@ -276,11 +447,9 @@ function onFloorCleared() {
     while (u && u.xp >= xpForLevel(u.level)) { u.xp -= xpForLevel(u.level); u.level++; }
   }
 
-  // generate loot
+  // generate loot — drops to the party's shared stash per GDD §12.1
   const loot = generateItemForDungeon(battle.dungeonId, battle.floor);
-  // for v0.1 we don't have inventory UI yet; just stash to first unit's inventory.
-  const firstUnit = state.roster[state.party[0]];
-  if (firstUnit) firstUnit.inventory.push(loot);
+  dropItemToStash(loot);
 
   ds.currentRunFloor = battle.floor + 1;
   persist();
