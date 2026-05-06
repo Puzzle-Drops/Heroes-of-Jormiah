@@ -1,0 +1,228 @@
+{
+  "generatedAt": "2026-05-06T21:39:15.179Z",
+  "source": "assets/sprites/class_sprites.html",
+  "state": "idle",
+  "frame": {
+    "width": 200,
+    "height": 220
+  },
+  "frames": 8,
+  "layout": "horizontal-strip",
+  "breath": {
+    "period_seconds": 3.141592653589793,
+    "formula": "breathe = sin(time * 2) * 0.5; sampled at time = i/FRAMES * PI"
+  },
+  "note": "Frame center is (100, 110) px (logical 50, 55). Shadow ellipse is NOT baked — render it dynamically beneath the sprite at runtime.",
+  "sheets": [
+    {
+      "className": "Tank",
+      "file": "Tank.png",
+      "bytes": 43993
+    },
+    {
+      "className": "Bulwark",
+      "file": "Bulwark.png",
+      "bytes": 52594
+    },
+    {
+      "className": "Sentinel",
+      "file": "Sentinel.png",
+      "bytes": 39900
+    },
+    {
+      "className": "Juggernaut",
+      "file": "Juggernaut.png",
+      "bytes": 47424
+    },
+    {
+      "className": "Crusader",
+      "file": "Crusader.png",
+      "bytes": 37080
+    },
+    {
+      "className": "Healer",
+      "file": "Healer.png",
+      "bytes": 59363
+    },
+    {
+      "className": "Druid",
+      "file": "Druid.png",
+      "bytes": 36743
+    },
+    {
+      "className": "Shaman",
+      "file": "Shaman.png",
+      "bytes": 38585
+    },
+    {
+      "className": "Apothecary",
+      "file": "Apothecary.png",
+      "bytes": 41411
+    },
+    {
+      "className": "Oracle",
+      "file": "Oracle.png",
+      "bytes": 67643
+    },
+    {
+      "className": "Mage",
+      "file": "Mage.png",
+      "bytes": 63930
+    },
+    {
+      "className": "Pyromancer",
+      "file": "Pyromancer.png",
+      "bytes": 32399
+    },
+    {
+      "className": "Cryomancer",
+      "file": "Cryomancer.png",
+      "bytes": 33153
+    },
+    {
+      "className": "Necromancer",
+      "file": "Necromancer.png",
+      "bytes": 39102
+    },
+    {
+      "className": "Stormcaller",
+      "file": "Stormcaller.png",
+      "bytes": 38685
+    },
+    {
+      "className": "Geomancer",
+      "file": "Geomancer.png",
+      "bytes": 46456
+    },
+    {
+      "className": "Warlock",
+      "file": "Warlock.png",
+      "bytes": 53746
+    },
+    {
+      "className": "Chronomancer",
+      "file": "Chronomancer.png",
+      "bytes": 58911
+    },
+    {
+      "className": "Bloodmage",
+      "file": "Bloodmage.png",
+      "bytes": 45406
+    },
+    {
+      "className": "Rogue",
+      "file": "Rogue.png",
+      "bytes": 41081
+    },
+    {
+      "className": "Duelist",
+      "file": "Duelist.png",
+      "bytes": 42866
+    },
+    {
+      "className": "Ninja",
+      "file": "Ninja.png",
+      "bytes": 43039
+    },
+    {
+      "className": "Shadowdancer",
+      "file": "Shadowdancer.png",
+      "bytes": 41131
+    },
+    {
+      "className": "Saboteur",
+      "file": "Saboteur.png",
+      "bytes": 34238
+    },
+    {
+      "className": "Archer",
+      "file": "Archer.png",
+      "bytes": 38230
+    },
+    {
+      "className": "Sniper",
+      "file": "Sniper.png",
+      "bytes": 38586
+    },
+    {
+      "className": "Beastmaster",
+      "file": "Beastmaster.png",
+      "bytes": 42537
+    },
+    {
+      "className": "Gunslinger",
+      "file": "Gunslinger.png",
+      "bytes": 40592
+    },
+    {
+      "className": "Crossbowman",
+      "file": "Crossbowman.png",
+      "bytes": 28930
+    },
+    {
+      "className": "Paladin",
+      "file": "Paladin.png",
+      "bytes": 71637
+    },
+    {
+      "className": "DeathKnight",
+      "file": "DeathKnight.png",
+      "bytes": 60318
+    },
+    {
+      "className": "Valkyrie",
+      "file": "Valkyrie.png",
+      "bytes": 39735
+    },
+    {
+      "className": "Inquisitor",
+      "file": "Inquisitor.png",
+      "bytes": 36459
+    },
+    {
+      "className": "Templar",
+      "file": "Templar.png",
+      "bytes": 49837
+    },
+    {
+      "className": "Berserker",
+      "file": "Berserker.png",
+      "bytes": 33777
+    },
+    {
+      "className": "Dragoon",
+      "file": "Dragoon.png",
+      "bytes": 41443
+    },
+    {
+      "className": "Bard",
+      "file": "Bard.png",
+      "bytes": 21853
+    },
+    {
+      "className": "Engineer",
+      "file": "Engineer.png",
+      "bytes": 34883
+    },
+    {
+      "className": "Monk",
+      "file": "Monk.png",
+      "bytes": 44607
+    },
+    {
+      "className": "Samurai",
+      "file": "Samurai.png",
+      "bytes": 43104
+    },
+    {
+      "className": "Spellblade",
+      "file": "Spellblade.png",
+      "bytes": 71592
+    },
+    {
+      "className": "Alchemist",
+      "file": "Alchemist.png",
+      "bytes": 39038
+    }
+  ]
+}
