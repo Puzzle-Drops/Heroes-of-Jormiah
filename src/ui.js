@@ -1,6 +1,8 @@
 import {
   getData, getState, persist, resetSave,
-  dropItemToStash, equipItem, unequipSlot, equipBestByScore, slotsForItem
+  dropItemToStash, equipItem, unequipSlot, equipBestByScore, slotsForItem,
+  isInParty, addToParty, removeFromParty, swapPartyAt, getNextUnlock,
+  processFloorUnlocks, FLOOR_UNLOCKS
 } from './state.js';
 import { createBattle, tickBattle, reviveSurvivors } from './combat/engine.js';
 import { generateItemForDungeon } from './combat/loot.js';
@@ -21,16 +23,36 @@ export function showHub() {
   const data = getData();
   const state = getState();
   const dungeon = data.dungeonsById.iron_vaults;
+  const highest = state.dungeons.iron_vaults?.highestFloor ?? 0;
+  const nextUnlock = getNextUnlock(highest);
+  const partySet = new Set(state.party);
+  const rosterIds = state.unlockedClasses.slice().sort((a, b) => {
+    const ai = state.party.indexOf(a), bi = state.party.indexOf(b);
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
+    return 0;
+  });
 
   root().innerHTML = `
     <div class="hub">
       ${renderTopbar()}
       <div class="hub-main">
         <div class="panel">
-          <h2>Roster</h2>
-          <div class="roster-grid">
-            ${state.party.map(id => renderRosterCard(id, true)).join('')}
+          <div class="roster-head">
+            <h2>Roster</h2>
+            <div class="roster-meta">${state.unlockedClasses.length} unlocked / ${data.classes.classes.length} total</div>
           </div>
+          <div class="roster-grid">
+            ${rosterIds.map(id => renderRosterCard(id, partySet.has(id))).join('')}
+          </div>
+          ${nextUnlock ? `
+            <div class="next-unlock">
+              <span class="lbl">Next unlock:</span>
+              <b>${data.classesById[nextUnlock.classId]?.displayName ?? nextUnlock.classId}</b>
+              <span class="lbl">at floor ${nextUnlock.floor}</span>
+            </div>
+          ` : ''}
         </div>
         <div class="panel">
           <h2>Party Formation</h2>
@@ -39,7 +61,8 @@ export function showHub() {
             <div class="party-row">${[0,1,2].map(i => renderPartySlot(state.party[i])).join('')}</div>
           </div>
           <div style="font-size: 11px; color: var(--ink-muted); margin-top: 8px; font-family: var(--mono);">
-            Top row = Back. Bottom row = Front. Slots 0–2 are Front (take hits).
+            Top row = Back. Bottom row = Front. Slots 0–2 are Front (take hits).<br>
+            Click a roster card to manage equipment and party membership.
           </div>
         </div>
       </div>
@@ -47,7 +70,7 @@ export function showHub() {
         <div class="dungeon-list">
           <button class="dungeon-btn active">
             <div class="name">${dungeon.name}</div>
-            <div class="meta">Highest floor: ${state.dungeons.iron_vaults?.highestFloor ?? 0} · Drops: armor</div>
+            <div class="meta">Highest floor: ${highest} · Drops: armor</div>
           </button>
           <button class="dungeon-btn" disabled><div class="name">Whispering Spires</div><div class="meta">Locked (M2)</div></button>
           <button class="dungeon-btn" disabled><div class="name">Hollowed Wilds</div><div class="meta">Locked (M2)</div></button>
@@ -145,6 +168,10 @@ export function showUnitDetail(classId) {
   const totalStats = computeUnitStats(cls, unit);
   const sortedStash = state.sharedStash.slice().sort((a, b) => (b.qualityScore ?? 0) - (a.qualityScore ?? 0));
 
+  const inParty = isInParty(classId);
+  const party = state.party;
+  const fullParty = party.length >= 6;
+
   root().innerHTML = `
     <div class="hub">
       ${renderTopbar()}
@@ -159,6 +186,9 @@ export function showUnitDetail(classId) {
             <div class="detail-stats">
               ${STAT_KEYS.map(s => `<div class="stat"><span class="k">${STAT_LABEL[s]}</span><b>${Math.round(totalStats[s])}</b></div>`).join('')}
             </div>
+          </div>
+          <div class="party-controls">
+            ${renderPartyControls(classId, inParty, fullParty, party)}
           </div>
           <div class="paper-doll">
             <div class="row">${SLOT_LAYOUT_TOP.map(s => renderEquipSlot(s, unit.equipment[s])).join('')}</div>
@@ -184,6 +214,28 @@ export function showUnitDetail(classId) {
     </div>
   `;
   bindUnitDetail(classId);
+}
+
+function renderPartyControls(classId, inParty, fullParty, party) {
+  if (inParty) {
+    const canRemove = party.length > 1;
+    return `
+      <div class="party-state in">In Party</div>
+      <button id="remove-party-btn" ${canRemove ? '' : 'disabled'}>Remove from Party</button>
+    `;
+  }
+  if (!fullParty) {
+    return `
+      <div class="party-state out">On Bench</div>
+      <button id="add-party-btn">Add to Party</button>
+    `;
+  }
+  return `
+    <div class="party-state out">On Bench · party full</div>
+    <div class="swap-grid">
+      ${party.map((id, i) => `<button class="swap-btn" data-slot="${i}">Replace #${i + 1}: ${getData().classesById[id]?.displayName ?? id}</button>`).join('')}
+    </div>
+  `;
 }
 
 function renderEquipSlot(slotId, item) {
@@ -254,6 +306,20 @@ function bindUnitDetail(classId) {
     showUnitDetail(classId);
     if (!n) flash('No upgrades found in stash.');
   });
+
+  // party controls
+  const addBtn = document.getElementById('add-party-btn');
+  if (addBtn) addBtn.addEventListener('click', () => { addToParty(classId); showUnitDetail(classId); });
+  const remBtn = document.getElementById('remove-party-btn');
+  if (remBtn) remBtn.addEventListener('click', () => { removeFromParty(classId); showUnitDetail(classId); });
+  for (const btn of document.querySelectorAll('.swap-btn')) {
+    btn.addEventListener('click', () => {
+      swapPartyAt(Number(btn.dataset.slot), classId);
+      showUnitDetail(classId);
+    });
+  }
+
+  // stash rows
   for (const row of document.querySelectorAll('.stash-row')) {
     const id = row.dataset.item;
     const item = getState().sharedStash.find(s => s.id === id);
@@ -262,15 +328,103 @@ function bindUnitDetail(classId) {
       equipItem(classId, item);
       showUnitDetail(classId);
     });
+    attachItemTooltip(row, () => buildStashTooltip(item, classId));
   }
+
+  // equipped slots
   for (const slot of document.querySelectorAll('.equip-slot:not(.empty):not(.starter)')) {
     slot.style.cursor = 'pointer';
     slot.title = 'Click to unequip';
+    const itemId = slot.dataset.item;
+    const item = Object.values(getState().roster[classId].equipment).find(it => it && it.id === itemId);
     slot.addEventListener('click', () => {
       unequipSlot(classId, slot.dataset.slot);
       showUnitDetail(classId);
     });
+    if (item) attachItemTooltip(slot, () => buildEquippedTooltip(item));
   }
+}
+
+// ============================================================================
+// Tooltip system
+// ============================================================================
+let _tooltipEl = null;
+function tooltipEl() {
+  if (!_tooltipEl) {
+    _tooltipEl = document.createElement('div');
+    _tooltipEl.className = 'tooltip';
+    _tooltipEl.style.display = 'none';
+    document.body.appendChild(_tooltipEl);
+  }
+  return _tooltipEl;
+}
+function attachItemTooltip(target, contentFn) {
+  target.addEventListener('mouseenter', () => {
+    const el = tooltipEl();
+    el.innerHTML = contentFn();
+    el.style.display = 'block';
+  });
+  target.addEventListener('mousemove', (e) => {
+    const el = tooltipEl();
+    const pad = 16;
+    const x = Math.min(window.innerWidth - el.offsetWidth - pad, e.clientX + pad);
+    const y = Math.min(window.innerHeight - el.offsetHeight - pad, e.clientY + pad);
+    el.style.left = x + 'px';
+    el.style.top  = y + 'px';
+  });
+  target.addEventListener('mouseleave', () => {
+    tooltipEl().style.display = 'none';
+  });
+}
+
+function bestSlotForItem(item, unit) {
+  const candidates = slotsForItem(item);
+  let best = candidates[0];
+  let bestScore = currentSlotScore(unit, best);
+  for (const s of candidates.slice(1)) {
+    const score = currentSlotScore(unit, s);
+    if (score < bestScore) { best = s; bestScore = score; }
+  }
+  return best;
+}
+function currentSlotScore(unit, slotId) {
+  const it = unit.equipment[slotId];
+  if (!it || it.isStarter) return -1;
+  return it.qualityScore ?? 0;
+}
+
+function buildStashTooltip(item, classId) {
+  const unit = getState().roster[classId];
+  const slot = bestSlotForItem(item, unit);
+  const cur = unit.equipment[slot];
+  const showStarter = cur && cur.isStarter;
+  const lines = STAT_KEYS.map(s => {
+    const a = (cur && !cur.isStarter) ? (cur.stats[s] ?? 0) : 0;
+    const b = item.stats[s] ?? 0;
+    const diff = b - a;
+    const cls = diff > 0 ? 'up' : diff < 0 ? 'down' : 'eq';
+    const sign = diff > 0 ? '+' : '';
+    return `<div class="t-row"><span>${STAT_LABEL[s]}</span><span class="${cls}">${sign}${diff}</span></div>`;
+  }).join('');
+  return `
+    <div class="t-title r-${item.rarity}">${item.displayName}</div>
+    <div class="t-sub">${item.rarity.toUpperCase()} · target slot: ${SLOT_LABEL[slot] ?? slot}</div>
+    <div class="t-grid">${lines}</div>
+    <div class="t-foot">${showStarter ? 'Replaces starter (no stats lost)' : (cur ? `Replaces ${cur.displayName}` : 'Equips into empty slot')}</div>
+  `;
+}
+
+function buildEquippedTooltip(item) {
+  const lines = STAT_KEYS
+    .filter(s => (item.stats?.[s] ?? 0) > 0)
+    .map(s => `<div class="t-row"><span>${STAT_LABEL[s]}</span><span>+${item.stats[s]}</span></div>`)
+    .join('');
+  return `
+    <div class="t-title r-${item.rarity}">${item.displayName}</div>
+    <div class="t-sub">${item.rarity.toUpperCase()} · Quality ${(item.qualityScore * 100).toFixed(0)}%</div>
+    <div class="t-grid">${lines || '<div class="t-row"><span>(no stat rolls)</span></div>'}</div>
+    <div class="t-foot">Click to unequip → stash</div>
+  `;
 }
 
 function flash(msg) {
@@ -419,10 +573,10 @@ function handleBattleStatus() {
   const b = _activeBattle;
   if (b.status === 'cleared' && !b._handled) {
     b._handled = true;
-    onFloorCleared();
+    setTimeout(() => { if (_activeBattle === b) onFloorCleared(); }, 1100);
   } else if (b.status === 'wiped' && !b._handled) {
     b._handled = true;
-    onWipe();
+    setTimeout(() => { if (_activeBattle === b) onWipe(); }, 800);
   }
 }
 
@@ -451,9 +605,21 @@ function onFloorCleared() {
   const loot = generateItemForDungeon(battle.dungeonId, battle.floor);
   dropItemToStash(loot);
 
+  // class-unlock milestones
+  const newlyUnlocked = processFloorUnlocks(battle.floor);
+  for (const id of newlyUnlocked) {
+    battle.log.push({ type: 'floor', text: `Class unlocked: ${getData().classesById[id]?.displayName ?? id}.`, t: battle.now });
+  }
+
   ds.currentRunFloor = battle.floor + 1;
   persist();
-  showLootCard(loot, () => advanceFloor());
+  showLootCard(loot, () => {
+    if (newlyUnlocked.length) {
+      showClassUnlockCard(newlyUnlocked, () => advanceFloor());
+    } else {
+      advanceFloor();
+    }
+  });
 }
 
 function xpForLevel(level) { return 50 + level * 25; }
@@ -495,6 +661,36 @@ function showLootCard(item, onClose) {
   `;
   stage.appendChild(overlay);
   overlay.querySelector('#loot-continue').addEventListener('click', () => {
+    overlay.remove();
+    onClose();
+  });
+}
+
+function showClassUnlockCard(classIds, onClose) {
+  const data = getData();
+  const stage = document.getElementById('stage');
+  const overlay = document.createElement('div');
+  overlay.className = 'loot-overlay';
+  overlay.innerHTML = `
+    <div class="loot-card r-legendary">
+      <div class="title">CLASS UNLOCKED</div>
+      ${classIds.map(id => {
+        const cls = data.classesById[id];
+        if (!cls) return '';
+        const fam = data.familiesById[cls.family];
+        return `
+          <div class="name r-legendary">${cls.displayName}</div>
+          <div class="lvl">${fam?.name ?? cls.family} · ${cls.tagline}</div>
+        `;
+      }).join('<hr style="border:none;border-top:1px solid var(--ink-muted);margin:14px 0;opacity:0.4">')}
+      <div class="quality" style="margin-top: 16px">Available in your roster. Visit the hub to add to party.</div>
+      <div class="actions">
+        <button id="unlock-continue">Continue ▸</button>
+      </div>
+    </div>
+  `;
+  stage.appendChild(overlay);
+  overlay.querySelector('#unlock-continue').addEventListener('click', () => {
     overlay.remove();
     onClose();
   });

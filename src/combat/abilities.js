@@ -128,6 +128,7 @@ function applyDamage(target, raw, ctx) {
   if (remaining > 0) {
     target.hp = Math.max(0, target.hp - remaining);
     ctx.fx?.push({ type: 'dmg', target, amount: remaining, t: ctx.now });
+    ctx.fx?.push({ type: 'impact', target, t: ctx.now });
     if (target.hp <= 0) {
       target.dead = true;
       ctx.fx?.push({ type: 'death', target, t: ctx.now });

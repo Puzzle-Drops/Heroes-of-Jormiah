@@ -80,6 +80,7 @@ function stepBattle(battle, dt) {
 
   if (battle.enemyUnits.every(e => e.dead)) {
     battle.status = 'cleared';
+    battle.floorClearedT = battle.now;
     battle.log.push({ type: 'floor', text: `Floor ${battle.floor} cleared.`, t: battle.now });
   } else if (battle.playerUnits.every(p => p.dead)) {
     battle.status = 'wiped';
@@ -145,6 +146,7 @@ function castAbility(caster, slot, battle) {
   if (!enemies.some(e => !e.dead)) return;
 
   caster.mp = Math.max(0, caster.mp - (slot.ability.manaCost || 0));
+  caster.lungeT = battle.now;
 
   const ctx = {
     ability: slot.ability,
@@ -204,7 +206,7 @@ function buildPlayerUnit(cls, unit, slotPos) {
     classId: cls.id, displayName: cls.displayName, family: cls.family,
     level: unit.level,
     side: 'player', row: slotPos.row, col: slotPos.col,
-    hp: stats.hp, maxHp: stats.hp,
+    hp: stats.hp, maxHp: stats.hp, displayHp: stats.hp,
     mp: stats.mp, maxMp: stats.mp,
     stats,
     abilities,
@@ -213,7 +215,8 @@ function buildPlayerUnit(cls, unit, slotPos) {
     statuses: {},
     tauntedBy: null,
     dead: false,
-    isEnemy: false
+    isEnemy: false,
+    lungeT: -10
   };
 }
 
@@ -267,7 +270,9 @@ function buildEnemy(template, floor, row, col) {
     statuses: {},
     tauntedBy: null,
     dead: false,
-    isEnemy: true
+    isEnemy: true,
+    displayHp: hp,
+    lungeT: -10
   };
 }
 

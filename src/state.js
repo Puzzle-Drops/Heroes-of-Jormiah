@@ -20,6 +20,20 @@ export function resetSave() {
   return _state;
 }
 
+// Class unlocks earned by clearing a floor. Order matters for "next unlock"
+// hints. Keep additions to this list intentional — designers will tune.
+export const FLOOR_UNLOCKS = [
+  { floor: 3,  classId: 'bard' },
+  { floor: 6,  classId: 'engineer' },
+  { floor: 10, classId: 'druid' },
+  { floor: 15, classId: 'sniper' },
+  { floor: 20, classId: 'necromancer' },
+  { floor: 25, classId: 'crusader' },
+  { floor: 30, classId: 'samurai' },
+  { floor: 40, classId: 'shadowdancer' },
+  { floor: 50, classId: 'paladin' }
+];
+
 function defaultSave(data) {
   const starters = data.starter_classes.verticalSlice_M1.classIds;
   const roster = {};
@@ -28,10 +42,11 @@ function defaultSave(data) {
     if (cls) roster[id] = makeFreshUnit(cls);
   }
   return {
-    saveVersion: 2,
+    saveVersion: 3,
     currencies: { gold: 0, dust: 0, spirit: 0 },
     roster,
     sharedStash: [],
+    unlockedClasses: starters.slice(),
     party: starters.slice(0, 6),
     dungeons: { iron_vaults: { highestFloor: 0, currentRunFloor: null } },
     settings: { speed: 1, autoCast: true }
@@ -44,8 +59,8 @@ function ensureRosterCovers(state, data) {
     if (!state.roster[id]) state.roster[id] = makeFreshUnit(data.classesById[id]);
   }
   if (!state.party || state.party.length === 0) state.party = starters.slice(0, 6);
-  // v0.1 -> v0.2 migration: move per-unit inventories into sharedStash
   if (!Array.isArray(state.sharedStash)) state.sharedStash = [];
+  // v0.1 -> v0.2 migration
   for (const id in state.roster) {
     const u = state.roster[id];
     if (Array.isArray(u.inventory) && u.inventory.length) {
@@ -54,7 +69,11 @@ function ensureRosterCovers(state, data) {
     }
     delete u.inventory;
   }
-  state.saveVersion = 2;
+  // v0.2 -> v0.3 migration: unlockedClasses set
+  if (!Array.isArray(state.unlockedClasses)) {
+    state.unlockedClasses = Object.keys(state.roster);
+  }
+  state.saveVersion = 3;
 }
 
 function makeFreshUnit(cls) {
@@ -142,6 +161,78 @@ export function equipBestByScore(classId) {
     }
   }
   return changes;
+}
+
+// ============================================================================
+// Class unlock + party management
+// ============================================================================
+
+export function isUnlocked(classId)  { return _state.unlockedClasses.includes(classId); }
+export function isInParty(classId)   { return _state.party.includes(classId); }
+export function getBench()           { return _state.unlockedClasses.filter(id => !_state.party.includes(id)); }
+
+export function unlockClass(classId) {
+  if (_state.unlockedClasses.includes(classId)) return false;
+  _state.unlockedClasses.push(classId);
+  if (!_state.roster[classId]) {
+    const cls = _data.classesById[classId];
+    if (cls) _state.roster[classId] = makeFreshUnit(cls);
+  }
+  persist();
+  return true;
+}
+
+// Process unlocks earned by clearing a floor. Returns the list of newly
+// unlocked class ids.
+export function processFloorUnlocks(floor) {
+  const newly = [];
+  for (const u of FLOOR_UNLOCKS) {
+    if (u.floor === floor && !_state.unlockedClasses.includes(u.classId)) {
+      if (unlockClass(u.classId)) newly.push(u.classId);
+    }
+  }
+  return newly;
+}
+
+export function getNextUnlock(currentMaxFloor) {
+  for (const u of FLOOR_UNLOCKS) {
+    if (u.floor > currentMaxFloor && !_state.unlockedClasses.includes(u.classId)) return u;
+  }
+  return null;
+}
+
+export function addToParty(classId) {
+  if (!isUnlocked(classId) || isInParty(classId)) return false;
+  if (_state.party.length >= 6) return false;
+  _state.party.push(classId);
+  persist();
+  return true;
+}
+
+export function removeFromParty(classId) {
+  const idx = _state.party.indexOf(classId);
+  if (idx === -1) return false;
+  if (_state.party.length <= 1) return false;
+  _state.party.splice(idx, 1);
+  persist();
+  return true;
+}
+
+export function swapPartyAt(slotIdx, newClassId) {
+  if (slotIdx < 0 || slotIdx >= _state.party.length) return false;
+  if (!isUnlocked(newClassId)) return false;
+  const existingIdx = _state.party.indexOf(newClassId);
+  if (existingIdx === slotIdx) return false;
+  if (existingIdx !== -1) {
+    // already in party — swap positions
+    const old = _state.party[slotIdx];
+    _state.party[slotIdx] = newClassId;
+    _state.party[existingIdx] = old;
+  } else {
+    _state.party[slotIdx] = newClassId;
+  }
+  persist();
+  return true;
 }
 
 function starterStone(abilityId) {

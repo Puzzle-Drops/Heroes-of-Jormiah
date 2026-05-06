@@ -39,8 +39,8 @@ await page.waitForSelector('#battle-canvas', { timeout: 5000 });
 // Crank speed
 await page.click('.speed-controls button[data-speed="4"]');
 
-// Let combat run
-await new Promise(r => setTimeout(r, 5000));
+// Let combat run (longer to absorb the floor-cleared banner delay)
+await new Promise(r => setTimeout(r, 7000));
 
 // Check log has entries
 const logEntries = await page.$$eval('#log .entry', els => els.length);
@@ -96,6 +96,25 @@ const equippedNonEmpty = await page.$$eval('.equip-slot:not(.empty):not(.starter
 console.log(`equipped non-starter slots: ${equippedNonEmpty}`);
 
 await page.screenshot({ path: 'scripts/smoke_unit_detail.png' });
+
+// Hover the first stash row (if any) to trigger the tooltip, screenshot.
+const firstRow = await page.$('.stash-row');
+if (firstRow) {
+  await firstRow.hover();
+  await new Promise(r => setTimeout(r, 250));
+  const tooltipVisible = await page.evaluate(() => {
+    const el = document.querySelector('.tooltip');
+    return el && el.style.display !== 'none';
+  });
+  console.log(`tooltip visible on hover: ${tooltipVisible}`);
+}
+
+// Hub: verify next-unlock hint shows
+await page.click('#back-btn');
+await page.waitForSelector('.next-unlock', { timeout: 2000 }).catch(() => null);
+const nextUnlock = await page.$eval('.next-unlock b', el => el.textContent).catch(() => null);
+console.log(`next unlock: ${nextUnlock ?? 'none'}`);
+await page.screenshot({ path: 'scripts/smoke_hub.png' });
 
 if (errors.length) {
   console.error('ERRORS:');
