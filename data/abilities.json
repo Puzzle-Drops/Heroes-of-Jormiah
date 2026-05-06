@@ -1,0 +1,66 @@
+{
+  "$comment": "GDD §7 + Appendix A.2. Each ability defines scaling endpoints (min @ stoneLvl 1, max @ stoneLvl 100, linear interp). manaCost is the currently-static per-cast cost; some params don't scale by design (§7.3).",
+  "abilities": {
+    "shield_bash": {
+      "id": "shield_bash",
+      "type": "attack",
+      "school": "physical",
+      "manaCost": 0,
+      "scaling": {
+        "cooldown":      { "min": 2.0,  "max": 1.0 },
+        "abilityPower":  { "min": 0.40, "max": 1.20 },
+        "threatBonus":   { "min": 1.10, "max": 1.50 }
+      },
+      "effects": [
+        { "type": "damage", "targets": "single_enemy_front", "stat": "patk", "powerScalar": "abilityPower" },
+        { "type": "threatMod", "scalar": "threatBonus" }
+      ]
+    },
+
+    "provoke": {
+      "id": "provoke",
+      "type": "spell",
+      "school": "physical",
+      "manaCost": 30,
+      "scaling": {
+        "cooldown":         { "min": 18, "max": 8 },
+        "selfPDefBuffPct":  { "min": 15, "max": 60 },
+        "tauntDuration":    { "min": 3,  "max": 6  }
+      },
+      "effects": [
+        { "type": "taunt", "targets": "single_enemy", "duration": "tauntDuration" },
+        { "type": "buff",  "targets": "self", "stat": "pdef", "amountPct": "selfPDefBuffPct", "duration": "tauntDuration" }
+      ]
+    },
+
+    "shield_wall": {
+      "id": "shield_wall",
+      "type": "spell",
+      "school": "physical",
+      "manaCost": 50,
+      "scaling": {
+        "cooldown":             { "min": 30, "max": 18 },
+        "damageReductionPct":   { "min": 40, "max": 60 },
+        "duration":             { "min": 3,  "max": 4  }
+      },
+      "effects": [
+        { "type": "buff", "targets": "self", "stat": "damageTakenPct", "amountPct": "-damageReductionPct", "duration": "duration" }
+      ]
+    },
+
+    "vigilant_guard": {
+      "id": "vigilant_guard",
+      "type": "passive",
+      "school": "physical",
+      "manaCost": 0,
+      "scaling": {
+        "pdefBonusPct":  { "min": 5,    "max": 25  },
+        "regenOnHitPct": { "min": 0.5,  "max": 2.0 }
+      },
+      "effects": [
+        { "type": "buff",      "targets": "self", "stat": "pdef", "amountPct": "pdefBonusPct", "duration": "permanent" },
+        { "type": "onHitTrigger", "targets": "self", "action": "healPctMax", "amountPct": "regenOnHitPct" }
+      ]
+    }
+  }
+}

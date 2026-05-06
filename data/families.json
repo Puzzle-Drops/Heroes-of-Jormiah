@@ -1,0 +1,13 @@
+{
+  "$comment": "GDD §6.1 — 8 families × 6 classes = 48 total.",
+  "families": [
+    { "id": "tank",     "name": "Tanks",     "identity": "Frontline absorbers — every Tank has Taunt somewhere in its kit", "tag": "Defensive" },
+    { "id": "fighter",  "name": "Fighters",  "identity": "Melee DPS — about half carry brief Taunts",                       "tag": "Bruiser"   },
+    { "id": "healer",   "name": "Healers",   "identity": "Keep the party alive — vary heal volume vs. utility",             "tag": "Support"   },
+    { "id": "marksman", "name": "Marksmen",  "identity": "Ranged physical DPS",                                              "tag": "Damage"    },
+    { "id": "rogue",    "name": "Rogues",    "identity": "Single-target burst, mobility, status effects",                    "tag": "Damage"    },
+    { "id": "magician", "name": "Magicians", "identity": "Pure magical DPS / control",                                       "tag": "Damage"    },
+    { "id": "mystic",   "name": "Mystics",   "identity": "Hybrid utility — buffs, debuffs, totems, anti-magic",              "tag": "Utility"   },
+    { "id": "farlands", "name": "Far Lands", "identity": "Exotic mechanics — pets, traps, RNG, risk/reward",                 "tag": "Wildcard"  }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "$comment": "GDD §9. qualityScore = average of all 6 stats' rollPct. rollPct = stat_value / max_possible (max = itemLevel for non-namesake, 2*itemLevel for namesake).",
+  "qualityScoreFormula": "average(rollPct(stat) for stat in 6_stats)",
+  "rollPctFormula": {
+    "nonNamesake": "stat_value / itemLevel",
+    "namesake": "stat_value / (2 * itemLevel)"
+  },
+  "tiers": [
+    { "id": "rusted",    "minScore": 0.00, "color": "#6b6b78", "treatment": "muted gray, slight noise texture" },
+    { "id": "common",    "minScore": 0.20, "color": "#e4e4e7", "treatment": "clean white card" },
+    { "id": "rare",      "minScore": 0.40, "color": "#3b82f6", "treatment": "subtle blue glow" },
+    { "id": "epic",      "minScore": 0.60, "color": "#a855f7", "treatment": "purple glow + gradient border" },
+    { "id": "mythic",    "minScore": 0.80, "color": "#ec4899", "treatment": "animated pink shimmer" },
+    { "id": "legendary", "minScore": 0.90, "color": "#f59e0b", "treatment": "gold shimmer + particle drift" },
+    { "id": "radiant",   "minScore": 0.95, "color": "rainbow", "treatment": "animated holographic gradient + screen flash on drop" }
+  ],
+  "dropFeedback": {
+    "radiant": "screen-wide flash + slow-motion zoom on the loot card"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "$comment": "GDD §6.3 + Appendix A.1. Roster of all 48 classes, 8 families × 6 classes. Pass 1 contains Knight only as reference; pass 2 will fill the remaining 47.",
+  "classes": [
+    {
+      "id": "knight",
+      "family": "tank",
+      "displayName": "Knight",
+      "tagline": "plate, sword & board, classic protector",
+      "statFocus": ["hp", "pdef"],
+      "baseStats":     { "hp": 120, "mp": 40, "patk": 18,  "matk": 6,   "pdef": 22,  "mdef": 12  },
+      "perLevelStats": { "hp": 18,  "mp": 4,  "patk": 2.0, "matk": 0.5, "pdef": 3.0, "mdef": 1.5 },
+      "abilities": {
+        "attack":  "shield_bash",
+        "spell1":  "provoke",
+        "spell2":  "shield_wall",
+        "passive": "vigilant_guard"
+      }
+    }
+  ]
+}

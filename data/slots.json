@@ -1,0 +1,26 @@
+{
+  "$comment": "GDD §8.1. 13 equipment slots per unit.",
+  "slots": [
+    { "id": "weapon",       "category": "weapon",   "source": "hollowed_wilds",   "namesakeWeights": "any" },
+    { "id": "helm",         "category": "armor",    "source": "iron_vaults",      "namesakeWeights": ["hp", "pdef", "mdef"] },
+    { "id": "chest",        "category": "armor",    "source": "iron_vaults",      "namesakeWeights": ["hp", "pdef", "mdef"] },
+    { "id": "legs",         "category": "armor",    "source": "iron_vaults",      "namesakeWeights": ["hp", "pdef", "mdef"] },
+    { "id": "gloves",       "category": "armor",    "source": "iron_vaults",      "namesakeWeights": ["hp", "pdef", "mdef"] },
+    { "id": "boots",        "category": "armor",    "source": "iron_vaults",      "namesakeWeights": ["hp", "pdef", "mdef"] },
+    { "id": "ring1",        "category": "jewelry",  "source": "whispering_spires", "namesakeWeights": ["patk", "matk", "mp", "hp"] },
+    { "id": "ring2",        "category": "jewelry",  "source": "whispering_spires", "namesakeWeights": ["patk", "matk", "mp", "hp"] },
+    { "id": "amulet",       "category": "jewelry",  "source": "whispering_spires", "namesakeWeights": ["patk", "matk", "mp", "hp"] },
+    { "id": "stone_attack", "category": "stone",    "source": "shattered_spire",  "drives": "ability.attack"  },
+    { "id": "stone_spell1", "category": "stone",    "source": "shattered_spire",  "drives": "ability.spell1"  },
+    { "id": "stone_spell2", "category": "stone",    "source": "shattered_spire",  "drives": "ability.spell2"  },
+    { "id": "stone_passive","category": "stone",    "source": "shattered_spire",  "drives": "ability.passive" }
+  ],
+  "itemGeneration": {
+    "$comment": "GDD §8.2",
+    "itemLevel": "= floor it dropped on",
+    "nonNamesakeRollRange": [0, "itemLevel"],
+    "namesakeRollRange":    [0, "2 * itemLevel"],
+    "stoneAbilityLevelCap": 100,
+    "stoneStatLevelUncapped": true
+  }
+}
