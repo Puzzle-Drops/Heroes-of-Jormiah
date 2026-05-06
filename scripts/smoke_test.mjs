@@ -97,16 +97,32 @@ console.log(`equipped non-starter slots: ${equippedNonEmpty}`);
 
 await page.screenshot({ path: 'scripts/smoke_unit_detail.png' });
 
-// Hover the first stash row (if any) to trigger the tooltip, screenshot.
-const firstRow = await page.$('.stash-row');
-if (firstRow) {
-  await firstRow.hover();
-  await new Promise(r => setTimeout(r, 250));
-  const tooltipVisible = await page.evaluate(() => {
+// Hover the first ability chip → expect tooltip with humanized effect text.
+const chip = await page.$('.ability-chip');
+if (chip) {
+  await chip.hover();
+  await new Promise(r => setTimeout(r, 350));
+  const text = await page.evaluate(() => {
     const el = document.querySelector('.tooltip');
-    return el && el.style.display !== 'none';
+    return el && el.style.display !== 'none' ? el.textContent : '';
   });
-  console.log(`tooltip visible on hover: ${tooltipVisible}`);
+  console.log(`ability tooltip text length: ${text.length}`);
+  if (!text || !/EFFECTS/i.test(text)) throw new Error(`expected EFFECTS in ability tooltip, got: ${text.slice(0,200)}`);
+  await page.screenshot({ path: 'scripts/smoke_ability_tooltip.png' });
+}
+
+// Move mouse away to clear, then hover a stat label → expect base/level/gear breakdown.
+await page.mouse.move(0, 0);
+await new Promise(r => setTimeout(r, 150));
+const statLabel = await page.$('.detail-stats .stat[data-stat="hp"]');
+if (statLabel) {
+  await statLabel.hover();
+  await new Promise(r => setTimeout(r, 350));
+  const text = await page.evaluate(() => {
+    const el = document.querySelector('.tooltip');
+    return el && el.style.display !== 'none' ? el.textContent : '';
+  });
+  if (!/Health/.test(text) || !/Base/.test(text)) throw new Error(`expected stat tooltip, got: ${text.slice(0,200)}`);
 }
 
 // Hub: verify next-unlock hint shows

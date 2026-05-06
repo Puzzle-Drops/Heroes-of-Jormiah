@@ -8,6 +8,9 @@ import { createBattle, tickBattle, reviveSurvivors } from './combat/engine.js';
 import { generateItemForDungeon } from './combat/loot.js';
 import { renderBattle, placeUnits, preloadBattleSprites } from './render.js';
 import { preloadClassSprites } from './sprites.js';
+import { attachTooltip, hideTooltip } from './tooltip.js';
+import { humanizeEffect, prettyAbility, statLabel, humanizeScalingKey, formatScalingValue } from './humanize.js';
+import { scaleParam } from './combat/formulas.js';
 
 const root = () => document.getElementById('app');
 
@@ -19,6 +22,7 @@ let _lastFrame = 0;
 // HUB SCREEN
 // ============================================================================
 export function showHub() {
+  hideTooltip();
   stopBattle();
   const data = getData();
   const state = getState();
@@ -122,7 +126,7 @@ function renderPartySlot(classId) {
   const cls = data.classesById[classId];
   if (!cls) return `<div class="party-slot empty">unknown</div>`;
   return `
-    <div class="party-slot">
+    <div class="party-slot" data-class="${classId}">
       <div>${cls.displayName}</div>
       <div class="role">${cls.tagline}</div>
     </div>
@@ -138,10 +142,14 @@ function bindHub() {
     }
   });
   for (const card of document.querySelectorAll('.roster-card[data-class]')) {
-    card.addEventListener('click', () => showUnitDetail(card.dataset.class));
+    const id = card.dataset.class;
+    card.addEventListener('click', () => showUnitDetail(id));
+    attachTooltip(card, () => buildClassTooltip(id));
   }
-  const stashBtn = document.getElementById('stash-btn');
-  if (stashBtn) stashBtn.addEventListener('click', () => showUnitDetail(getState().party[0]));
+  for (const slot of document.querySelectorAll('.party-slot[data-class]')) {
+    const id = slot.dataset.class;
+    attachTooltip(slot, () => buildClassTooltip(id));
+  }
 }
 
 // ============================================================================
@@ -158,6 +166,7 @@ const SLOT_LABEL = {
 };
 
 export function showUnitDetail(classId) {
+  hideTooltip();
   stopBattle();
   const data = getData();
   const state = getState();
@@ -184,7 +193,7 @@ export function showUnitDetail(classId) {
               <div class="sub">${data.familiesById[cls.family]?.name ?? cls.family} · ${cls.tagline}</div>
             </div>
             <div class="detail-stats">
-              ${STAT_KEYS.map(s => `<div class="stat"><span class="k">${STAT_LABEL[s]}</span><b>${Math.round(totalStats[s])}</b></div>`).join('')}
+              ${STAT_KEYS.map(s => `<div class="stat" data-stat="${s}"><span class="k">${STAT_LABEL[s]}</span><b>${Math.round(totalStats[s])}</b></div>`).join('')}
             </div>
           </div>
           <div class="party-controls">
@@ -258,7 +267,7 @@ function renderAbilityChip(cls, unit, slot) {
   const stoneItem = unit.equipment[`stone_${slot}`];
   const lvl = stoneItem?.abilityLevel ?? 0;
   return `
-    <div class="ability-chip">
+    <div class="ability-chip" data-slot-key="${slot}">
       <div class="chip-slot">${slot.toUpperCase()}</div>
       <div class="chip-name">${prettyAbility(aId)}</div>
       <div class="chip-lvl">stone L${lvl}</div>
@@ -284,8 +293,6 @@ function itemStatsLine(item) {
     .map(s => `<span>${STAT_LABEL[s]} +${item.stats[s]}</span>`)
     .join(' ');
 }
-
-function prettyAbility(id) { return id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); }
 
 function computeUnitStats(cls, unit) {
   const out = {};
@@ -328,7 +335,7 @@ function bindUnitDetail(classId) {
       equipItem(classId, item);
       showUnitDetail(classId);
     });
-    attachItemTooltip(row, () => buildStashTooltip(item, classId));
+    attachTooltip(row, () => buildStashTooltip(item, classId));
   }
 
   // equipped slots
@@ -341,40 +348,18 @@ function bindUnitDetail(classId) {
       unequipSlot(classId, slot.dataset.slot);
       showUnitDetail(classId);
     });
-    if (item) attachItemTooltip(slot, () => buildEquippedTooltip(item));
+    if (item) attachTooltip(slot, () => buildEquippedTooltip(item));
   }
-}
 
-// ============================================================================
-// Tooltip system
-// ============================================================================
-let _tooltipEl = null;
-function tooltipEl() {
-  if (!_tooltipEl) {
-    _tooltipEl = document.createElement('div');
-    _tooltipEl.className = 'tooltip';
-    _tooltipEl.style.display = 'none';
-    document.body.appendChild(_tooltipEl);
+  // ability chips
+  for (const chip of document.querySelectorAll('.ability-chip[data-slot-key]')) {
+    attachTooltip(chip, () => buildAbilityTooltip(classId, chip.dataset.slotKey));
   }
-  return _tooltipEl;
-}
-function attachItemTooltip(target, contentFn) {
-  target.addEventListener('mouseenter', () => {
-    const el = tooltipEl();
-    el.innerHTML = contentFn();
-    el.style.display = 'block';
-  });
-  target.addEventListener('mousemove', (e) => {
-    const el = tooltipEl();
-    const pad = 16;
-    const x = Math.min(window.innerWidth - el.offsetWidth - pad, e.clientX + pad);
-    const y = Math.min(window.innerHeight - el.offsetHeight - pad, e.clientY + pad);
-    el.style.left = x + 'px';
-    el.style.top  = y + 'px';
-  });
-  target.addEventListener('mouseleave', () => {
-    tooltipEl().style.display = 'none';
-  });
+
+  // detail-stats — base/per-level breakdown
+  for (const stat of document.querySelectorAll('.detail-stats .stat[data-stat]')) {
+    attachTooltip(stat, () => buildStatTooltip(classId, stat.dataset.stat));
+  }
 }
 
 function bestSlotForItem(item, unit) {
@@ -424,6 +409,109 @@ function buildEquippedTooltip(item) {
     <div class="t-sub">${item.rarity.toUpperCase()} · Quality ${(item.qualityScore * 100).toFixed(0)}%</div>
     <div class="t-grid">${lines || '<div class="t-row"><span>(no stat rolls)</span></div>'}</div>
     <div class="t-foot">Click to unequip → stash</div>
+  `;
+}
+
+// ============================================================================
+// Ability / class / stat tooltip builders
+// ============================================================================
+
+const STAT_HELP = {
+  hp:   ['Health', 'Pool of damage you can absorb. 0 HP = downed.'],
+  mp:   ['Mana', 'Spell currency. Regenerates at 5%/sec in combat.'],
+  patk: ['Physical Attack', 'Scales physical damage abilities.'],
+  matk: ['Magical Attack', 'Scales magical damage abilities.'],
+  pdef: ['Physical Defense', 'Reduces physical damage taken.'],
+  mdef: ['Magical Defense', 'Reduces magical damage taken.']
+};
+
+function buildStatTooltip(classId, stat) {
+  const data = getData();
+  const cls = data.classesById[classId];
+  const unit = getState().roster[classId];
+  const base = cls.baseStats[stat] ?? 0;
+  const perLvl = cls.perLevelStats[stat] ?? 0;
+  const fromLevel = perLvl * (unit.level - 1);
+  const fromGear = STAT_KEYS.reduce((acc, _) => acc, 0); // placeholder
+  let gear = 0;
+  for (const slotId in unit.equipment) {
+    const it = unit.equipment[slotId];
+    if (it && it.stats) gear += it.stats[stat] ?? 0;
+  }
+  const total = base + fromLevel + gear;
+  const help = STAT_HELP[stat] ?? [STAT_LABEL[stat], ''];
+  return `
+    <div class="t-title">${help[0]}</div>
+    <div class="t-sub">${STAT_LABEL[stat]} · total <b>${Math.round(total)}</b></div>
+    ${help[1] ? `<div class="t-desc">${help[1]}</div>` : ''}
+    <div class="t-grid">
+      <div class="t-row"><span>Base</span><span>${base}</span></div>
+      <div class="t-row"><span>From level (${unit.level - 1} × ${perLvl})</span><span>${fromLevel.toFixed(1)}</span></div>
+      <div class="t-row"><span>From gear</span><span>${gear}</span></div>
+    </div>
+  `;
+}
+
+function buildAbilityTooltip(classId, slotKey) {
+  const data = getData();
+  const cls = data.classesById[classId];
+  const unit = getState().roster[classId];
+  const abilityId = cls.abilities[slotKey];
+  const ability = data.abilitiesById[abilityId];
+  if (!ability) return `<div class="t-title">${prettyAbility(abilityId)}</div>`;
+  const stoneItem = unit.equipment[`stone_${slotKey}`];
+  const stoneLevel = stoneItem?.abilityLevel ?? 1;
+  const isStarter = !!stoneItem?.isStarter;
+
+  const scalingRows = Object.entries(ability.scaling || {})
+    .map(([k, ep]) => {
+      const cur = scaleParam(ability.scaling, k, stoneLevel);
+      const min = ep.min, max = ep.max;
+      const same = min === max;
+      return `<div class="t-row">
+        <span>${humanizeScalingKey(k)}</span>
+        <span><b>${formatScalingValue(k, cur)}</b>${same ? '' : ` <span class="dim">(${formatScalingValue(k, min)}→${formatScalingValue(k, max)})</span>`}</span>
+      </div>`;
+    }).join('');
+
+  const effectsList = ability.effects
+    .map(e => `<li>${humanizeEffect(e, ability, stoneLevel)}</li>`)
+    .join('');
+
+  const slotLabels = { attack: 'ATTACK', spell1: 'SPELL I', spell2: 'SPELL II', passive: 'PASSIVE' };
+  const meta = [
+    slotLabels[slotKey],
+    ability.school,
+    ability.type === 'passive' ? null : (ability.manaCost > 0 ? `${ability.manaCost} MP` : 'no cost')
+  ].filter(Boolean).join(' · ');
+
+  return `
+    <div class="t-title">${prettyAbility(abilityId)}</div>
+    <div class="t-sub">${meta}</div>
+    ${scalingRows ? `<div class="t-section">SCALING (stone L${stoneLevel}${isStarter ? ' · starter' : ''})</div><div class="t-grid">${scalingRows}</div>` : ''}
+    <div class="t-section">EFFECTS</div>
+    <ul class="t-effects">${effectsList}</ul>
+  `;
+}
+
+function buildClassTooltip(classId) {
+  const data = getData();
+  const cls = data.classesById[classId];
+  if (!cls) return '';
+  const unit = getState().roster[classId];
+  const fam = data.familiesById[cls.family];
+  const inParty = isInParty(classId);
+  const slotLabels = { attack: 'Attack', spell1: 'Spell I', spell2: 'Spell II', passive: 'Passive' };
+  const abilities = ['attack', 'spell1', 'spell2', 'passive'].map(s =>
+    `<div class="t-row"><span>${slotLabels[s]}</span><span>${prettyAbility(cls.abilities[s])}</span></div>`
+  ).join('');
+  return `
+    <div class="t-title">${cls.displayName}</div>
+    <div class="t-sub">${fam?.name ?? cls.family} · ${cls.statFocus.map(s => STAT_LABEL[s]).join(' / ')}</div>
+    <div class="t-desc">${cls.tagline}.</div>
+    <div class="t-section">ABILITIES</div>
+    <div class="t-grid">${abilities}</div>
+    ${unit ? `<div class="t-foot">Lvl ${unit.level} · ${inParty ? 'In party' : 'On bench'}</div>` : ''}
   `;
 }
 

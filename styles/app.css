@@ -313,6 +313,17 @@ button:disabled:hover { background: var(--bg-panel-hi); color: var(--ink); }
 .tooltip .t-row .down { color: #d63b3b; font-weight: 600; }
 .tooltip .t-row .eq   { color: var(--ink-muted); }
 .tooltip .t-foot { font-family: var(--body); font-size: 10px; color: var(--ink-muted); margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(200,152,96,0.2); }
+.tooltip .t-desc { font-family: var(--body); font-size: 11px; color: var(--ink); margin: 6px 0 8px; line-height: 1.4; }
+.tooltip .t-section { font-family: var(--mono); font-size: 9px; color: var(--brass); letter-spacing: 1.5px; margin: 10px 0 4px; padding-top: 6px; border-top: 1px solid rgba(200,152,96,0.15); }
+.tooltip .t-effects { list-style: none; padding-left: 0; margin: 4px 0; font-size: 11px; line-height: 1.5; }
+.tooltip .t-effects li { padding-left: 12px; position: relative; color: var(--ink); }
+.tooltip .t-effects li::before { content: '▸'; position: absolute; left: 0; color: var(--brass); }
+.tooltip .dim { color: var(--ink-muted); font-weight: 400; }
+.tooltip .t-grid { display: grid; grid-template-columns: 1fr auto; gap: 3px 14px; }
+.detail-stats .stat { cursor: help; }
+.ability-chip { cursor: help; }
+.party-slot[data-class] { cursor: help; }
+.roster-card { cursor: pointer; }
 
 .toast {
   position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
