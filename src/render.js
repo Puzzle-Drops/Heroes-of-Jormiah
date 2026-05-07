@@ -43,8 +43,11 @@ export function renderBattle(ctx, battle, canvasW, canvasH, time) {
   ctx.clearRect(0, 0, canvasW, canvasH);
   drawBackground(ctx, canvasW, canvasH);
 
-  // smooth HP interpolation toward actual hp
+  // Ensure every unit (including mid-battle summons) has a screen position.
   const all = [...battle.playerUnits, ...battle.enemyUnits];
+  if (all.some(u => !u.screen)) placeUnits(battle, canvasW, canvasH);
+
+  // smooth HP interpolation toward actual hp
   for (const u of all) {
     if (typeof u.displayHp !== 'number') u.displayHp = u.hp;
     const lerp = 0.18;

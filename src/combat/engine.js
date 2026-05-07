@@ -153,6 +153,7 @@ export function tickBattle(battle, realDt) {
 
 function stepBattle(battle, dt) {
   battle.now += dt;
+  tickSummonExpiry(battle);
   for (const u of [...battle.playerUnits, ...battle.enemyUnits]) {
     if (u.dead) continue;
     pruneExpired(u, battle.now);
@@ -352,6 +353,138 @@ function computeStats(cls, level, equipment, allocatedNodes) {
   }
   if (allocatedNodes && allocatedNodes.length) out = applyTreeToBaseStats(allocatedNodes, out);
   return out;
+}
+
+// ============================================================================
+// Summoned entities — pets, deployables, totems, traps, illusions, skeletons.
+// Each is a first-class unit added to battle.playerUnits / enemyUnits with
+// isMinion=true and an expiresAt timestamp. Engine prunes expired ones each
+// tick. Positions are picked from free formation slots; if none free, the
+// minion sits in the back row at a high col index.
+// ============================================================================
+const SUMMON_ATTACK_PHYS = {
+  type: 'attack', school: 'physical', manaCost: 0,
+  scaling: { cooldown: { min: 2.0, max: 1.0 }, abilityPower: { min: 0.6, max: 0.6 } },
+  effects: [{ type: 'damage', targets: 'single_enemy_front', stat: 'patk', powerScalar: 'abilityPower' }]
+};
+const SUMMON_ATTACK_MAG = {
+  type: 'attack', school: 'magical', manaCost: 0,
+  scaling: { cooldown: { min: 2.5, max: 1.5 }, abilityPower: { min: 0.5, max: 0.5 } },
+  effects: [{ type: 'damage', targets: 'single_enemy', stat: 'matk', powerScalar: 'abilityPower' }]
+};
+
+export function buildSummon(owner, battle, opts = {}) {
+  const statScale = (opts.statScalePct ?? 30) / 100;
+  const ownerHp = (owner.maxHp ?? 80);
+  const hp = Math.max(8, Math.round(ownerHp * statScale * (opts.hpMul ?? 1)));
+  const stats = {
+    hp,
+    mp: 0,
+    patk: Math.round((owner.stats?.patk ?? 8) * statScale),
+    matk: Math.round((owner.stats?.matk ?? 8) * statScale),
+    pdef: Math.round((owner.stats?.pdef ?? 8) * statScale),
+    mdef: Math.round((owner.stats?.mdef ?? 8) * statScale)
+  };
+  const pos = pickFreeSlot(battle, owner.side === 'player' ? 'player' : 'enemy', opts.preferredRow ?? 'back');
+  const attackTpl = opts.school === 'magical' ? SUMMON_ATTACK_MAG : SUMMON_ATTACK_PHYS;
+  return {
+    classId: null,
+    displayName: opts.name ?? 'Minion',
+    family: opts.family ?? 'minion',
+    kind: opts.kind ?? 'minion',
+    level: owner.level ?? 1,
+    side: owner.side,
+    row: pos.row, col: pos.col,
+    hp, maxHp: hp, mp: 0, maxMp: 0,
+    stats,
+    abilities: { attack: { id: 'summon_attack', ability: attackTpl, stoneLevel: Math.min(100, (owner.level ?? 1) + 5), cooldown: 0 } },
+    buffs: [], hots: [], regen: [],
+    dots: [], shields: [], marks: [],
+    statuses: {},
+    tauntedBy: null,
+    dead: false,
+    isEnemy: owner.side === 'enemy',
+    isMinion: true,
+    minionOwner: owner,
+    expiresAt: opts.duration ? battle.now + opts.duration : Infinity,
+    immobile: !!opts.immobile,
+    auraSpec: opts.auraSpec ?? null,
+    trapSpec: opts.trapSpec ?? null,
+    illusion: !!opts.illusion,
+    onHitTakenHandlers: [], onKillHandlers: [], onDodgeHandlers: [],
+    onHealHandlers: [], onParryHandlers: [], onHotCompleteHandlers: [],
+    onMinionDeathHandlers: [], onPartyHitHandlers: [],
+    dynamicBuffSpecs: [],
+    castedThisFight: 0,
+    resources: { rage: 0, combo: 0, charges: 0 },
+    songs: [], channelState: null, auras: [],
+    nextHitMods: [], deathSavesUsed: 0,
+    displayHp: hp,
+    lungeT: -10
+  };
+}
+
+// Pick the first free formation slot for a side, preferring back rows so
+// summons cluster behind the owner. Falls back to a back-row overflow column
+// past the standard 0-2 layout if all 6 are taken.
+function pickFreeSlot(battle, side, preferredRow = 'back') {
+  const list = side === 'player' ? battle.playerUnits : battle.enemyUnits;
+  const taken = new Set(list.filter(u => !u.dead).map(u => `${u.row}:${u.col}`));
+  const order = preferredRow === 'back'
+    ? [['back', 1], ['back', 0], ['back', 2], ['front', 0], ['front', 2], ['front', 1]]
+    : [['front', 0], ['front', 2], ['front', 1], ['back', 1], ['back', 0], ['back', 2]];
+  for (const [row, col] of order) if (!taken.has(`${row}:${col}`)) return { row, col };
+  return { row: 'back', col: 3 + list.length }; // overflow
+}
+
+export function tickSummonExpiry(battle) {
+  const now = battle.now;
+  for (const list of [battle.playerUnits, battle.enemyUnits]) {
+    for (const u of list) {
+      if (u.dead || !u.isMinion) continue;
+      if (u.expiresAt && now >= u.expiresAt) {
+        u.dead = true;
+        battle.fx?.push({ type: 'death', target: u, t: now });
+      }
+      // Trap arming + trigger.
+      if (u.trapSpec) tickTrap(u, battle);
+    }
+  }
+}
+
+function tickTrap(trap, battle) {
+  const spec = trap.trapSpec;
+  if (!spec) return;
+  if (battle.now < spec.armedAt) return;
+  // Once armed, the trap fires when any enemy is in front row of the opposing side.
+  const enemies = trap.side === 'player' ? battle.enemyUnits : battle.playerUnits;
+  const aliveFront = enemies.filter(e => !e.dead && e.row === 'front');
+  if (!aliveFront.length) return;
+  // Detonate: damage the front line then mark dead so it gets cleaned up.
+  const ctx = {
+    ability: spec.ability,
+    caster: trap.minionOwner ?? trap,
+    allies: trap.side === 'player' ? battle.playerUnits : battle.enemyUnits,
+    enemies,
+    stoneLevel: spec.stoneLevel,
+    floor: battle.floor,
+    now: battle.now,
+    fx: battle.fx,
+    battle,
+    onKill: battle.onKill,
+    killsThisCast: 0
+  };
+  const handler = getHandler('damage');
+  if (handler) {
+    handler({
+      type: 'damage',
+      targets: 'all_enemies',
+      stat: 'patk',
+      powerScalar: spec.powerScalar
+    }, ctx);
+  }
+  trap.dead = true;
+  battle.fx?.push({ type: 'death', target: trap, t: battle.now });
 }
 
 // ============================================================================

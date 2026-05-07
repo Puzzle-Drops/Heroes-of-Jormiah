@@ -1,4 +1,5 @@
 import * as F from './formulas.js';
+import { buildSummon } from './engine.js';
 
 // Effect handler registry. Unknown effect types log once and no-op so the
 // engine can grow safely as handlers land.
@@ -940,8 +941,187 @@ const HANDLERS = {
     if (handler) handler(innerEffect, ctx);
   },
 
-  signalPets() { /* no-op until summon system lands */ },
-  consumeCorpse() { /* no-op until corpse system lands */ },
+  // ----- summons -----
+  summonPet(effect, ctx) {
+    const dur = scalar(effect.duration ?? 8, ctx.ability, ctx.stoneLevel);
+    const scale = scalar(effect.statScalePct ?? 50, ctx.ability, ctx.stoneLevel);
+    const auto = effect.auto ?? 'attack';
+    const tauntDur = scalar(effect.tauntDuration ?? 0, ctx.ability, ctx.stoneLevel);
+    const minion = buildSummon(ctx.caster, ctx.battle, {
+      name: effect.kind === 'bear' ? 'Bear' : (effect.kind ?? 'Pet'),
+      kind: effect.kind ?? 'pet',
+      duration: dur,
+      statScalePct: scale,
+      hpMul: 1.2,
+      preferredRow: 'front'
+    });
+    ctx.battle.enemyUnits === undefined; // no-op guard
+    if (ctx.caster.side === 'player') ctx.battle.playerUnits.push(minion);
+    else ctx.battle.enemyUnits.push(minion);
+    // Bear with taunt: apply a brief taunt aura on the bear vs front enemies.
+    if (auto === 'taunt' && tauntDur > 0) {
+      const enemies = ctx.caster.side === 'player' ? ctx.battle.enemyUnits : ctx.battle.playerUnits;
+      for (const e of alive(enemies).filter(e => e.row === 'front')) {
+        e.tauntedBy = { caster: minion, expires: ctx.now + tauntDur };
+      }
+    }
+  },
+
+  summonPersistent(effect, ctx) {
+    // Hunter's Loyal Beast — a permanent companion in the fight. Same as a
+    // long-duration pet.
+    HANDLERS.summonPet({ ...effect, duration: 9999 }, ctx);
+  },
+
+  summonGroup(effect, ctx) {
+    const count = Math.max(1, Math.round(scalar(effect.count ?? 3, ctx.ability, ctx.stoneLevel)));
+    const dur = scalar(effect.duration ?? 6, ctx.ability, ctx.stoneLevel);
+    const scale = scalar(effect.statScalePct ?? 30, ctx.ability, ctx.stoneLevel);
+    for (let i = 0; i < count; i++) {
+      const minion = buildSummon(ctx.caster, ctx.battle, {
+        name: effect.kind === 'wolves' ? 'Wolf' : 'Companion',
+        kind: 'pack',
+        duration: dur,
+        statScalePct: scale,
+        preferredRow: 'front'
+      });
+      if (ctx.caster.side === 'player') ctx.battle.playerUnits.push(minion);
+      else ctx.battle.enemyUnits.push(minion);
+    }
+  },
+
+  summonAttack(effect, ctx) {
+    // Hunter's Beast Strike — pet attacks for fixed damage immediately.
+    const power = scalar(effect.powerScalar ?? 0.6, ctx.ability, ctx.stoneLevel);
+    const stat = effect.stat ?? 'patk';
+    const targets = resolveTargets(effect.targets ?? 'single_enemy', ctx);
+    const atk = effectiveStat(ctx.caster, stat, ctx.now);
+    for (const t of targets) {
+      const def = effectiveStat(t, stat === 'matk' ? 'mdef' : 'pdef', ctx.now);
+      applyDamage(t, F.damage(power, atk, def, ctx.floor), ctx);
+    }
+  },
+
+  summonClone(effect, ctx) {
+    // Shadowdancer's Shadow Clone — mirror caster's basic attack for X seconds.
+    const dur = scalar(effect.duration ?? 4, ctx.ability, ctx.stoneLevel);
+    const scale = scalar(effect.damagePct ?? 60, ctx.ability, ctx.stoneLevel);
+    const minion = buildSummon(ctx.caster, ctx.battle, {
+      name: 'Shadow Clone',
+      kind: 'clone',
+      duration: dur,
+      statScalePct: scale,
+      preferredRow: ctx.caster.row
+    });
+    if (ctx.caster.side === 'player') ctx.battle.playerUnits.push(minion);
+    else ctx.battle.enemyUnits.push(minion);
+  },
+
+  summonDeployable(effect, ctx) {
+    // Engineer's Deploy Turret — immobile auto-attacker.
+    const dur = scalar(effect.duration ?? 12, ctx.ability, ctx.stoneLevel);
+    const power = scalar(effect.powerScalar ?? 0.4, ctx.ability, ctx.stoneLevel);
+    const minion = buildSummon(ctx.caster, ctx.battle, {
+      name: effect.kind === 'turret' ? 'Turret' : 'Deployable',
+      kind: 'deployable',
+      duration: dur,
+      statScalePct: power * 100,
+      preferredRow: 'back',
+      immobile: true
+    });
+    if (ctx.caster.side === 'player') ctx.battle.playerUnits.push(minion);
+    else ctx.battle.enemyUnits.push(minion);
+  },
+
+  summonIllusions(effect, ctx) {
+    // Sandwalker's Mirage — illusory copies that absorb hits via auto-dodge charges
+    // on the caster.
+    const count = Math.max(1, Math.round(scalar(effect.count ?? 2, ctx.ability, ctx.stoneLevel)));
+    const absorbPerCopy = Math.max(1, Math.round(scalar(effect.absorbHits ?? 1, ctx.ability, ctx.stoneLevel)));
+    ctx.caster._autoDodgeCharges = (ctx.caster._autoDodgeCharges ?? 0) + count * absorbPerCopy;
+  },
+
+  consumeCorpse(effect, ctx) {
+    // Necromancer's Raise Skeleton — there's no real corpse system yet;
+    // approximate by always summoning a skeleton when cast (acts as a free
+    // pet for the duration).
+    const make = effect.makeMinion ?? {};
+    const dur = scalar(make.duration ?? 10, ctx.ability, ctx.stoneLevel);
+    const scale = scalar(make.statScalePct ?? 40, ctx.ability, ctx.stoneLevel);
+    const minion = buildSummon(ctx.caster, ctx.battle, {
+      name: 'Skeleton',
+      kind: 'skeleton',
+      duration: dur,
+      statScalePct: scale,
+      preferredRow: 'back'
+    });
+    if (ctx.caster.side === 'player') ctx.battle.playerUnits.push(minion);
+    else ctx.battle.enemyUnits.push(minion);
+  },
+
+  placeTotem(effect, ctx) {
+    // Shaman totem — immobile minion with a passive aura.
+    const dur = scalar(effect.duration ?? 4, ctx.ability, ctx.stoneLevel);
+    const aura = effect.aura ?? null;
+    const totem = buildSummon(ctx.caster, ctx.battle, {
+      name: effect.kind === 'earth' ? 'Earth Totem'
+          : effect.kind === 'healing' ? 'Healing Totem'
+          : (effect.kind ?? 'Totem') + ' Totem',
+      kind: 'totem',
+      duration: dur,
+      statScalePct: 30,
+      preferredRow: 'back',
+      immobile: true,
+      auraSpec: aura
+    });
+    if (aura?.type === 'hot') {
+      const tickInt = scalar(aura.tick ?? 1, ctx.ability, ctx.stoneLevel) || 1;
+      totem.auras = [{
+        until: ctx.now + dur,
+        nextTick: ctx.now + tickInt,
+        tickInterval: tickInt,
+        healPctMax: scalar(aura.amountPctMaxPerTick ?? 1, ctx.ability, ctx.stoneLevel)
+      }];
+    }
+    if (ctx.caster.side === 'player') ctx.battle.playerUnits.push(totem);
+    else ctx.battle.enemyUnits.push(totem);
+  },
+
+  placeTrap(effect, ctx) {
+    // Engineer's Spike Trap — immobile, arms after delay, fires once.
+    const armSec = scalar(effect.armSeconds ?? 1, ctx.ability, ctx.stoneLevel);
+    const dur = scalar(effect.duration ?? 8, ctx.ability, ctx.stoneLevel);
+    const onTrigger = effect.onTrigger ?? {};
+    const trap = buildSummon(ctx.caster, ctx.battle, {
+      name: 'Spike Trap',
+      kind: 'trap',
+      duration: dur,
+      statScalePct: 20,
+      preferredRow: 'front',
+      immobile: true,
+      trapSpec: {
+        armedAt: ctx.now + armSec,
+        ability: ctx.ability,
+        stoneLevel: ctx.stoneLevel,
+        powerScalar: onTrigger.powerScalar ?? 0.5
+      }
+    });
+    if (ctx.caster.side === 'player') ctx.battle.playerUnits.push(trap);
+    else ctx.battle.enemyUnits.push(trap);
+  },
+
+  signalPets(effect, ctx) {
+    // Beastmaster's Whip Crack signal — focus all pets on a single target.
+    // Light implementation: tag the targeted enemy with 1 second of taunt by
+    // each pet so they hit it next.
+    const target = resolveTargets('single_enemy', ctx)[0];
+    if (!target) return;
+    const allies = ctx.caster.side === 'player' ? ctx.battle.playerUnits : ctx.battle.enemyUnits;
+    for (const a of allies) {
+      if (a.isMinion && a !== ctx.caster) target.tauntedBy = { caster: a, expires: ctx.now + 2 };
+    }
+  },
+
   leaveCorpse() { /* placeholder */ },
 
   onPartyHitCursed() { /* registered in applyPassiveBuffs */ },
