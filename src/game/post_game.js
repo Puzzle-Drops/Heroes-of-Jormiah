@@ -795,6 +795,10 @@ console.log('✅ Steam achievement tracking loaded');
                                 pDef: m.pDef ?? 0,
                                 mDef: m.mDef ?? 0,
                                 damageType: m.damageType || 'physical',
+                                family: m.family || null,
+                                // Phase 10: serialize the passive-tree allocation
+                                // as an array (Set isn't JSON-friendly).
+                                allocatedTreeNodes: m.allocatedTreeNodes ? [...m.allocatedTreeNodes] : null,
                                 isAlive: m.isAlive !== undefined ? m.isAlive : true,
                                 skillPoints: m.skillPoints || 0,
                                 skillTree: m.skillTree || {},
@@ -1129,6 +1133,11 @@ Click OK to start fresh, or Cancel to try manually recovering.`;
                             }
                             if (saved.mDef !== undefined) member.mDef = saved.mDef;
                             if (saved.damageType) member.damageType = saved.damageType;
+                            if (saved.family) member.family = saved.family;
+                            if (Array.isArray(saved.allocatedTreeNodes)) {
+                                member.allocatedTreeNodes = new Set(saved.allocatedTreeNodes);
+                                if (typeof PASSIVE_TREE !== 'undefined') PASSIVE_TREE.applyTreeBonuses(member);
+                            }
                             member.critChance = saved.critChance || member.critChance;
                             member.critDamage = saved.critDamage || member.critDamage;
                             member.dodgeChance = saved.dodgeChance || 0;

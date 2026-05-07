@@ -13,6 +13,7 @@ const FILES = [
   'src/world/character_sprite.js',
   'src/world/dungeon_room.js',
   'src/entities/character.js',
+  'src/entities/passive_tree.js',
   'src/entities/character_classes.js',
   'src/entities/item.js',
   'src/entities/class_registry.js',

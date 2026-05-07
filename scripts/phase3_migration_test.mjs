@@ -64,10 +64,12 @@ console.log('  startBtn:', stage1.startBtn);
 console.log('  filled slots:');
 stage1.slots.forEach((s, i) => console.log(`    [${i}] ${s.label}: ${s.isFilled ? s.filledName : '(empty)'}`));
 
-// Fill the 2 empty slots and start
-await page.click(`[data-char-class="rogue"]`);
-await new Promise(r => setTimeout(r, 100));
-await page.click(`[data-char-class="healer"]`);
+// Fill the 2 empty slots and start (JS click — cards may be off-screen
+// in the 48-card registry-driven grid).
+await page.evaluate(() => {
+  document.querySelector('[data-char-class="rogue"]')?.click();
+  document.querySelector('[data-char-class="healer"]')?.click();
+});
 await new Promise(r => setTimeout(r, 200));
 await page.click('#start-adventure-btn');
 await new Promise(r => setTimeout(r, 1500));

@@ -15,7 +15,9 @@ class Tank extends Character {
             spell2:  { name: 'Shield Wall',     school: 'physical', power: 0.0, manaCost: 25, baseCooldown: 30, effects: ['damage_reduction'] },
             passive: { name: 'Vigilant Guard',  description: '+P.DEF; regen 1% HP when struck.' },
         };
+        this.family = 'tank';
         this._equipStarterStones();
+        this._initFamilyStart();
         this.skillName = 'Taunt';
         this.baseManaSkillCost = 15;
         this.skillCost = 15;
@@ -98,7 +100,9 @@ class Rogue extends Character {
             spell2:  { name: 'Vanish',       school: 'physical', power: 0.0, manaCost: 30, baseCooldown: 18, effects: ['untargetable_3s','double_dmg_next'], description: 'Untargetable 3s; next attack deals double damage.' },
             passive: { name: 'Shadow Step',  description: 'After a kill, +100% attack speed for 2s.' },
         };
+        this.family = 'rogue';
         this._equipStarterStones();
+        this._initFamilyStart();
         this.skillName = 'Double Strike';
         this.baseManaSkillCost = 15;
         this.skillCost = 15;
@@ -156,7 +160,9 @@ class Mage extends Character {
                     spell2:  { name: 'Combustion',  school: 'magical', power: 0.0, manaCost: 35, baseCooldown: 14, effects: ['detonate_burns'], description: 'Detonates all burns: damage = remaining DoT × 1.5.' },
                     passive: { name: 'Heat Wave',   description: 'Each ignited enemy grants +5% M.ATK.' },
                 };
+                this.family = 'magician';
                 this._equipStarterStones();
+                this._initFamilyStart();
                 this.skillName = 'Fireball';
                 this.baseManaSkillCost = 20;
                 this.skillCost = 20;
@@ -213,7 +219,9 @@ class Healer extends Character {
             spell2:  { name: 'Group Mend',    school: 'magical', power: 0.0, manaCost: 35, baseCooldown: 18, effects: ['heal_party'], description: 'Small heal to all (1–2% max HP).' },
             passive: { name: 'Devout',        description: 'Overhealing converts to MP at 50%.' },
         };
+        this.family = 'healer';
         this._equipStarterStones();
+        this._initFamilyStart();
         this.skillName = 'Heal';
         this.baseManaSkillCost = 20;
         this.skillCost = 20;
@@ -280,7 +288,9 @@ class Archer extends Character {
             spell2:  { name: 'Piercing Arrow',  school: 'physical', power: 1.5, manaCost: 30, baseCooldown: 12, effects: ['line_aoe','ignore_50_pdef'], description: 'Line AoE; ignores 50% P.DEF.' },
             passive: { name: 'Eagle Eye',       description: '+crit chance vs enemies above 80% HP.' },
         };
+        this.family = 'marksman';
         this._equipStarterStones();
+        this._initFamilyStart();
         this.skillName = 'Multi-Shot';
         this.baseManaSkillCost = 18;
         this.skillCost = 18;
@@ -340,7 +350,9 @@ class Paladin extends Character {
             spell2:  { name: 'Divine Shield',  school: 'magical',  power: 0.0, manaCost: 35, baseCooldown: 24, effects: ['party_damage_reduction'], description: 'Brief party-wide damage reduction.' },
             passive: { name: 'Aura of Valor',  description: 'Party +5% all attack while alive.' },
         };
+        this.family = 'fighter';
         this._equipStarterStones();
+        this._initFamilyStart();
         this.skillName = 'Divine Shield';
         this.baseManaSkillCost = 20;
         this.skillCost = 20;

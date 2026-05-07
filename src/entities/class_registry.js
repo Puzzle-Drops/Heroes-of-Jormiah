@@ -460,6 +460,7 @@ function defineClass(entry) {
       this.skillCost = this.baseManaSkillCost;
       this.maxCooldown = entry.abilities.spell1.baseCooldown ?? 14;
       this._equipStarterStones();
+      this._initFamilyStart();
     }
     updateSkillCost() {
       const inc = Math.floor(this.level / 5) * 5;

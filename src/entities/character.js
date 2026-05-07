@@ -74,7 +74,22 @@ this._baseMana = maxMana; // Store base for recalculation
                 this.cooldown = 0;
                 this.sprite = null;
                 this.isAlive = true;
+                // GDD §13 — passive-tree allocation. Initialised empty;
+                // subclasses set the family start via _initFamilyStart()
+                // once `family` is known. The center root (id 0) is a
+                // layout anchor only — never auto-allocated, so cross-arm
+                // travel requires explicit cross-connections (Phase 10.x).
+                this.allocatedTreeNodes = new Set();
             }
+
+// Subclasses call this after declaring `this.family` so the tree starts
+// at the right family-arm root node and bonuses apply on spawn.
+_initFamilyStart() {
+    if (typeof PASSIVE_TREE === 'undefined' || !this.family) return;
+    const start = PASSIVE_TREE.getStartNodeForFamily(this.family);
+    if (start) this.allocatedTreeNodes.add(start);
+    PASSIVE_TREE.applyTreeBonuses(this);
+}
 
 takeDamage(damage, damageType, floorLevel) {
     // God mode cheat - party members take no damage
@@ -250,6 +265,39 @@ getTotalDefense() {
     total = Math.min(total, 999);
 
     return parseFloat(total.toFixed(2));
+}
+
+// GDD §13 — allocate one passive-tree node. Honors POE-style adjacency:
+// the requested node must connect to one already in the allocated set.
+// Returns true on success. Costs 1 skillPoint (existing field).
+allocateTreeNode(nodeId) {
+    if (typeof PASSIVE_TREE === 'undefined') return false;
+    if (!this.allocatedTreeNodes) this.allocatedTreeNodes = new Set();
+    if (nodeId === 0) return false; // root is a layout anchor only
+    if (this.allocatedTreeNodes.has(nodeId)) return false;
+    if ((this.skillPoints || 0) < 1) return false;
+    const adj = PASSIVE_TREE.getNodesAdjacentTo(nodeId)
+        .filter(id => id !== 0); // adjacency cannot go through the root
+    const connected = adj.some(id => this.allocatedTreeNodes.has(id));
+    if (!connected) return false;
+    this.allocatedTreeNodes.add(nodeId);
+    this.skillPoints -= 1;
+    PASSIVE_TREE.applyTreeBonuses(this);
+    return true;
+}
+
+// Refund the entire tree (GDD §13.4 v1 free-refund). Resets back to
+// the family start node and refunds 1 point per non-start allocation.
+refundTree() {
+    if (!this.allocatedTreeNodes) return;
+    const start = (typeof PASSIVE_TREE !== 'undefined' && this.family)
+        ? PASSIVE_TREE.getStartNodeForFamily(this.family)
+        : null;
+    const wasSize = this.allocatedTreeNodes.size;
+    this.allocatedTreeNodes = new Set(start ? [start] : []);
+    const refunded = Math.max(0, wasSize - this.allocatedTreeNodes.size);
+    this.skillPoints = (this.skillPoints || 0) + refunded;
+    if (typeof PASSIVE_TREE !== 'undefined') PASSIVE_TREE.applyTreeBonuses(this);
 }
 
 // GDD §7 — auto-equip level-1 starter stones for each ability slot the
