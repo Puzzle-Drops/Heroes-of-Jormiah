@@ -442,3 +442,39 @@ button:disabled:hover { background: var(--bg-panel-hi); color: var(--ink); }
 .modal h1 { font-family: var(--display); font-size: 28px; letter-spacing: 6px; color: var(--ember); margin-bottom: 8px; }
 .modal .sub { color: var(--ink-muted); font-size: 13px; margin-bottom: 24px; }
 .modal .actions { display: flex; gap: 12px; justify-content: center; }
+
+/* ============ ITEM MODAL ============ */
+.item-modal {
+  min-width: 520px; max-width: 640px;
+  text-align: left; padding: 24px 28px;
+  border-color: var(--brass);
+}
+.item-modal h1 { font-size: 22px; letter-spacing: 3px; margin-bottom: 4px; text-align: center; }
+.item-modal h1.r-rusted    { color: var(--r-rusted); }
+.item-modal h1.r-common    { color: var(--r-common); }
+.item-modal h1.r-rare      { color: var(--r-rare); }
+.item-modal h1.r-epic      { color: var(--r-epic); }
+.item-modal h1.r-mythic    { color: var(--r-mythic); }
+.item-modal h1.r-legendary { color: var(--r-legendary); }
+.item-modal h1.r-radiant   { color: var(--r-radiant); }
+.item-modal.r-rare      { box-shadow: 0 0 32px rgba(59, 130, 246, 0.30); }
+.item-modal.r-epic      { box-shadow: 0 0 36px rgba(168, 85, 247, 0.40); }
+.item-modal.r-mythic    { box-shadow: 0 0 40px rgba(236, 72, 153, 0.45); }
+.item-modal.r-legendary { box-shadow: 0 0 44px rgba(245, 158, 11, 0.50); }
+.item-modal.r-radiant   { box-shadow: 0 0 60px rgba(240, 171, 252, 0.60); }
+.item-modal .sub { font-family: var(--mono); font-size: 11px; text-align: center; margin-bottom: 6px; }
+.item-modal .sub b { color: var(--brass-hot); font-weight: 600; }
+.item-modal .sub.stone { color: var(--azure); margin-bottom: 18px; }
+.reroll-grid { display: flex; flex-direction: column; gap: 6px; margin: 14px 0; }
+.reroll-row { display: grid; grid-template-columns: 90px 1fr auto; gap: 12px; align-items: center; padding: 8px 12px; background: var(--bg-panel-hi); border: 1px solid #2a2c4a; }
+.reroll-row.namesake { border-left: 3px solid var(--brass-hot); }
+.reroll-row .rstat { font-family: var(--mono); font-size: 11px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 1.2px; }
+.reroll-row .rval  { font-family: var(--mono); font-size: 14px; color: var(--brass-hot); font-weight: 600; }
+.reroll-row .rval .dim { color: var(--ink-muted); font-weight: normal; font-size: 11px; }
+.reroll-row .reroll-btn { padding: 6px 12px; font-size: 11px; }
+.item-modal .modal-foot { font-family: var(--mono); font-size: 11px; color: var(--ink-muted); text-align: center; margin: 14px 0 18px; padding-top: 12px; border-top: 1px solid rgba(200,152,96,0.2); }
+.item-modal .modal-foot b { color: var(--brass-hot); }
+.item-modal .actions button.ghost { background: transparent; color: var(--ink-muted); border-color: #3a2424; }
+.item-modal .actions button.ghost:hover { color: var(--ember); border-color: var(--ember); background: rgba(214,59,59,0.1); }
+.item-modal-overlay { cursor: pointer; }
+.item-modal-overlay .item-modal { cursor: auto; }

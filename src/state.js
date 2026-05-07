@@ -1,4 +1,7 @@
 import { storage } from './storage.js';
+import { computeQualityScore, computeRarity } from './combat/loot.js';
+
+const STAT_KEYS_LOCAL = ['hp', 'mp', 'patk', 'matk', 'pdef', 'mdef'];
 
 let _data = null;
 let _state = null;
@@ -204,6 +207,36 @@ export function salvageItem(itemId) {
   _state.currencies.dust += dust;
   persist();
   return dust;
+}
+
+// ----- Reroll a single stat on an equipped item (GDD §15.3) -----
+
+export function rerollCost(item) {
+  if (!item || item.isStarter) return Infinity;
+  return 10 + Math.round((item.level || 1) * 2);
+}
+
+export function rerollItemStat(classId, slotId, stat) {
+  const unit = _state.roster[classId];
+  if (!unit) return null;
+  const item = unit.equipment[slotId];
+  if (!item || item.isStarter) return null;
+  if (!STAT_KEYS_LOCAL.includes(stat)) return null;
+  const cost = rerollCost(item);
+  if (_state.currencies.dust < cost) return null;
+
+  const max = (stat === item.namesake) ? 2 * item.level : item.level;
+  const oldValue = item.stats[stat] ?? 0;
+  let newValue = Math.round(Math.random() * max);
+  // tiny anti-frustration: never roll the exact same value twice in a row when there's room to vary
+  if (newValue === oldValue && max > 1) newValue = (newValue + 1) % (max + 1);
+  item.stats[stat] = newValue;
+  item.qualityScore = computeQualityScore(item.stats, item.namesake, item.level);
+  item.rarity = computeRarity(item.qualityScore);
+
+  _state.currencies.dust -= cost;
+  persist();
+  return { oldValue, newValue, cost, newRarity: item.rarity, newQuality: item.qualityScore };
 }
 
 export function bulkSalvage(rarities) {

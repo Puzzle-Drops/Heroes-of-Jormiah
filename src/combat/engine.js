@@ -1,7 +1,8 @@
 import { getData, getState } from '../state.js';
 import {
   executeAbility, buffMultiplier, effectiveStat, pruneExpired,
-  isIncapacitated, isSilenced, tickDots, applyPassiveBuffs
+  isIncapacitated, isSilenced, tickDots, applyPassiveBuffs,
+  recomputeDynamicBuffs
 } from './abilities.js';
 import * as F from './formulas.js';
 
@@ -87,6 +88,7 @@ function stepBattle(battle, dt) {
   for (const u of [...battle.playerUnits, ...battle.enemyUnits]) {
     if (u.dead) continue;
     pruneExpired(u, battle.now);
+    recomputeDynamicBuffs(u);
     regenMana(u, dt);
     tickHots(u, battle);
     tickRegen(u, battle);
@@ -174,7 +176,9 @@ function castAbility(caster, slot, battle) {
     floor: battle.floor,
     now: battle.now,
     fx: battle.fx,
-    onKill: battle.onKill
+    battle,
+    onKill: battle.onKill,
+    killsThisCast: 0
   };
   executeAbility(ctx);
 
@@ -235,7 +239,10 @@ function buildPlayerUnit(cls, unit, slotPos) {
     tauntedBy: null,
     dead: false,
     isEnemy: false,
-    lungeT: -10
+    lungeT: -10,
+    onHitTakenHandlers: [],
+    onKillHandlers: [],
+    dynamicBuffSpecs: []
   };
 }
 
@@ -290,7 +297,10 @@ function buildEnemy(template, floor, row, col, attackTpl) {
     dead: false,
     isEnemy: true,
     displayHp: hp,
-    lungeT: -10
+    lungeT: -10,
+    onHitTakenHandlers: [],
+    onKillHandlers: [],
+    dynamicBuffSpecs: []
   };
 }
 
@@ -305,6 +315,7 @@ export function reviveSurvivors(playerUnits) {
     u.mp = u.maxMp;
     u.buffs = []; u.hots = []; u.regen = []; u.tauntedBy = null;
     u.dots = []; u.shields = []; u.marks = []; u.statuses = {};
+    u.onHitTakenHandlers = []; u.onKillHandlers = []; u.dynamicBuffSpecs = [];
     for (const slot of Object.keys(u.abilities)) u.abilities[slot].cooldown = 0;
   }
 }

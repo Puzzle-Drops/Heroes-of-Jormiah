@@ -129,10 +129,23 @@ function applyDamage(target, raw, ctx) {
     target.hp = Math.max(0, target.hp - remaining);
     ctx.fx?.push({ type: 'dmg', target, amount: remaining, t: ctx.now });
     ctx.fx?.push({ type: 'impact', target, t: ctx.now });
+
+    // fire on-hit-taken passives
+    if (target.onHitTakenHandlers?.length) {
+      const evt = { target, attacker: ctx.caster, amount: remaining, ctx };
+      for (const h of target.onHitTakenHandlers) h(evt);
+    }
+
     if (target.hp <= 0) {
       target.dead = true;
       ctx.fx?.push({ type: 'death', target, t: ctx.now });
       ctx.onKill?.(ctx.caster, target);
+      ctx.killsThisCast = (ctx.killsThisCast ?? 0) + 1;
+      // fire on-kill passives on the killer
+      if (ctx.caster?.onKillHandlers?.length) {
+        const evt = { caster: ctx.caster, target, ctx };
+        for (const h of ctx.caster.onKillHandlers) h(evt);
+      }
     }
   } else {
     ctx.fx?.push({ type: 'absorb', target, amount, t: ctx.now });
@@ -440,7 +453,35 @@ const HANDLERS = {
     const pct = scalar(effect.amountPct, ctx.ability, ctx.stoneLevel);
     const dur = scalar(effect.duration ?? 4, ctx.ability, ctx.stoneLevel);
     for (const t of targets) t.buffs.push({ stat: `reflect_${effect.school ?? 'all'}`, amountPct: pct, expires: ctx.now + dur });
-  }
+  },
+
+  // Cast-scoped trigger: fires only if a damage effect in the same ability
+  // killed something this cast. Lets Soul Cleave heal on kill, Shadow Step
+  // proc when the cast itself secures a kill, etc. Passive onKill (Harvest,
+  // etc.) is registered separately in applyPassiveBuffs.
+  onKill(effect, ctx) {
+    if (!(ctx.killsThisCast > 0)) return;
+    const action = effect.action;
+    if (action === 'healPctMax') {
+      const pct = scalar(effect.amountPct, ctx.ability, ctx.stoneLevel) / 100;
+      const before = ctx.caster.hp;
+      ctx.caster.hp = Math.min(ctx.caster.maxHp, ctx.caster.hp + Math.round(ctx.caster.maxHp * pct));
+      if (ctx.caster.hp - before > 0) ctx.fx?.push({ type: 'heal', target: ctx.caster, amount: ctx.caster.hp - before, t: ctx.now });
+    } else if (action === 'buffSelf' || action === 'stackBuff') {
+      const amountPct = scalar(effect.amountPct ?? 0, ctx.ability, ctx.stoneLevel);
+      const dur = scalar(effect.duration ?? 2, ctx.ability, ctx.stoneLevel) || 2;
+      ctx.caster.buffs.push({ stat: effect.stat, amountPct, expires: ctx.now + dur, tag: 'kill_proc' });
+    } else if (action === 'leaveCorpse') {
+      // corpse system not implemented yet — no-op
+    }
+  },
+
+  // No-op when invoked at cast time; the work happens in applyPassiveBuffs
+  // (registers the trigger) and applyDamage (fires it).
+  onHitTrigger() {},
+  // No-op at cast time; turned into a dynamic spec at battle start.
+  scaledBuff() {},
+  conditionalBuff() {}
 };
 
 // ============================================================================
@@ -487,13 +528,95 @@ export function applyPassiveBuffs(caster, allParty) {
   const slot = caster.abilities?.passive;
   if (!slot || !slot.ability) return;
   for (const effect of slot.ability.effects) {
-    if (effect.type !== 'buff') continue;
-    const isPersistent = effect.duration === 'permanent' || effect.whileAlive;
-    if (!isPersistent) continue;
-    const amountPct = F.scaleParam(slot.ability.scaling, effect.amountPct ?? effect.amount ?? 0, slot.stoneLevel);
-    const targets = effect.targets === 'party' ? allParty : [caster];
-    for (const t of targets) {
-      t.buffs.push({ stat: effect.stat, amountPct, expires: Infinity, source: 'passive', whileAlive: !!effect.whileAlive, sourceUnit: caster });
+    if (effect.type === 'buff') {
+      const isPersistent = effect.duration === 'permanent' || effect.whileAlive;
+      if (!isPersistent) continue;
+      const amountPct = F.scaleParam(slot.ability.scaling, effect.amountPct ?? effect.amount ?? 0, slot.stoneLevel);
+      const targets = effect.targets === 'party' ? allParty : [caster];
+      for (const t of targets) {
+        t.buffs.push({ stat: effect.stat, amountPct, expires: Infinity, source: 'passive', whileAlive: !!effect.whileAlive, sourceUnit: caster });
+      }
+    } else if (effect.type === 'onHitTrigger') {
+      caster.onHitTakenHandlers.push((evt) => runActionOnTarget(effect, slot, caster, evt.ctx));
+    } else if (effect.type === 'onKill') {
+      caster.onKillHandlers.push((evt) => runActionOnTarget(effect, slot, caster, evt.ctx));
+    } else if (effect.type === 'scaledBuff') {
+      const perUnit = F.scaleParam(slot.ability.scaling, effect.amountPct ?? effect.amount ?? 0, slot.stoneLevel);
+      caster.dynamicBuffSpecs.push({ stat: effect.stat, perUnit, scaledBy: effect.scaledBy });
+    } else if (effect.type === 'conditionalBuff') {
+      // We treat this as a dynamic spec that applies fully when the condition is met.
+      const amountPct = F.scaleParam(slot.ability.scaling, effect.amountPct ?? effect.amount ?? 0, slot.stoneLevel);
+      caster.dynamicBuffSpecs.push({
+        stat: effect.stat, perUnit: amountPct, scaledBy: '__conditional__',
+        condition: effect.when
+      });
     }
   }
+}
+
+// Action runner for passive triggers — interprets effect.action ("healPctMax",
+// "buffSelf", "stackBuff") and applies to the appropriate target.
+function runActionOnTarget(effect, slot, self, ctx) {
+  if (!ctx) return;
+  const ability = slot.ability;
+  const stoneLevel = slot.stoneLevel;
+  const action = effect.action;
+  if (action === 'healPctMax') {
+    const pct = F.scaleParam(ability.scaling, effect.amountPct, stoneLevel) / 100;
+    const amt = Math.round(self.maxHp * pct);
+    const before = self.hp;
+    self.hp = Math.min(self.maxHp, self.hp + amt);
+    if (self.hp - before > 0) ctx.fx?.push({ type: 'heal', target: self, amount: self.hp - before, t: ctx.now });
+  } else if (action === 'buffSelf' || action === 'stackBuff') {
+    const amountPct = F.scaleParam(ability.scaling, effect.amountPct ?? effect.perHit ?? 0, stoneLevel);
+    const dur = F.scaleParam(ability.scaling, effect.duration ?? 2, stoneLevel) || 2;
+    self.buffs.push({ stat: effect.stat, amountPct, expires: ctx.now + dur, tag: 'passive_proc' });
+  } else if (action === 'reflectDamagePct') {
+    // not yet wired into damage calc; emit a small fx for now
+    ctx.fx?.push({ type: 'absorb', target: self, amount: 0, t: ctx.now });
+  } else if (action === 'manaRegenPct') {
+    const pct = F.scaleParam(ability.scaling, effect.amountPct, stoneLevel) / 100;
+    self.mp = Math.min(self.maxMp, self.mp + Math.round(self.maxMp * pct));
+  }
+}
+
+// Per-tick recomputation of dynamic-buff specs (Berserker's Unbridled Fury,
+// Sentinel's Mana Armor, Knight's Last Stand, etc.). Removes old dynamic
+// buffs and re-adds with the freshly computed amount.
+export function recomputeDynamicBuffs(unit) {
+  if (!unit.dynamicBuffSpecs || !unit.dynamicBuffSpecs.length) return;
+  unit.buffs = unit.buffs.filter(b => !b.dynamic);
+  for (const spec of unit.dynamicBuffSpecs) {
+    const factor = scaledFactor(spec, unit);
+    if (factor === 0) continue;
+    const amountPct = spec.perUnit * factor;
+    if (amountPct === 0) continue;
+    unit.buffs.push({ stat: spec.stat, amountPct, expires: Infinity, dynamic: true, source: 'passive' });
+  }
+}
+
+function scaledFactor(spec, unit) {
+  switch (spec.scaledBy) {
+    case 'hpMissingPct':       return (1 - unit.hp / unit.maxHp) * 100;
+    case 'hpMissingPct/10':    return (1 - unit.hp / unit.maxHp) * 10;
+    case 'mpCurrentPct':       return unit.maxMp ? (unit.mp / unit.maxMp) * 100 : 0;
+    case 'mpMissingPct':       return unit.maxMp ? (1 - unit.mp / unit.maxMp) * 100 : 0;
+    case '__conditional__':    return evaluateCondition(spec.condition, unit) ? 1 : 0;
+    default:                   return 0;
+  }
+}
+
+function evaluateCondition(when, unit) {
+  if (!when || typeof when !== 'string') return false;
+  // Tiny condition language: "hpPct<=30", "hpPct>=80", "hpPct<thresholdPct"
+  const m = when.match(/^(hpPct|mpPct)\s*(<=|>=|<|>)\s*(\d+)/);
+  if (!m) return false;
+  const [, lhs, op, rhsStr] = m;
+  const rhs = Number(rhsStr);
+  const v = lhs === 'hpPct' ? (unit.hp / unit.maxHp) * 100 : (unit.maxMp ? (unit.mp / unit.maxMp) * 100 : 0);
+  if (op === '<=') return v <= rhs;
+  if (op === '>=') return v >= rhs;
+  if (op === '<')  return v <  rhs;
+  if (op === '>')  return v >  rhs;
+  return false;
 }

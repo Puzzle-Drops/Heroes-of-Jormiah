@@ -84,7 +84,7 @@ function pickNamesake(slot) {
 
 function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-function computeQualityScore(stats, namesake, itemLevel) {
+export function computeQualityScore(stats, namesake, itemLevel) {
   const rolls = STATS.map(s => {
     const max = (s === namesake) ? 2 * itemLevel : itemLevel;
     return max ? stats[s] / max : 0;
@@ -92,7 +92,7 @@ function computeQualityScore(stats, namesake, itemLevel) {
   return rolls.reduce((a, b) => a + b, 0) / rolls.length;
 }
 
-function computeRarity(score) {
+export function computeRarity(score) {
   const tiers = getData().rarity.tiers.slice().sort((a, b) => b.minScore - a.minScore);
   for (const t of tiers) if (score >= t.minScore) return t.id;
   return 'rusted';

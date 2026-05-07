@@ -3,6 +3,7 @@ import {
   dropItemToStash, equipItem, unequipSlot, equipBestByScore, slotsForItem,
   canEquip, isItemUsableBy,
   salvageItem, salvageValue, bulkSalvage,
+  rerollCost, rerollItemStat,
   isInParty, addToParty, removeFromParty, swapPartyAt, getNextUnlock,
   processFloorUnlocks, FLOOR_UNLOCKS
 } from './state.js';
@@ -397,16 +398,13 @@ function bindUnitDetail(classId) {
     attachTooltip(row, () => buildStashTooltip(item, classId));
   }
 
-  // equipped slots
+  // equipped slots — click opens the item-management modal (reroll / unequip / salvage)
   for (const slot of document.querySelectorAll('.equip-slot:not(.empty):not(.starter)')) {
     slot.style.cursor = 'pointer';
-    slot.title = 'Click to unequip';
+    slot.title = 'Click to manage (reroll, unequip, salvage)';
     const itemId = slot.dataset.item;
     const item = Object.values(getState().roster[classId].equipment).find(it => it && it.id === itemId);
-    slot.addEventListener('click', () => {
-      unequipSlot(classId, slot.dataset.slot);
-      showUnitDetail(classId);
-    });
+    slot.addEventListener('click', () => showItemModal(classId, slot.dataset.slot));
     if (item) attachTooltip(slot, () => buildEquippedTooltip(item));
   }
 
@@ -610,6 +608,88 @@ function flash(msg) {
   el.textContent = msg;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 1500);
+}
+
+// ============================================================================
+// ITEM MANAGEMENT MODAL (reroll / unequip / salvage)
+// ============================================================================
+function showItemModal(classId, slotId) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay item-modal-overlay';
+  document.body.appendChild(overlay);
+
+  const renderInner = () => {
+    const item = getState().roster[classId].equipment[slotId];
+    if (!item) { overlay.remove(); showUnitDetail(classId); return; }
+    const cost = rerollCost(item);
+    const dust = getState().currencies.dust;
+    const dustVal = salvageValue(item);
+    overlay.innerHTML = `
+      <div class="modal item-modal r-${item.rarity}">
+        <h1 class="r-${item.rarity}">${item.displayName}</h1>
+        <div class="sub">${item.rarity.toUpperCase()} · Quality <b>${(item.qualityScore * 100).toFixed(0)}%</b> · Lvl ${item.level} · slot ${SLOT_LABEL[slotId] ?? slotId}</div>
+        ${item.kind === 'stone' ? `<div class="sub stone">Boosts ${prettyAbility(item.abilityId)} · ability L${item.abilityLevel}/100</div>` : ''}
+        <div class="reroll-grid">
+          ${STAT_KEYS.map(s => {
+            const max = (s === item.namesake) ? 2 * item.level : item.level;
+            const cur = item.stats[s] ?? 0;
+            const isNamesake = s === item.namesake;
+            return `
+              <div class="reroll-row${isNamesake ? ' namesake' : ''}">
+                <span class="rstat">${STAT_LABEL[s]}${isNamesake ? ' ★' : ''}</span>
+                <span class="rval">+${cur}<span class="dim"> / ${max}</span></span>
+                <button class="reroll-btn" data-stat="${s}" ${dust < cost ? 'disabled title="not enough dust"' : ''}>↻ ${cost} dust</button>
+              </div>
+            `;
+          }).join('')}
+        </div>
+        <div class="modal-foot">Dust: <b>${dust}</b> · Salvaging this item yields <b>${dustVal} dust</b></div>
+        <div class="actions">
+          <button id="modal-unequip">Unequip</button>
+          <button id="modal-salvage" class="ghost">Salvage</button>
+          <button id="modal-close">Close</button>
+        </div>
+      </div>
+    `;
+    for (const btn of overlay.querySelectorAll('.reroll-btn')) {
+      btn.addEventListener('click', () => {
+        const r = rerollItemStat(classId, slotId, btn.dataset.stat);
+        if (r) flash(`${STAT_LABEL[btn.dataset.stat]} rerolled: ${r.oldValue} → ${r.newValue} (${r.cost} dust)`);
+        renderInner();
+      });
+    }
+    overlay.querySelector('#modal-unequip').addEventListener('click', () => {
+      unequipSlot(classId, slotId);
+      overlay.remove();
+      showUnitDetail(classId);
+    });
+    overlay.querySelector('#modal-salvage').addEventListener('click', () => {
+      if (!confirm('Salvage this item for dust?')) return;
+      // Move to stash first, then salvage by id
+      unequipSlot(classId, slotId);
+      const stash = getState().sharedStash;
+      const last = stash[stash.length - 1];
+      if (last) {
+        const got = salvageItem(last.id);
+        if (got > 0) flash(`Salvaged for ${got} dust.`);
+      }
+      overlay.remove();
+      showUnitDetail(classId);
+    });
+    overlay.querySelector('#modal-close').addEventListener('click', () => {
+      overlay.remove();
+      showUnitDetail(classId);
+    });
+  };
+
+  renderInner();
+  // Click outside the inner modal to close
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      overlay.remove();
+      showUnitDetail(classId);
+    }
+  });
 }
 
 // ============================================================================

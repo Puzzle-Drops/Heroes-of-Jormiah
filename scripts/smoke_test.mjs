@@ -97,6 +97,24 @@ console.log(`equipped non-starter slots: ${equippedNonEmpty}`);
 
 await page.screenshot({ path: 'scripts/smoke_unit_detail.png' });
 
+// Click the equipped slot → expect the item modal with Reroll buttons.
+const equippedSlot = await page.$('.equip-slot:not(.empty):not(.starter)');
+if (equippedSlot) {
+  await equippedSlot.click();
+  await new Promise(r => setTimeout(r, 350));
+  const modalText = await page.evaluate(() => {
+    const el = document.querySelector('.item-modal');
+    return el ? el.textContent : '';
+  });
+  if (!/REROLL|Reroll|↻/.test(modalText)) console.error('modal text:', modalText.slice(0,200));
+  console.log(`item modal opened: ${!!modalText}, has reroll buttons: ${/↻/.test(modalText)}`);
+  await page.screenshot({ path: 'scripts/smoke_item_modal.png' });
+  // close modal
+  const closeBtn = await page.$('#modal-close');
+  if (closeBtn) await closeBtn.click();
+  await new Promise(r => setTimeout(r, 200));
+}
+
 // Hover the first ability chip → expect tooltip with humanized effect text.
 const chip = await page.$('.ability-chip');
 if (chip) {
