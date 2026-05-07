@@ -118,6 +118,7 @@ function renderTopbar() {
         <div class="cur">Stash <b>${stashCount}</b></div>
       </div>
       <button id="ach-btn" style="margin-left: 16px; font-size: 10px; padding: 6px 10px;" title="Achievements">★ ${achUnlocked}/${ACHIEVEMENTS.length}</button>
+      <button id="mute-btn" style="margin-left: 6px; font-size: 12px; padding: 6px 10px;" title="${state.settings.muted ? 'Unmute' : 'Mute'}">${state.settings.muted ? '🔇' : '🔊'}</button>
       <button id="reset-btn" style="margin-left: 6px; font-size: 10px; padding: 6px 10px;">Reset Save</button>
     </div>
   `;
@@ -164,6 +165,15 @@ function bindHub() {
   });
   const achBtn = document.getElementById('ach-btn');
   if (achBtn) achBtn.addEventListener('click', () => showAchievements());
+  const muteBtn = document.getElementById('mute-btn');
+  if (muteBtn) muteBtn.addEventListener('click', () => {
+    const s = getState().settings;
+    s.muted = !s.muted;
+    Sfx.setMuted(s.muted);
+    persist();
+    muteBtn.textContent = s.muted ? '🔇' : '🔊';
+    muteBtn.title = s.muted ? 'Unmute' : 'Mute';
+  });
   for (const card of document.querySelectorAll('.roster-card[data-class]')) {
     const id = card.dataset.class;
     card.addEventListener('click', () => showUnitDetail(id));
@@ -940,6 +950,10 @@ function buildBattleTooltip(unit, battle) {
   const critChance = sumBuffPct(unit, 'critChancePct', now);
   const dodgeChance = sumBuffPct(unit, 'dodgePct', now);
 
+  const keystones = (unit.keystones && typeof unit.keystones.values === 'function')
+    ? [...unit.keystones]
+    : Array.isArray(unit.keystones) ? unit.keystones : [];
+
   const cdRows = !isEnemy ? Object.entries(unit.abilities ?? {})
     .filter(([slot, a]) => a && a.ability && a.ability.type !== 'passive')
     .map(([slot, a]) => `<div class="t-row"><span>${slotShort(slot)}: ${prettyAbility(a.id)}</span><span>${a.cooldown > 0.05 ? a.cooldown.toFixed(1) + 's' : '<b style="color:var(--verdant)">ready</b>'}${a.ability.manaCost > unit.mp ? ' <span class="dim">(no MP)</span>' : ''}</span></div>`)
@@ -967,6 +981,7 @@ function buildBattleTooltip(unit, battle) {
     ${dynamic.length ? `<div class="t-section">SCALED</div><div class="t-list">${dynamic.map(b => `<div class="t-row"><span>${statLabel(b.stat)}</span><span class="${b.amountPct > 0 ? 'up' : 'down'}">${b.amountPct > 0 ? '+' : ''}${b.amountPct.toFixed(0)}%</span></div>`).join('')}</div>` : ''}
     ${dots.length ? `<div class="t-section">DOTS</div><div class="t-list">${dots.map(d => `<div class="t-row"><span>${d.tag}</span><span>${(d.dpsPct * 100).toFixed(1)}%/s · ${(d.expires - now).toFixed(1)}s</span></div>`).join('')}</div>` : ''}
     ${statuses.length ? `<div class="t-section">STATUS</div><div class="t-list">${statuses.map(([k, t]) => `<div class="t-row"><span>${STATUS_LABEL[k] ?? prettyKey(k)}</span><span>${(t - now).toFixed(1)}s</span></div>`).join('')}</div>` : ''}
+    ${keystones.length ? `<div class="t-section">KEYSTONES</div><div class="t-list">${keystones.map(k => `<div class="t-row"><span>${prettyKey(k)}</span><span class="up">active</span></div>`).join('')}</div>` : ''}
     ${cdRows ? `<div class="t-section">COOLDOWNS</div><div class="t-list">${cdRows}</div>` : ''}
   `;
 }
@@ -1236,6 +1251,7 @@ function onFloorCleared() {
   const loot = generateItemForDungeon(battle.dungeonId, battle.floor);
   dropItemToStash(loot);
   if (loot.rarity === 'radiant') recordEvent('radiantDrops');
+  if (battle.kills) recordEvent('kills', battle.kills);
 
   // class-unlock milestones
   const newlyUnlocked = processFloorUnlocks(battle.floor);

@@ -2,13 +2,14 @@ import { loadGameData } from './data.js';
 import { storage } from './storage.js';
 import { initState } from './state.js';
 import { showHub } from './ui.js';
-import { bindGlobalClickSound } from './audio.js';
+import { bindGlobalClickSound, setMuted } from './audio.js';
 
 async function boot() {
   try {
     const data = await loadGameData();
     const saved = storage.load();
-    initState(data, saved);
+    const state = initState(data, saved);
+    setMuted(state.settings?.muted ?? false);
     bindGlobalClickSound();
     showHub();
     window.addEventListener('error', e => console.error('runtime error:', e.error || e.message));

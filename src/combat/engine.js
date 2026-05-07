@@ -31,7 +31,7 @@ const ENEMIES = {
       { name: 'Siege Captain',         baseHp: 90,  baseDmg: 8,  basePdef: 12, baseMdef: 5 },
       { name: 'Warden of Iron',        baseHp: 110, baseDmg: 9,  basePdef: 14, baseMdef: 6 },
       { name: 'Fortress Marshal',      baseHp: 125, baseDmg: 10, basePdef: 14, baseMdef: 6 },
-      { name: 'Mailed Lieutenant',     baseHp: 160, baseDmg: 9,  basePdef: 13, baseMdef: 6 },
+      { name: 'Mailed Lieutenant',     baseHp: 160, baseDmg: 9,  basePdef: 13, baseMdef: 6, special: 'summon_on_death' },
       { name: 'Steelguard Champion',   baseHp: 100, baseDmg: 10, basePdef: 22, baseMdef: 10, special: 'ironskin' },
       { name: 'Shieldbreaker Berserker',baseHp: 110, baseDmg: 11, basePdef: 10, baseMdef: 5, special: 'enrage' }
     ],
@@ -85,7 +85,7 @@ const ENEMIES = {
       { name: 'Briar Lord',            baseHp: 130, baseDmg: 11, basePdef: 13, baseMdef: 7 },
       { name: 'Vine Strangler',        baseHp: 140, baseDmg: 11, basePdef: 13, baseMdef: 7, special: 'spawner' },
       { name: 'Rotmaw Beast',          baseHp: 125, baseDmg: 13, basePdef: 12, baseMdef: 7, special: 'enrage' },
-      { name: 'Mother Tree',           baseHp: 220, baseDmg: 12, basePdef: 14, baseMdef: 8 }
+      { name: 'Mother Tree',           baseHp: 220, baseDmg: 12, basePdef: 14, baseMdef: 8, special: 'summon_on_death' }
     ],
     minions: [
       { name: 'Husk Lurker',  baseHp: 30, baseDmg: 5, basePdef: 5, baseMdef: 3 },
@@ -110,6 +110,10 @@ export function createBattle({ dungeonId, floor }) {
   };
   battle.onKill = (caster, target) => {
     battle.log.push({ type: 'kill', text: `${caster.displayName} defeated ${target.displayName}.`, t: battle.now });
+    // count player kills only (not enemy-on-player) for achievement progress
+    if (caster.side === 'player' && target.side === 'enemy') {
+      battle.kills = (battle.kills ?? 0) + 1;
+    }
   };
   // apply persistent passive buffs (Aura of Valor, Inspiring Presence, etc.)
   for (const u of battle.playerUnits) applyPassiveBuffs(u, battle.playerUnits);
@@ -427,6 +431,29 @@ function buildEnemy(template, floor, row, col, attackTpl, opts = {}) {
   if (unit.special === 'ironskin') {
     unit.buffs.push({ stat: 'pdef', amountPct: 30, expires: Infinity, source: 'special' });
     unit.buffs.push({ stat: 'mdef', amountPct: 30, expires: Infinity, source: 'special' });
+  }
+  // Summon-on-death: bind a death hook so the dying boss spawns reinforcements.
+  if (unit.special === 'summon_on_death' && opts.isBoss) {
+    unit.onDeathHandler = (ctx) => {
+      const set = ENEMIES[unit.dungeonId] || ENEMIES.iron_vaults;
+      const battle = ctx.battle;
+      if (!battle) return;
+      const taken = new Set(battle.enemyUnits.filter(e => !e.dead).map(e => `${e.row}:${e.col}`));
+      const positions = [
+        { row: 'back', col: 1 }, { row: 'back', col: 0 }, { row: 'back', col: 2 },
+        { row: 'front', col: 0 }, { row: 'front', col: 2 }
+      ];
+      const count = 1 + (Math.random() < 0.5 ? 1 : 0); // 1 or 2 minions
+      for (let i = 0; i < count; i++) {
+        const pos = positions.find(p => !taken.has(`${p.row}:${p.col}`));
+        if (!pos) break;
+        const tpl = set.minions[Math.floor(Math.random() * set.minions.length)];
+        const minion = buildEnemy(tpl, unit.level, pos.row, pos.col, set.attackTpl);
+        battle.enemyUnits.push(minion);
+        taken.add(`${pos.row}:${pos.col}`);
+      }
+      battle.log.push({ type: 'kill', text: `${unit.displayName}'s death echoes — ${count} minion${count>1?'s':''} appear.`, t: battle.now });
+    };
   }
   return unit;
 }

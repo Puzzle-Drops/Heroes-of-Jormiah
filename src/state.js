@@ -85,7 +85,29 @@ export const ACHIEVEMENTS = [
       return families.every(f => reached.has(f));
     }
   },
-  { id: 'crystallized',    name: 'Crystallized',    desc: 'Drop 5 Radiant items.',             check: (s) => (s._eventCounters?.radiantDrops ?? 0) >= 5 }
+  { id: 'crystallized',    name: 'Crystallized',    desc: 'Drop 5 Radiant items.',             check: (s) => (s._eventCounters?.radiantDrops ?? 0) >= 5 },
+
+  // exploration / cumulative
+  { id: 'four_corners',    name: 'Four Corners',    desc: 'Clear floor 1 in every dungeon.',
+    check: (s) => Object.values(s.dungeons ?? {}).filter(d => (d.highestFloor ?? 0) >= 1).length >= 4 },
+  { id: 'campaigner',      name: 'Campaigner',      desc: 'Clear 100 floors total across all dungeons.',
+    check: (s) => Object.values(s.dungeons ?? {}).reduce((a, d) => a + (d.highestFloor ?? 0), 0) >= 100 },
+  { id: 'first_blood',     name: 'First Blood',     desc: 'Land your first kill.',
+    check: (s) => (s._eventCounters?.kills ?? 0) >= 1 },
+  { id: 'butcher',         name: 'Butcher',         desc: 'Land 500 kills.',
+    check: (s) => (s._eventCounters?.kills ?? 0) >= 500 },
+  { id: 'enlightened',     name: 'Enlightened',     desc: 'Reach all 8 Keystones across the roster.',
+    check: (s, data) => {
+      if (!data?.treeNodesById) return false;
+      const seen = new Set();
+      for (const u of Object.values(s.roster ?? {})) {
+        for (const id of u.allocatedNodes ?? []) {
+          if (data.treeNodesById[id]?.kind === 'keystone') seen.add(id);
+        }
+      }
+      return seen.size >= 8;
+    }
+  }
 ];
 
 function maxFloor(state) {
@@ -146,7 +168,7 @@ function defaultSave(data) {
     },
     achievements: {},
     _eventCounters: { radiantDrops: 0, rerolls: 0, salvages: 0 },
-    settings: { speed: 1, autoCast: true, autoProgress: false, selectedDungeon: 'iron_vaults' }
+    settings: { speed: 1, autoCast: true, autoProgress: false, muted: false, selectedDungeon: 'iron_vaults' }
   };
 }
 
@@ -175,6 +197,7 @@ function ensureRosterCovers(state, data) {
   if (!state.dungeons.whispering_spires) state.dungeons.whispering_spires = { highestFloor: 0, currentRunFloor: null };
   if (!state.dungeons.hollowed_wilds)    state.dungeons.hollowed_wilds    = { highestFloor: 0, currentRunFloor: null };
   if (typeof state.settings.autoProgress !== 'boolean') state.settings.autoProgress = false;
+  if (typeof state.settings.muted !== 'boolean') state.settings.muted = false;
   // v0.5 -> v0.6 migration: passive tree allocations
   for (const id in state.roster) {
     const u = state.roster[id];

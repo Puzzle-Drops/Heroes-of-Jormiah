@@ -204,6 +204,8 @@ function applyDamage(target, raw, ctx) {
         const evt = { caster: ctx.caster, target, ctx };
         for (const h of ctx.caster.onKillHandlers) h(evt);
       }
+      // fire boss death special (e.g. summon_on_death) — engine attaches a hook
+      if (target.onDeathHandler) target.onDeathHandler(ctx);
     }
   } else {
     ctx.fx?.push({ type: 'absorb', target, amount, t: ctx.now });
