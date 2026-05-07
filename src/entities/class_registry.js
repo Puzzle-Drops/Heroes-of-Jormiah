@@ -483,7 +483,9 @@ function defineClass(entry) {
       if (!sp) return 0;
       // Interpolated mana cost (defaults to base if no endpoint declared).
       const liveManaCost = Math.round(this._abilityParam('spell1', 'manaCost', sp.manaCost ?? 25));
-      this.skillCost = liveManaCost;
+      // GDD §13 Spell Echo — mana ×1.5, fire effects twice.
+      const echo = !!this.keystone_spellEcho;
+      this.skillCost = echo ? Math.round(liveManaCost * 1.5) : liveManaCost;
       if (this.cooldown !== 0 || this.mana < this.skillCost) return 0;
       this.mana -= this.skillCost;
       // Interpolated cooldown (implicit 2.25× longer at L1 if no
@@ -513,13 +515,17 @@ function defineClass(entry) {
 
       const E = window.EFFECTS;
       if (E && typeof E.apply === 'function') {
-        return E.apply(sp.effects, ctx) | 0;
+        let dealt = E.apply(sp.effects, ctx) | 0;
+        if (echo) dealt += E.apply(sp.effects, ctx) | 0;
+        return dealt;
       }
       // Fallback if the engine isn't loaded for some reason.
       if (ctx.target && ctx.target.takeDamage) {
-        return ctx.target.takeDamage(power, school, ctx.floor);
+        let dealt = ctx.target.takeDamage(power, school, ctx.floor);
+        if (echo) dealt += ctx.target.takeDamage(power, school, ctx.floor);
+        return dealt;
       }
-      return Math.floor(power);
+      return Math.floor(echo ? power * 2 : power);
     }
   };
 }

@@ -154,6 +154,17 @@ const EFFECT_HANDLERS = {
     },
 };
 
+// GDD §13 Totemic Will keystone — buff/debuff durations × 1.5 when
+// the caster has the keystone allocated. Applied as a multiplier on
+// any timer fields the handlers below set on either caster or target.
+function _willMult(ctx) {
+    return ctx && ctx.caster && ctx.caster.keystone_totemicWill ? 1.5 : 1;
+}
+function _extendTimer(unit, key, mult) {
+    if (!unit || !unit[key] || mult === 1) return;
+    unit[key] = Math.round(unit[key] * mult);
+}
+
 // Apply a list of effect tags. Returns the maximum primary damage
 // reported by any handler so the caller has something to render.
 function applyEffects(tags, ctx) {
@@ -176,6 +187,28 @@ function applyEffects(tags, ctx) {
     // there's no damage to report — the caller treats >=0 as "skill
     // succeeded". If the spell has SOME damage tag but no enemy died,
     // bestDamage may still be 0 — that's fine.
+
+    // GDD §13 Totemic Will — extend the timers any of the just-applied
+    // effects set on the caster/target/party/enemies. Touches the
+    // common buff/debuff timer fields rather than threading the
+    // multiplier through every handler. Units are deduped so a target
+    // appearing in both ctx.target and ctx.enemies isn't extended twice.
+    const mult = _willMult(ctx);
+    if (mult !== 1) {
+        const TIMER_FIELDS = ['tauntTimer','damageReductionTimer','slowedTimer',
+                              'bleedTimer','poisonTimer'];
+        const seen = new Set();
+        const touch = (u) => {
+            if (!u || seen.has(u)) return;
+            seen.add(u);
+            for (const f of TIMER_FIELDS) _extendTimer(u, f, mult);
+        };
+        touch(ctx.caster);
+        touch(ctx.target);
+        for (const m of ctx.party  || []) touch(m);
+        for (const e of ctx.enemies || []) touch(e);
+    }
+
     if (!anyDamageHandler) return 0;
     return bestDamage;
 }

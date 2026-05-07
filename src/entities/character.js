@@ -21,9 +21,13 @@ this._baseMana = maxMana; // Store base for recalculation
     this.mDef = 0;        // Magical Defense
     this.damageType = 'physical'; // basic-attack school: 'physical' | 'magical' | 'mixed'
     
-    // New combat stats
-    this.critChance = 5; // Base 5%
-    this.critDamage = 150; // Base 150% (1.5x multiplier)
+    // GDD §4.5 — crit and dodge are passive-granted only (not core).
+    // Phase 10.z drops the implicit base 5% crit; the same value (and
+    // more) is now reachable via marksman/rogue tree nodes when
+    // allocated. Crit damage stays at 150% as the multiplier when a
+    // crit lands; the *chance* of landing one is now 0 unless granted.
+    this.critChance = 0;
+    this.critDamage = 150; // Base 150% (1.5x multiplier when a crit lands)
     this.dodgeChance = 0; // Base 0%
     this.lifesteal = 0; // Base 0%
     this.hpRegen = 0; // Base 0% - % of max HP restored between rooms
@@ -99,6 +103,21 @@ takeDamage(damage, damageType, floorLevel) {
         return 0;
     }
 
+    // GDD §13 Living Wall keystone — if this is a party member and a
+    // tank in the same party has Living Wall active and is below 30%
+    // HP, the damage redirects to the tank (at 50% reduction). Without
+    // Living Wall, no redirection. The redirect bypasses re-routing on
+    // the tank itself, so we only do it once.
+    if (window.game && window.game.party && window.game.party.includes(this) && !this._livingWallRedirect) {
+        const tank = window.game.party.find(m => m.isAlive && m.keystone_livingWall && m.hp / Math.max(1, m.getTotalMaxHp ? m.getTotalMaxHp() : m.maxHp) < 0.30);
+        if (tank && tank !== this) {
+            tank._livingWallRedirect = true;
+            const redirected = tank.takeDamage(damage * 0.5, damageType, floorLevel);
+            tank._livingWallRedirect = false;
+            return redirected;
+        }
+    }
+
     // GDD §4.3 mitigation: defenderDef / (defenderDef + 100 + 5×floor).
     // The floor-scaling term keeps defense relevant on deep floors but never
     // a wall. damageType selects pDef vs mDef; an undefined damageType keeps
@@ -154,6 +173,15 @@ takeDamage(damage, damageType, floorLevel) {
     
     // Check for dodge
     if (Math.random() * 100 < this.getTotalDodgeChance()) {
+        // GDD §13 Ghost Step keystone — successful dodge resets all
+        // cooldowns. The reset applies to BOTH spell slots.
+        if (this.keystone_ghostStep) {
+            this.cooldown = 0;
+            this.cooldown2 = 0;
+            if (window.game && window.game.addLog) {
+                window.game.addLog(`${this.name} ghost-steps! Cooldowns reset.`, 'heal');
+            }
+        }
         return 'DODGE';
     }
     
@@ -288,8 +316,11 @@ useSpell2(target) {
     if (!haveStone) return -1; // dead-slot
     const liveManaCost = Math.round(this._abilityParam('spell2', 'manaCost', sp.manaCost ?? 25));
     if ((this.cooldown2 || 0) > 0) return -1;
-    if (this.mana < liveManaCost) return -1;
-    this.mana -= liveManaCost;
+    // GDD §13 Spell Echo keystone — mana cost +50%, but the spell fires twice.
+    const echo = !!this.keystone_spellEcho;
+    const finalManaCost = echo ? Math.round(liveManaCost * 1.5) : liveManaCost;
+    if (this.mana < finalManaCost) return -1;
+    this.mana -= finalManaCost;
     this.cooldown2 = this._abilityParam('spell2', 'cooldown', sp.baseCooldown ?? 14);
 
     const school = sp.school || this.damageType || 'physical';
@@ -311,13 +342,18 @@ useSpell2(target) {
         notes: [],
         note(kind, who, n) { this.notes.push({ kind, who, n }); },
     };
+    let dealt = 0;
     if (window.EFFECTS && typeof window.EFFECTS.apply === 'function') {
-        return window.EFFECTS.apply(sp.effects, ctx) | 0;
+        dealt = window.EFFECTS.apply(sp.effects, ctx) | 0;
+        if (echo) dealt += window.EFFECTS.apply(sp.effects, ctx) | 0;
+        return dealt;
     }
     if (ctx.target && ctx.target.takeDamage) {
-        return ctx.target.takeDamage(power, school, ctx.floor);
+        dealt = ctx.target.takeDamage(power, school, ctx.floor);
+        if (echo) dealt += ctx.target.takeDamage(power, school, ctx.floor);
+        return dealt;
     }
-    return Math.floor(power);
+    return Math.floor(echo ? power * 2 : power);
 }
 
 // GDD §13 — allocate one passive-tree node. Honors POE-style adjacency:

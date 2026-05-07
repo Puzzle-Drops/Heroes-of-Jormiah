@@ -40,10 +40,12 @@ const FAMILY_PROFILE = {
               keystone: { name: 'Resolute Technique', bonuses: { pAtk: 25 }, description: 'Your hits cannot crit; +25% damage.' } },
   healer:   { stat: { mAtk: 3, mp_pct: 5 },     notable: { name: 'Devout Channel', bonuses: { mAtk: 10, mp_pct: 20 } },
               keystone: { name: 'Mind Over Matter', bonuses: { mp_pct: 30 }, description: '30% damage taken hits MP first.' } },
-  marksman: { stat: { pAtk: 4, mDef: 2 },       notable: { name: 'Eagle Eye',      bonuses: { pAtk: 12, attackSpeed_pct: 10 } },
-              keystone: { name: 'Hunter\'s Mark',   bonuses: { pAtk: 18, attackSpeed_pct: 15 }, description: 'First hit on a target deals +50% damage.' } },
-  rogue:    { stat: { pAtk: 4, attackSpeed_pct: 3 }, notable: { name: 'Liquid Movement', bonuses: { pAtk: 10, attackSpeed_pct: 15 } },
-              keystone: { name: 'Ghost Step',     bonuses: { attackSpeed_pct: 25 }, description: 'Each successful dodge resets all cooldowns.' } },
+  marksman: { stat: { pAtk: 4, mDef: 2, crit_chance: 1 },
+              notable: { name: 'Eagle Eye',      bonuses: { pAtk: 12, attackSpeed_pct: 10, crit_chance: 5 } },
+              keystone: { name: "Hunter's Mark",  bonuses: { pAtk: 18, attackSpeed_pct: 15, crit_chance: 10 }, description: 'First hit on a target deals +50% damage.' } },
+  rogue:    { stat: { pAtk: 4, attackSpeed_pct: 3, dodge_chance: 1 },
+              notable: { name: 'Liquid Movement', bonuses: { pAtk: 10, attackSpeed_pct: 15, dodge_chance: 5 } },
+              keystone: { name: 'Ghost Step',     bonuses: { attackSpeed_pct: 25, dodge_chance: 10 }, description: 'Each successful dodge resets all cooldowns.' } },
   magician: { stat: { mAtk: 4, mp_pct: 4 },     notable: { name: 'Arcane Mind',    bonuses: { mAtk: 14, mp_pct: 15 } },
               keystone: { name: 'Spell Echo',     bonuses: { mAtk: 20, mp_pct: 25 }, description: 'Spells cast twice; mana cost +50%.' } },
   mystic:   { stat: { mAtk: 3, mDef: 3 },       notable: { name: 'Spirit Link',    bonuses: { mAtk: 10, mDef: 8 } },
@@ -175,14 +177,19 @@ function applyTreeBonuses(character) {
   character.skillTreeMPPct  = total.mp_pct || 0;
   character.skillTreeAttackSpeedPct = total.attackSpeed_pct || 0;
 
-  // Phase 10.y: keystone behavioral flags. Walk the allocated set and
-  // mirror each keystone's behavioral side-effects onto the character.
-  // These flags are read directly by combat hooks (takeDamage, kill).
+  // Phase 10.y/.z: keystone behavioral flags. Walk the allocated set
+  // and mirror each keystone's behavioral side-effects onto the
+  // character. These flags are read directly by combat hooks.
   character.keystone_cantCrit                = false;
   character.keystone_allDamageMultiplier     = 1;
   character.keystone_mpAbsorbsDamageFraction = 0;
   character.keystone_firstHitMultiplier      = 1;
   character.keystone_onKillRandomBuff        = false;
+  // Phase 10.z additions:
+  character.keystone_livingWall              = false;
+  character.keystone_spellEcho               = false;
+  character.keystone_ghostStep               = false;
+  character.keystone_totemicWill             = false;
   for (const id of alloc) {
     const node = TREE_NODES.find(n => n.id === id);
     if (!node || node.kind !== 'keystone') continue;
@@ -201,11 +208,27 @@ function applyTreeBonuses(character) {
       case 'From Beyond':
         character.keystone_onKillRandomBuff = true;
         break;
-      // Behavioral hooks for Living Wall / Spell Echo / Ghost Step /
-      // Totemic Will land in Phase 10.z; their stat bonuses already
-      // apply via the aggregate above.
+      case 'Living Wall':
+        character.keystone_livingWall = true;
+        break;
+      case 'Spell Echo':
+        character.keystone_spellEcho = true;
+        break;
+      case 'Ghost Step':
+        character.keystone_ghostStep = true;
+        break;
+      case 'Totemic Will':
+        character.keystone_totemicWill = true;
+        break;
     }
   }
+
+  // Phase 10.z: GDD §4.5 — crit/dodge are passive-granted, not core.
+  // Aggregate crit_chance and dodge_chance bonuses from any allocated
+  // node. The character's getTotalCritChance/Dodge sums these via the
+  // existing skillTreeCritChance / skillTreeDodge fields.
+  character.skillTreeCritChance = total.crit_chance || 0;
+  character.skillTreeDodge      = total.dodge_chance || 0;
 }
 
 window.PASSIVE_TREE = {
