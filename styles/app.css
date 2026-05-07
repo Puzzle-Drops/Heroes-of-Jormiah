@@ -295,6 +295,30 @@ button:disabled:hover { background: var(--bg-panel-hi); color: var(--ink); }
 .stash-row .stone-tag { font-family: var(--mono); font-size: 9px; color: var(--azure); letter-spacing: 1px; text-transform: uppercase; margin-left: 6px; }
 .stash-row .stone-tag.incompat { color: var(--ember); }
 
+/* ============ PASSIVE TREE ============ */
+.tree-screen { display: grid; grid-template-rows: 56px 1fr; height: 100%; }
+.tree-screen .topbar .title { font-family: var(--display); letter-spacing: 4px; color: var(--brass-hot); font-size: 18px; }
+.tree-screen .topbar .currencies { margin-left: auto; }
+.tree-screen .topbar .back { padding: 6px 12px; font-size: 11px; }
+.tree-stage { position: relative; overflow: hidden; background: var(--bg-deep); }
+#tree-canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+.tree-legend {
+  position: absolute; right: 16px; top: 16px;
+  background: rgba(10,11,20,0.85); border: 1px solid var(--border, #2a2c4a);
+  padding: 10px 14px; font-family: var(--mono); font-size: 11px;
+  display: flex; flex-direction: column; gap: 6px; pointer-events: none;
+}
+.tree-legend .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -2px; margin-right: 8px; }
+.tree-legend .dot.stat     { background: #14152a; border: 1px solid #2a2c4a; }
+.tree-legend .dot.notable  { background: #14152a; border: 2px solid #3b82f6; }
+.tree-legend .dot.keystone { background: #14152a; border: 2.5px solid #a855f7; }
+.tree-legend .hint { color: var(--ink-muted); margin-top: 4px; }
+.tree-btn-inline {
+  margin-left: auto;
+  background: rgba(168,85,247,0.12); border-color: rgba(168,85,247,0.6); color: #c4b5fd;
+}
+.tree-btn-inline:hover { background: rgba(168,85,247,0.25); color: var(--ink); border-color: #a855f7; }
+
 /* ============ TOOLTIPS ============ */
 .tooltip {
   position: fixed;

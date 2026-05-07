@@ -751,29 +751,30 @@ A consistent card design used everywhere items appear (loot drop, inventory row,
 
 ---
 
-## 13. Tech Tree
+## 13. Passive Tree
 
-### 13.1 Structure (per-class)
-Each class has a small tech tree:
-- ~30 nodes
-- 3 branches that bend toward the class fantasy (e.g., Knight: **Bulwark / Threat / Endurance**)
-- 1 point per character level
-- A **Keystone** node gates each branch's lower half (requires 5 invested in branch)
-- A **Capstone** node at branch end (build-defining)
+> **Direction (revised v0.9):** one **shared** tree across all 48 classes — POE-style. Class identity comes from **where on the tree the class starts**, not from a unique tree per class. A Knight begins in the Defense cluster; a Pyromancer in the Magician arm. Anyone can path anywhere if they spend the points.
+
+### 13.1 Structure (single shared tree)
+- **Eight archetype arms** radiating from a central root, one per family (Defender, Fighter, Healer, Marksman, Rogue, Magician, Mystic, Far Lands).
+- **~80 nodes for v1**, intended to grow toward ~300+ at content maturity. Each arm has a stat-node spine, a **Notable** at mid-arm, and a **Keystone** at the tip.
+- **Cross-connections** at two radii so a class can dip into a neighboring arm without committing to its full path.
+- **1 point per character level** per class. Each class's roster entry independently tracks allocations — your Knight's tree is yours; your Berserker's is theirs.
+- The class's **start node is auto-allocated for free** so the tree always functions out of the box.
 
 ### 13.2 Node Types
-- **Stat node:** flat or % stat increase (+10 P.DEF, +3% HP).
-- **Modifier node:** changes how an ability behaves (e.g., "Provoke also slows targets").
-- **Keystone:** powerful effect, build-defining.
-- **Capstone:** transforms a class identity at the extreme (e.g., Knight Capstone "Living Wall": when below 30% HP, all party damage redirects to you and you take 50% less damage).
+- **Stat node** (small): flat or % stat increase (+10 P.DEF, +5% HP). The tree's connective tissue.
+- **Notable** (medium, named): named clusters with an identifiable theme — *Iron Bones* (`+25% HP`), *Eagle Eye* (`+10% crit chance`), *Devout Channel* (`+heal effectiveness`).
+- **Keystone** (large, rare, build-defining): tradeoff effects. *Living Wall* (when below 30% HP, party damage redirects to you, take 50% less damage). *Resolute Technique* (your hits can't crit, +25% damage). *Mind Over Matter* (30% damage taken hits MP first).
 
-### 13.3 Resetting `[DESIGNER CALL]`
-- Free reset until level 10.
-- After level 10, costs gold (or Spirit currency, see §15).
-- Cost scales with level.
+### 13.3 Allocation Rule
+To allocate node N you must already have an allocated node connected to N (standard POE rule). Removing nodes is restricted to keeping the allocated set connected to the start; in v1 a single **Refund All** action resets to the start node. Per-node refund (with safety check) is a future addition.
 
-### 13.4 Level Cap
-**No hard cap.** XP per level scales smoothly so deep levels still feel rewarding but don't break ability scaling (which is capped to 100 anyway).
+### 13.4 Reset
+v1: **Refund All** is free during early development; once balance is settled it should cost Spirit (or scaling Gold, per GDD §15.1) — `[DESIGNER CALL]`.
+
+### 13.5 Level Cap
+**No hard cap.** XP per level scales smoothly so deep levels keep yielding tree points without breaking ability scaling (capped to stone-level 100).
 
 ---
 

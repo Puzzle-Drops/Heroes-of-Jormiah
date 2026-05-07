@@ -1,6 +1,7 @@
 const FILES = [
   'classes', 'abilities', 'dungeons', 'families',
-  'formulas', 'rarity', 'slots', 'sprite_mapping', 'starter_classes'
+  'formulas', 'rarity', 'slots', 'sprite_mapping', 'starter_classes',
+  'tree'
 ];
 
 export async function loadGameData() {
@@ -15,5 +16,6 @@ export async function loadGameData() {
   out.familiesById = Object.fromEntries(out.families.families.map(f => [f.id, f]));
   out.dungeonsById = Object.fromEntries(out.dungeons.dungeons.map(d => [d.id, d]));
   out.slotsById = Object.fromEntries(out.slots.slots.map(s => [s.id, s]));
+  out.treeNodesById = Object.fromEntries((out.tree.nodes ?? []).map(n => [n.id, n]));
   return out;
 }

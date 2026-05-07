@@ -86,10 +86,20 @@ function ensureRosterCovers(state, data) {
   if (!state.dungeons.whispering_spires) state.dungeons.whispering_spires = { highestFloor: 0, currentRunFloor: null };
   if (!state.dungeons.hollowed_wilds)    state.dungeons.hollowed_wilds    = { highestFloor: 0, currentRunFloor: null };
   if (typeof state.settings.autoProgress !== 'boolean') state.settings.autoProgress = false;
-  state.saveVersion = 5;
+  // v0.5 -> v0.6 migration: passive tree allocations
+  for (const id in state.roster) {
+    const u = state.roster[id];
+    const cls = data.classesById[id];
+    const startId = data.tree?.startNodes?.[cls?.family];
+    if (!Array.isArray(u.allocatedNodes)) u.allocatedNodes = startId ? [startId] : [];
+    else if (startId && !u.allocatedNodes.includes(startId)) u.allocatedNodes.unshift(startId);
+  }
+  state.saveVersion = 6;
 }
 
 function makeFreshUnit(cls) {
+  // Start node is auto-allocated for free; further points spent per class level.
+  const startId = _data?.tree?.startNodes?.[cls.family] ?? null;
   return {
     classId: cls.id,
     level: 1,
@@ -102,7 +112,8 @@ function makeFreshUnit(cls) {
       stone_spell1:  starterStone(cls.abilities.spell1),
       stone_spell2:  starterStone(cls.abilities.spell2),
       stone_passive: starterStone(cls.abilities.passive)
-    }
+    },
+    allocatedNodes: startId ? [startId] : []
   };
 }
 

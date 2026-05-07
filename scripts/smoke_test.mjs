@@ -27,6 +27,9 @@ page.on('response', res => {
 
 await page.setViewport({ width: 1600, height: 900, deviceScaleFactor: 1 });
 await page.goto(URL, { waitUntil: 'networkidle0' });
+// fresh save each smoke run so stat / tree / dungeon assertions don't rely on stale localStorage
+await page.evaluate(() => localStorage.clear());
+await page.reload({ waitUntil: 'networkidle0' });
 
 // Hub should render Crucible title
 const title = await page.$eval('.topbar .title', el => el.textContent);
@@ -114,6 +117,19 @@ const equippedNonEmpty = await page.$$eval('.equip-slot:not(.empty):not(.starter
 console.log(`equipped non-starter slots: ${equippedNonEmpty}`);
 
 await page.screenshot({ path: 'scripts/smoke_unit_detail.png' });
+
+// Open the passive tree screen and screenshot it.
+const treeBtn = await page.$('#tree-btn');
+if (treeBtn) {
+  await treeBtn.click();
+  await page.waitForSelector('#tree-canvas', { timeout: 3000 });
+  await new Promise(r => setTimeout(r, 400));
+  const pointsText = await page.$eval('#tree-points', el => el.textContent);
+  console.log(`tree screen points label: ${pointsText}`);
+  await page.screenshot({ path: 'scripts/smoke_tree.png' });
+  await page.click('#tree-back');
+  await page.waitForSelector('.paper-doll', { timeout: 3000 });
+}
 
 // Click the equipped slot → expect the item modal with Reroll buttons.
 const equippedSlot = await page.$('.equip-slot:not(.empty):not(.starter)');

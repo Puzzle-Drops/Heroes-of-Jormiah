@@ -4,6 +4,7 @@ import {
   isIncapacitated, isSilenced, tickDots, applyPassiveBuffs,
   recomputeDynamicBuffs
 } from './abilities.js';
+import { applyTreeToBaseStats, treePctBuffs, treeKeystoneFlags } from '../tree.js';
 import * as F from './formulas.js';
 
 const TICK_HZ = 30;
@@ -97,6 +98,17 @@ export function createBattle({ dungeonId, floor }) {
   // apply persistent passive buffs (Aura of Valor, Inspiring Presence, etc.)
   for (const u of battle.playerUnits) applyPassiveBuffs(u, battle.playerUnits);
   for (const u of battle.enemyUnits) applyPassiveBuffs(u, battle.enemyUnits);
+
+  // apply tree-derived persistent buffs (dodge/crit/etc.) and keystone flags
+  const state = getState();
+  for (const u of battle.playerUnits) {
+    if (!u.classId) continue;
+    const alloc = state.roster[u.classId]?.allocatedNodes ?? [];
+    for (const buff of treePctBuffs(alloc)) {
+      u.buffs.push({ stat: buff.stat, amountPct: buff.amountPct, expires: Infinity, source: 'tree' });
+    }
+    u.keystones = treeKeystoneFlags(alloc);
+  }
   return battle;
 }
 
@@ -239,7 +251,7 @@ function layoutFormation(party) {
 
 function buildPlayerUnit(cls, unit, slotPos) {
   const data = getData();
-  const stats = computeStats(cls, unit.level, unit.equipment);
+  const stats = computeStats(cls, unit.level, unit.equipment, unit.allocatedNodes ?? []);
   const abilities = {};
   for (const slot of ['attack', 'spell1', 'spell2', 'passive']) {
     const aId = cls.abilities[slot];
@@ -274,8 +286,8 @@ function buildPlayerUnit(cls, unit, slotPos) {
   };
 }
 
-function computeStats(cls, level, equipment) {
-  const out = {};
+function computeStats(cls, level, equipment, allocatedNodes) {
+  let out = {};
   for (const k of STAT_KEYS) out[k] = (cls.baseStats[k] ?? 0) + (cls.perLevelStats[k] ?? 0) * (level - 1);
   if (equipment) {
     for (const slotId in equipment) {
@@ -284,6 +296,7 @@ function computeStats(cls, level, equipment) {
       for (const k of STAT_KEYS) out[k] += item.stats[k] ?? 0;
     }
   }
+  if (allocatedNodes && allocatedNodes.length) out = applyTreeToBaseStats(allocatedNodes, out);
   return out;
 }
 

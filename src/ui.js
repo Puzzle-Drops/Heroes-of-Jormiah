@@ -15,6 +15,8 @@ import { attachTooltip, hideTooltip, showTooltipAt, updateTooltipContent, isTool
 import { humanizeEffect, prettyAbility, statLabel, humanizeScalingKey, formatScalingValue } from './humanize.js';
 import { scaleParam } from './combat/formulas.js';
 import { effectiveStat, sumBuffPct } from './combat/abilities.js';
+import { createTreeView } from './tree_render.js';
+import { allocateNode, refundAll, pointsAvailable, getAllocated, canAllocate, startNodeFor } from './tree.js';
 
 const root = () => document.getElementById('app');
 
@@ -220,6 +222,7 @@ export function showUnitDetail(classId) {
           </div>
           <div class="party-controls">
             ${renderPartyControls(classId, inParty, fullParty, party)}
+            <button id="tree-btn" class="tree-btn-inline">Passive Tree (${pointsAvailable(classId)} pts)</button>
           </div>
           <div class="paper-doll">
             <div class="row">${SLOT_LAYOUT_TOP.map(s => renderEquipSlot(s, unit.equipment[s])).join('')}</div>
@@ -364,6 +367,8 @@ function bindUnitDetail(classId) {
       showUnitDetail(classId);
     });
   }
+  const treeBtn = document.getElementById('tree-btn');
+  if (treeBtn) treeBtn.addEventListener('click', () => showTreeScreen(classId));
 
   // stash rows
   const salvageRusted = document.getElementById('salvage-rusted-btn');
@@ -691,6 +696,120 @@ function showItemModal(classId, slotId) {
       showUnitDetail(classId);
     }
   });
+}
+
+// ============================================================================
+// PASSIVE-TREE SCREEN
+// ============================================================================
+let _treeView = null;
+
+function showTreeScreen(classId) {
+  hideTooltip();
+  stopBattle();
+  destroyTreeView();
+
+  const data = getData();
+  const cls = data.classesById[classId];
+  if (!cls) { showHub(); return; }
+  const unit = getState().roster[classId];
+
+  root().innerHTML = `
+    <div class="tree-screen">
+      <div class="topbar">
+        <button id="tree-back" class="back" style="margin-right: 16px;">← ${cls.displayName}</button>
+        <div class="title">PASSIVE TREE</div>
+        <div class="currencies">
+          <div class="cur">Lvl <b>${unit.level}</b></div>
+          <div class="cur">Allocated <b id="tree-alloc-count">${unit.allocatedNodes.length}</b></div>
+          <div class="cur">Points <b id="tree-points">${pointsAvailable(classId)}</b></div>
+        </div>
+        <button id="tree-refund" style="margin-left: 16px;">Refund All</button>
+      </div>
+      <div class="tree-stage">
+        <canvas id="tree-canvas"></canvas>
+        <div class="tree-legend">
+          <div><span class="dot stat"></span> Stat</div>
+          <div><span class="dot notable"></span> Notable</div>
+          <div><span class="dot keystone"></span> Keystone</div>
+          <div class="hint">Drag to pan · Scroll to zoom · Click node to allocate</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const canvas = document.getElementById('tree-canvas');
+  _treeView = createTreeView(canvas, classId, {
+    onClickNode(node) {
+      if (canAllocate(classId, node.id)) {
+        if (allocateNode(classId, node.id)) {
+          updateTreeHud(classId);
+          _treeView?.draw();
+        }
+      } else if (getAllocated(classId).has(node.id)) {
+        flash('Already allocated · use Refund All to reset.');
+      } else {
+        const reason = pointsAvailable(classId) <= 0
+          ? 'No points available — level up to earn more.'
+          : 'Path not connected to your tree yet.';
+        flash(reason);
+      }
+    },
+    onHover(node, e) {
+      if (!node || !e) { hideTooltip(); return; }
+      showTooltipAt(buildNodeTooltip(node, classId), e.clientX, e.clientY, '__tree__');
+    }
+  });
+  _treeView.resize();
+
+  document.getElementById('tree-back').addEventListener('click', () => {
+    destroyTreeView();
+    showUnitDetail(classId);
+  });
+  document.getElementById('tree-refund').addEventListener('click', () => {
+    if (!confirm('Refund all allocated nodes? Start node stays.')) return;
+    refundAll(classId);
+    updateTreeHud(classId);
+    _treeView?.draw();
+  });
+  window.addEventListener('resize', onTreeResize);
+}
+
+function onTreeResize() { _treeView?.resize(); }
+function destroyTreeView() {
+  window.removeEventListener('resize', onTreeResize);
+  if (_treeView) { _treeView.destroy(); _treeView = null; }
+}
+
+function updateTreeHud(classId) {
+  const unit = getState().roster[classId];
+  const ptsEl = document.getElementById('tree-points');
+  const allocEl = document.getElementById('tree-alloc-count');
+  if (ptsEl) ptsEl.textContent = pointsAvailable(classId);
+  if (allocEl) allocEl.textContent = unit.allocatedNodes.length;
+}
+
+function buildNodeTooltip(node, classId) {
+  const allocated = getAllocated(classId);
+  const isAlloc = allocated.has(node.id);
+  const canAlloc = !isAlloc && canAllocate(classId, node.id);
+  const kindLabel = ({ stat: 'STAT', notable: 'NOTABLE', keystone: 'KEYSTONE', connector: 'CONNECTOR' })[node.kind] ?? node.kind.toUpperCase();
+  const statLines = (node.effects ?? []).map(eff => {
+    if (eff.type === 'stat') {
+      if (eff.amount !== undefined)    return `<div class="t-row"><span>${statLabel(eff.stat)}</span><span class="up">+${eff.amount}</span></div>`;
+      if (eff.amountPct !== undefined) return `<div class="t-row"><span>${statLabel(eff.stat)}</span><span class="up">+${eff.amountPct}%</span></div>`;
+    }
+    if (eff.type === 'keystone') {
+      return `<div class="t-row"><span>Keystone</span><span><b>${eff.flag}</b></span></div>`;
+    }
+    return '';
+  }).join('');
+  const status = isAlloc ? '<span class="up">ALLOCATED</span>' : (canAlloc ? '<span class="dim">Available · click to allocate</span>' : '<span class="down">Locked · path not reached</span>');
+  return `
+    <div class="t-title">${node.name ?? kindLabel}</div>
+    <div class="t-sub">${kindLabel}</div>
+    <div class="t-grid">${statLines || '<div class="t-row"><span>(no effects)</span></div>'}</div>
+    <div class="t-foot">${status}</div>
+  `;
 }
 
 // ============================================================================
