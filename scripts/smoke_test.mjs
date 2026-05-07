@@ -36,6 +36,24 @@ if (title.trim() !== 'CRUCIBLE') throw new Error(`unexpected title: ${title}`);
 await page.click('#enter-btn');
 await page.waitForSelector('#battle-canvas', { timeout: 5000 });
 
+// Hover a unit on the canvas BEFORE cranking speed, expect a battle tooltip
+await page.click('.speed-controls button[data-speed="1"]');
+const stageRect = await page.$eval('#battle-canvas', c => {
+  const r = c.getBoundingClientRect();
+  return { left: r.left, top: r.top, width: r.width, height: r.height };
+});
+// Approximate one of the player frontline positions: ~28% width, ~66% height of stage
+await page.mouse.move(stageRect.left + stageRect.width * 0.28, stageRect.top + stageRect.height * 0.66);
+await new Promise(r => setTimeout(r, 350));
+const battleTooltipText = await page.evaluate(() => {
+  const el = document.querySelector('.tooltip');
+  return el && el.style.display !== 'none' ? el.textContent : '';
+});
+console.log(`battle tooltip text length: ${battleTooltipText.length}`);
+if (!/RESOURCES|HP/.test(battleTooltipText)) console.error('battle tooltip missing — got:', battleTooltipText.slice(0, 200));
+await page.screenshot({ path: 'scripts/smoke_battle_tooltip.png' });
+await page.mouse.move(0, 0);
+
 // Crank speed
 await page.click('.speed-controls button[data-speed="4"]');
 

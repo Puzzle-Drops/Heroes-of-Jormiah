@@ -11,9 +11,10 @@ import { createBattle, tickBattle, reviveSurvivors } from './combat/engine.js';
 import { generateItemForDungeon } from './combat/loot.js';
 import { renderBattle, placeUnits, preloadBattleSprites } from './render.js';
 import { preloadClassSprites } from './sprites.js';
-import { attachTooltip, hideTooltip } from './tooltip.js';
+import { attachTooltip, hideTooltip, showTooltipAt, updateTooltipContent, isTooltipShowing } from './tooltip.js';
 import { humanizeEffect, prettyAbility, statLabel, humanizeScalingKey, formatScalingValue } from './humanize.js';
 import { scaleParam } from './combat/formulas.js';
+import { effectiveStat, sumBuffPct } from './combat/abilities.js';
 
 const root = () => document.getElementById('app');
 
@@ -693,6 +694,64 @@ function showItemModal(classId, slotId) {
 }
 
 // ============================================================================
+// BATTLE-SIDE TOOLTIP CONTENT
+// ============================================================================
+const STATUS_LABEL = {
+  stunned: 'Stunned', frozen: 'Frozen', silenced: 'Silenced', blinded: 'Blinded',
+  rooted: 'Rooted', slowed: 'Slowed', untargetable: 'Untargetable'
+};
+
+function buildBattleTooltip(unit, battle) {
+  const now = battle.now;
+  const isEnemy = !!unit.isEnemy;
+  const buffs   = (unit.buffs ?? []).filter(b => b.expires > now && !b.dynamic && (b.amountPct ?? 0) !== 0);
+  const dynamic = (unit.buffs ?? []).filter(b => b.dynamic && (b.amountPct ?? 0) !== 0);
+  const dots    = (unit.dots ?? []).filter(d => d.expires > now);
+  const shields = (unit.shields ?? []).filter(s => s.expires > now && s.amount > 0);
+  const statuses = Object.entries(unit.statuses ?? {}).filter(([_, t]) => t > now);
+  const tauntedBy = unit.tauntedBy && unit.tauntedBy.expires > now ? unit.tauntedBy.caster?.displayName : null;
+
+  const stat = (k) => Math.round(effectiveStat(unit, k, now));
+  const critChance = sumBuffPct(unit, 'critChancePct', now);
+  const dodgeChance = sumBuffPct(unit, 'dodgePct', now);
+
+  const cdRows = !isEnemy ? Object.entries(unit.abilities ?? {})
+    .filter(([slot, a]) => a && a.ability && a.ability.type !== 'passive')
+    .map(([slot, a]) => `<div class="t-row"><span>${slotShort(slot)}: ${prettyAbility(a.id)}</span><span>${a.cooldown > 0.05 ? a.cooldown.toFixed(1) + 's' : '<b style="color:var(--verdant)">ready</b>'}${a.ability.manaCost > unit.mp ? ' <span class="dim">(no MP)</span>' : ''}</span></div>`)
+    .join('') : '';
+
+  return `
+    <div class="t-title">${unit.displayName} ${isEnemy ? '<span class="dim" style="font-size:10px">— enemy</span>' : ''}</div>
+    <div class="t-sub">${isEnemy ? 'enemy' : 'party'} · ${unit.row} row · lvl ${unit.level}${tauntedBy ? ` · taunted by ${tauntedBy}` : ''}</div>
+    <div class="t-section">RESOURCES</div>
+    <div class="t-grid">
+      <div class="t-row"><span>HP</span><span><b>${Math.round(unit.hp)}</b> / ${unit.maxHp}</span></div>
+      ${unit.maxMp ? `<div class="t-row"><span>MP</span><span><b>${Math.round(unit.mp)}</b> / ${unit.maxMp}</span></div>` : ''}
+      ${shields.length ? `<div class="t-row"><span>Shields</span><span>${shields.reduce((a, s) => a + Math.max(0, Math.round(s.amount)), 0)}</span></div>` : ''}
+    </div>
+    <div class="t-section">STATS (effective)</div>
+    <div class="t-grid">
+      <div class="t-row"><span>P.ATK</span><span>${stat('patk')}</span></div>
+      <div class="t-row"><span>P.DEF</span><span>${stat('pdef')}</span></div>
+      <div class="t-row"><span>M.ATK</span><span>${stat('matk')}</span></div>
+      <div class="t-row"><span>M.DEF</span><span>${stat('mdef')}</span></div>
+      ${critChance ? `<div class="t-row"><span>Crit</span><span>${critChance.toFixed(0)}%</span></div>` : ''}
+      ${dodgeChance ? `<div class="t-row"><span>Dodge</span><span>${dodgeChance.toFixed(0)}%</span></div>` : ''}
+    </div>
+    ${buffs.length ? `<div class="t-section">BUFFS</div><div class="t-list">${buffs.map(b => `<div class="t-row"><span>${statLabel(b.stat)}</span><span><span class="${b.amountPct > 0 ? 'up' : 'down'}">${b.amountPct > 0 ? '+' : ''}${b.amountPct.toFixed(0)}%</span> · ${b.expires === Infinity ? '∞' : (b.expires - now).toFixed(1) + 's'}</span></div>`).join('')}</div>` : ''}
+    ${dynamic.length ? `<div class="t-section">SCALED</div><div class="t-list">${dynamic.map(b => `<div class="t-row"><span>${statLabel(b.stat)}</span><span class="${b.amountPct > 0 ? 'up' : 'down'}">${b.amountPct > 0 ? '+' : ''}${b.amountPct.toFixed(0)}%</span></div>`).join('')}</div>` : ''}
+    ${dots.length ? `<div class="t-section">DOTS</div><div class="t-list">${dots.map(d => `<div class="t-row"><span>${d.tag}</span><span>${(d.dpsPct * 100).toFixed(1)}%/s · ${(d.expires - now).toFixed(1)}s</span></div>`).join('')}</div>` : ''}
+    ${statuses.length ? `<div class="t-section">STATUS</div><div class="t-list">${statuses.map(([k, t]) => `<div class="t-row"><span>${STATUS_LABEL[k] ?? prettyKey(k)}</span><span>${(t - now).toFixed(1)}s</span></div>`).join('')}</div>` : ''}
+    ${cdRows ? `<div class="t-section">COOLDOWNS</div><div class="t-list">${cdRows}</div>` : ''}
+  `;
+}
+
+function slotShort(slot) {
+  return ({ attack: 'Atk', spell1: 'S1', spell2: 'S2' })[slot] ?? slot;
+}
+function prettyKey(s) { return (s ?? '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); }
+
+// ============================================================================
 // BATTLE SCREEN
 // ============================================================================
 async function enterDungeon(dungeonId) {
@@ -770,6 +829,46 @@ function bindBattle() {
     }
   });
   window.addEventListener('resize', resizeCanvas);
+
+  // canvas hover → battle tooltip (live-updated by render loop)
+  const canvas = document.getElementById('battle-canvas');
+  canvas.addEventListener('mousemove', onCanvasMove);
+  canvas.addEventListener('mouseleave', () => {
+    _hoveredUnit = null;
+    canvas.style.cursor = 'default';
+    hideTooltip();
+  });
+}
+
+let _hoveredUnit = null;
+let _hoverEvent = null;
+
+function onCanvasMove(e) {
+  const canvas = e.currentTarget;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const unit = findUnitAt(_activeBattle, x, y);
+  _hoveredUnit = unit;
+  _hoverEvent = e;
+  if (unit) {
+    canvas.style.cursor = 'help';
+    showTooltipAt(buildBattleTooltip(unit, _activeBattle), e.clientX, e.clientY, '__battle__');
+  } else {
+    canvas.style.cursor = 'default';
+    hideTooltip();
+  }
+}
+
+function findUnitAt(battle, x, y) {
+  if (!battle) return null;
+  const HW = 50, HH = 60;
+  // enemies first so they win ties when overlapping a player slot
+  for (const u of [...battle.enemyUnits, ...battle.playerUnits]) {
+    if (!u.screen) continue;
+    if (Math.abs(x - u.screen.x) < HW && Math.abs(y - u.screen.y) < HH) return u;
+  }
+  return null;
 }
 
 function resizeCanvas() {
@@ -804,6 +903,13 @@ function startRenderLoop() {
       }
       updateLog();
       handleBattleStatus();
+      // refresh battle tooltip in place if hovering a unit (HP, CDs, dots tick live)
+      if (_hoveredUnit && !_hoveredUnit.dead && isTooltipShowing()) {
+        updateTooltipContent(buildBattleTooltip(_hoveredUnit, _activeBattle));
+      } else if (_hoveredUnit && _hoveredUnit.dead) {
+        _hoveredUnit = null;
+        hideTooltip();
+      }
     }
     _renderHandle = requestAnimationFrame(frame);
   };
@@ -814,6 +920,8 @@ function stopBattle() {
   cancelAnimationFrame(_renderHandle);
   _renderHandle = null;
   _activeBattle = null;
+  _hoveredUnit = null;
+  hideTooltip();
 }
 
 let _lastLogLen = 0;

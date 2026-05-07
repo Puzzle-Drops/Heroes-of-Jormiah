@@ -229,6 +229,8 @@ function drawFx(ctx, battle) {
     if (f.type === 'heal')   { ctx.fillStyle = '#86efac'; ctx.fillText(`+${f.amount}`, u.screen.x, u.screen.y - 32 - yLift); }
     if (f.type === 'absorb') { ctx.fillStyle = '#a3e0ff'; ctx.font = 'bold 13px ui-monospace, monospace'; ctx.fillText(`absorbed ${f.amount}`, u.screen.x, u.screen.y - 32 - yLift); }
     if (f.type === 'death')  { ctx.fillStyle = '#d63b3b'; ctx.font = 'bold 13px ui-monospace, monospace'; ctx.fillText('[DOWNED]', u.screen.x, u.screen.y - 32 - yLift); }
+    if (f.type === 'dodge')  { ctx.fillStyle = '#a3e0ff'; ctx.font = 'bold 13px ui-monospace, monospace'; ctx.fillText('dodged!', u.screen.x, u.screen.y - 24 - yLift); }
+    if (f.type === 'crit')   { ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 20px ui-monospace, monospace'; ctx.fillText('CRIT!', u.screen.x + 28, u.screen.y - 32 - yLift); }
     ctx.restore();
   }
 }

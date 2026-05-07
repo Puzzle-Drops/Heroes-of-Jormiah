@@ -97,8 +97,34 @@ export function buffMultiplier(unit, stat, now) {
   return mul;
 }
 
+// Additive percentage sum (for chance-style stats like dodgePct, critChancePct,
+// critDamagePct). Multiple buffs add their percentages directly rather than
+// multiplying a base value.
+export function sumBuffPct(unit, stat, now) {
+  let total = 0;
+  for (const b of unit.buffs) {
+    if (b.expires <= now) continue;
+    if (b.stat === stat) total += (b.amountPct ?? 0);
+  }
+  return total;
+}
+
 export function effectiveStat(unit, stat, now) {
   return (unit.stats[stat] ?? 0) * buffMultiplier(unit, stat, now);
+}
+
+function rollDodge(target, now) {
+  const chance = sumBuffPct(target, 'dodgePct', now);
+  if (chance <= 0) return false;
+  return Math.random() * 100 < chance;
+}
+
+function rollCritMultiplier(caster, now) {
+  const chance = sumBuffPct(caster, 'critChancePct', now);
+  if (chance <= 0) return 1;
+  if (Math.random() * 100 >= chance) return 1;
+  const bonus = sumBuffPct(caster, 'critDamagePct', now);
+  return 1.5 + bonus / 100;
 }
 
 // ============================================================================
@@ -180,9 +206,25 @@ const HANDLERS = {
     const hits = effect.hits ? Math.max(1, Math.round(scalar(effect.hits, ctx.ability, ctx.stoneLevel))) : 1;
     const ignorePct = effect.ignoreDefPct ? scalar(effect.ignoreDefPct, ctx.ability, ctx.stoneLevel) : 0;
     for (const t of targets) {
+      // dodge gates the entire hit (single roll covers all sub-hits for clarity)
+      if (rollDodge(t, ctx.now)) {
+        ctx.fx?.push({ type: 'dodge', target: t, t: ctx.now });
+        if (t.onDodgeHandlers?.length) {
+          const evt = { target: t, attacker: ctx.caster, ctx };
+          for (const h of t.onDodgeHandlers) h(evt);
+        }
+        continue;
+      }
       const def = effectiveStat(t, defStat, ctx.now) * (1 - ignorePct / 100);
       let total = 0;
-      for (let i = 0; i < hits; i++) total += F.damage(power, atk, def, ctx.floor);
+      let crit = false;
+      for (let i = 0; i < hits; i++) {
+        let dmg = F.damage(power, atk, def, ctx.floor);
+        const critMul = rollCritMultiplier(ctx.caster, ctx.now);
+        if (critMul > 1) { dmg = Math.round(dmg * critMul); crit = true; }
+        total += dmg;
+      }
+      if (crit) ctx.fx?.push({ type: 'crit', target: t, t: ctx.now });
       applyDamage(t, total, ctx);
     }
   },
@@ -540,6 +582,8 @@ export function applyPassiveBuffs(caster, allParty) {
       caster.onHitTakenHandlers.push((evt) => runActionOnTarget(effect, slot, caster, evt.ctx));
     } else if (effect.type === 'onKill') {
       caster.onKillHandlers.push((evt) => runActionOnTarget(effect, slot, caster, evt.ctx));
+    } else if (effect.type === 'onDodge') {
+      caster.onDodgeHandlers.push((evt) => runActionOnTarget(effect, slot, caster, evt.ctx));
     } else if (effect.type === 'scaledBuff') {
       const perUnit = F.scaleParam(slot.ability.scaling, effect.amountPct ?? effect.amount ?? 0, slot.stoneLevel);
       caster.dynamicBuffSpecs.push({ stat: effect.stat, perUnit, scaledBy: effect.scaledBy });

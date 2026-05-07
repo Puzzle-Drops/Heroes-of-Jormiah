@@ -55,6 +55,27 @@ export function hideTooltip() {
   _currentAnchor = null;
 }
 
+// Manual API for callers that drive the tooltip themselves (e.g. canvas
+// hit-test). showTooltipAt forces it visible immediately; updateTooltipContent
+// swaps innerHTML in place so per-frame refreshes don't reset position.
+export function showTooltipAt(html, clientX, clientY, ownerToken = '__manual__') {
+  clearTimeout(_showTimer);
+  _showTimer = null;
+  _lastEvent = { clientX, clientY };
+  _currentAnchor = ownerToken;
+  const el = ensureEl();
+  el.innerHTML = html;
+  el.style.display = 'block';
+  position();
+}
+
+export function updateTooltipContent(html) {
+  if (!_el || _el.style.display === 'none') return;
+  _el.innerHTML = html;
+}
+
+export function isTooltipShowing() { return _el && _el.style.display !== 'none'; }
+
 export function attachTooltip(element, content, options = {}) {
   if (!element) return () => {};
   const { delay = SHOW_DELAY_MS } = options;

@@ -242,6 +242,7 @@ function buildPlayerUnit(cls, unit, slotPos) {
     lungeT: -10,
     onHitTakenHandlers: [],
     onKillHandlers: [],
+    onDodgeHandlers: [],
     dynamicBuffSpecs: []
   };
 }
@@ -300,6 +301,7 @@ function buildEnemy(template, floor, row, col, attackTpl) {
     lungeT: -10,
     onHitTakenHandlers: [],
     onKillHandlers: [],
+    onDodgeHandlers: [],
     dynamicBuffSpecs: []
   };
 }
@@ -315,7 +317,7 @@ export function reviveSurvivors(playerUnits) {
     u.mp = u.maxMp;
     u.buffs = []; u.hots = []; u.regen = []; u.tauntedBy = null;
     u.dots = []; u.shields = []; u.marks = []; u.statuses = {};
-    u.onHitTakenHandlers = []; u.onKillHandlers = []; u.dynamicBuffSpecs = [];
+    u.onHitTakenHandlers = []; u.onKillHandlers = []; u.onDodgeHandlers = []; u.dynamicBuffSpecs = [];
     for (const slot of Object.keys(u.abilities)) u.abilities[slot].cooldown = 0;
   }
 }

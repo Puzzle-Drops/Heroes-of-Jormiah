@@ -330,6 +330,8 @@ button:disabled:hover { background: var(--bg-panel-hi); color: var(--ink); }
 .tooltip .t-effects li::before { content: '▸'; position: absolute; left: 0; color: var(--brass); }
 .tooltip .dim { color: var(--ink-muted); font-weight: 400; }
 .tooltip .t-grid { display: grid; grid-template-columns: 1fr auto; gap: 3px 14px; }
+.tooltip .t-list { display: flex; flex-direction: column; gap: 3px; }
+.tooltip { max-width: 380px; }
 .detail-stats .stat { cursor: help; }
 .ability-chip { cursor: help; }
 .party-slot[data-class] { cursor: help; }
