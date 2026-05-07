@@ -5612,7 +5612,7 @@ showDemoLockedMessage(dungeonType) {
                 line-height: 1.6;
                 margin-bottom: 25px;
             ">
-                This dungeon is available in the full version of Everfall 2.
+                This dungeon is available in the full version of Heroes of Jormiah.
             </p>
             <button onclick="this.closest('#demo-locked-modal').remove()" style="
                 background: linear-gradient(135deg, #a855f7, #7c3aed);
@@ -6007,9 +6007,9 @@ selectDungeon(dungeonType) {
                 
                 // Update current dungeon display
                 const dungeonNames = {
-                    umbral: '🌑 Umbral Depths',
-                    everfall: '⚔️ Everfall',
-                    stoneforge: '🔥 Stoneforge'
+                    umbral: '🔮 The Whispering Spires',
+                    everfall: '🌿 The Hollowed Wilds',
+                    stoneforge: '🛡️ The Iron Vaults'
                 };
                 document.getElementById('current-dungeon-display').textContent = dungeonNames[dungeonType] || 'Unknown';
                 document.getElementById('current-floor-display').textContent = this.dungeonFloor;
@@ -6370,9 +6370,9 @@ updateRoomLabel(roomData) {
                 };
                 
                 const dungeonNames = {
-                    umbral: 'Umbral Depths',
-                    everfall: 'Everfall',
-                    stoneforge: 'Stoneforge',
+                    umbral: 'The Whispering Spires',
+                    everfall: 'The Hollowed Wilds',
+                    stoneforge: 'The Iron Vaults',
                     endlessblessings: 'Divine Arena'
                 };
                 
@@ -7937,9 +7937,9 @@ if (Math.random() < CHEST_CONFIG.DROP_CHANCE) {
                     }
 
 const dungeonNames = {
-                        umbral: 'Umbral Depths',
-                        everfall: 'Everfall',
-                        stoneforge: 'Stoneforge'
+                        umbral: 'The Whispering Spires',
+                        everfall: 'The Hollowed Wilds',
+                        stoneforge: 'The Iron Vaults'
                     };
                     
                     this.addLog(
@@ -13805,9 +13805,9 @@ showKeystoneTooltip(data, event) {
         noChestsMsg.style.display = 'none';
         
         const dungeonNames = {
-            umbral: 'Umbral',
-            everfall: 'Everfall',
-            stoneforge: 'Stoneforge'
+            umbral: 'Whispering Spires',
+            everfall: 'Hollowed Wilds',
+            stoneforge: 'Iron Vaults'
         };
         
         this.playerChests.forEach(chest => {
@@ -15419,7 +15419,7 @@ if (dungeonProgressEverfallDisplay) {
     
     document.getElementById('everfall-start-selector').addEventListener('change', (e) => {
         this.dungeonProgress.everfall.startFloor = parseInt(e.target.value);
-        this.addLog(`Everfall start floor set to ${e.target.value}`, 'room');
+        this.addLog(`Hollowed Wilds start floor set to ${e.target.value}`, 'room');
     });
 }
 
@@ -15441,7 +15441,7 @@ if (dungeonProgressStoneforgeDisplay) {
     
     document.getElementById('stoneforge-start-selector').addEventListener('change', (e) => {
         this.dungeonProgress.stoneforge.startFloor = parseInt(e.target.value);
-        this.addLog(`Stoneforge start floor set to ${e.target.value}`, 'room');
+        this.addLog(`Iron Vaults start floor set to ${e.target.value}`, 'room');
     });
 }
 const dungeonProgressUmbralDisplay = document.getElementById('umbral-progress-display');
@@ -15462,7 +15462,7 @@ if (dungeonProgressUmbralDisplay) {
     
     document.getElementById('umbral-start-selector').addEventListener('change', (e) => {
         this.dungeonProgress.umbral.startFloor = parseInt(e.target.value);
-        this.addLog(`Umbral Depths start floor set to ${e.target.value}`, 'room');
+        this.addLog(`Whispering Spires start floor set to ${e.target.value}`, 'room');
     });
 }
 

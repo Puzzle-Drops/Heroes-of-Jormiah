@@ -1,7 +1,30 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const everfall = readFileSync('everfall/index.html', 'utf-8').split('\n');
-const bodyMarkup = everfall.slice(2958, 3784).join('\n'); // lines 2959..3784 inclusive
+let bodyMarkup = everfall.slice(2958, 3784).join('\n'); // lines 2959..3784 inclusive
+
+// Phase 2 branding/dungeon-name swaps. Applied to body markup so re-extraction
+// from the everfall source produces the same Heroes of Jormiah output.
+const REPLACEMENTS = [
+  ['letter-spacing: 1px;">EVERFALL 2</div>', 'letter-spacing: 1px;">HEROES OF JORMIAH</div>'],
+  ['font-weight: 900;">EVERFALL 2</h2>', 'font-weight: 900;">HEROES OF JORMIAH</h2>'],
+  ['>Idle Dungeon RPG<', '>Idle ARPG Party<'],
+  ['>⚔️ Everfall<', '>🌿 The Hollowed Wilds<'],
+  ['>🔥 Stoneforge<', '>🛡️ The Iron Vaults<'],
+  ['>🌑 Umbral Depths<', '>🔮 The Whispering Spires<'],
+  ['rgba(0, 0, 0, 0.9);">Everfall</div>', 'rgba(0, 0, 0, 0.9);">The Hollowed Wilds</div>'],
+  ['rgba(0, 0, 0, 0.9);">Stoneforge</div>', 'rgba(0, 0, 0, 0.9);">The Iron Vaults</div>'],
+  ['rgba(0, 0, 0, 0.9);">Umbral Depths</div>', 'rgba(0, 0, 0, 0.9);">The Whispering Spires</div>'],
+  ['font-weight: 600;">Everfall:</span>', 'font-weight: 600;">Hollowed Wilds:</span>'],
+  ['font-weight: 600;">Stoneforge:</span>', 'font-weight: 600;">Iron Vaults:</span>'],
+  ['font-weight: 600;">Umbral:</span>', 'font-weight: 600;">Whispering Spires:</span>'],
+];
+for (const [from, to] of REPLACEMENTS) {
+  if (!bodyMarkup.includes(from)) {
+    console.warn(`WARNING: replacement source not found: ${from.slice(0, 60)}...`);
+  }
+  bodyMarkup = bodyMarkup.split(from).join(to);
+}
 
 const header = `<!DOCTYPE html>
 <html lang="en">

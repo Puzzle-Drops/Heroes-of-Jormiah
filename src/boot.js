@@ -753,6 +753,6 @@ document.addEventListener('keydown', function(e) {
 // RELEASE MODE INITIALIZATION
 // ========================================
 if (!DEMO_MODE) {
-    console.log('🎮 Everfall 2: Full Release - All dungeons unlocked!');
+    console.log('🎮 Heroes of Jormiah: Full Release - All dungeons unlocked!');
 }
 

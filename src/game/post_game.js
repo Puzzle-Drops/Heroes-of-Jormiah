@@ -2011,7 +2011,7 @@ Click OK to start fresh, or Cancel to try manually recovering.`;
             
             if (!entries || entries.length === 0) {
                 const emptyMsg = mode === 'Friends' 
-                    ? 'No friends on this leaderboard yet!<br><span style="font-size: 12px; color: #64748b;">Invite friends to play Everfall 2!</span>'
+                    ? 'No friends on this leaderboard yet!<br><span style="font-size: 12px; color: #64748b;">Invite friends to play Heroes of Jormiah!</span>'
                     : 'No entries yet!<br><span style="font-size: 12px; color: #64748b;">Be the first to set a score!</span>';
                 content.innerHTML = `
                     <div style="text-align: center; color: #94a3b8; padding: 40px;">
