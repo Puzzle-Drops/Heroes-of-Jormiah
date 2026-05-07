@@ -101,15 +101,18 @@ export function computeRarity(score) {
 const NAMESAKE_PREFIX = {
   hp: 'Vital', mp: 'Mystic', patk: 'Sharp', matk: 'Arcane', pdef: 'Sturdy', mdef: 'Warded'
 };
+const WEAPON_NOUNS = ['Sword', 'Mace', 'Spear', 'Hammer', 'Dagger', 'Staff', 'Bow', 'Axe', 'Glaive', 'Scepter'];
 const SLOT_NOUN = {
-  weapon: 'Sword', helm: 'Helm', chest: 'Cuirass', legs: 'Greaves',
+  helm: 'Helm', chest: 'Cuirass', legs: 'Greaves',
   gloves: 'Gauntlets', boots: 'Boots', ring1: 'Ring', ring2: 'Ring',
   amulet: 'Amulet', stone_attack: 'Strike Stone', stone_spell1: 'Spell Stone',
   stone_spell2: 'Spell Stone', stone_passive: 'Aegis Stone'
 };
 
 function composeName(slot, namesake, level) {
-  const noun = SLOT_NOUN[slot.id] || slot.id;
+  const noun = slot.id === 'weapon'
+    ? WEAPON_NOUNS[Math.floor(Math.random() * WEAPON_NOUNS.length)]
+    : (SLOT_NOUN[slot.id] || slot.id);
   const prefix = NAMESAKE_PREFIX[namesake] || '';
   return `Lvl ${level} ${prefix} ${noun}`.replace(/\s+/g, ' ').trim();
 }

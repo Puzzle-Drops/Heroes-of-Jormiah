@@ -47,6 +47,33 @@ const ENEMIES = {
       { name: 'Echo Wisp',    baseHp: 22, baseDmg: 4, basePdef: 2, baseMdef: 5 },
       { name: 'Fractal Imp',  baseHp: 26, baseDmg: 5, basePdef: 3, baseMdef: 4 }
     ]
+  },
+  whispering_spires: {
+    attackTpl: ENEMY_MAG_ATTACK_TPL,
+    bosses: [
+      { name: 'Spire Sage',         baseHp: 70,  baseDmg: 8,  basePdef: 3, baseMdef: 14 },
+      { name: 'Crystal Wraith',     baseHp: 85,  baseDmg: 9,  basePdef: 4, baseMdef: 16 },
+      { name: 'Aether Conjurer',    baseHp: 100, baseDmg: 10, basePdef: 5, baseMdef: 18 },
+      { name: 'Archon of Whispers', baseHp: 130, baseDmg: 11, basePdef: 6, baseMdef: 22 }
+    ],
+    minions: [
+      { name: 'Whisper Acolyte', baseHp: 18, baseDmg: 5, basePdef: 2, baseMdef: 6 },
+      { name: 'Skyborn Sigil',   baseHp: 22, baseDmg: 6, basePdef: 3, baseMdef: 5 }
+    ]
+  },
+  hollowed_wilds: {
+    // Hard-hitting physical brawlers; bigger HP pools, slightly slower attacks.
+    attackTpl: ENEMY_PHYS_ATTACK_TPL,
+    bosses: [
+      { name: 'Tangle Warden',  baseHp: 90,  baseDmg: 8,  basePdef: 10, baseMdef: 6 },
+      { name: 'Bramble Tyrant', baseHp: 115, baseDmg: 10, basePdef: 12, baseMdef: 7 },
+      { name: 'Rotgrove Drake', baseHp: 145, baseDmg: 12, basePdef: 14, baseMdef: 8 },
+      { name: 'Mother of Vines',baseHp: 175, baseDmg: 14, basePdef: 16, baseMdef: 9 }
+    ],
+    minions: [
+      { name: 'Husk Lurker',  baseHp: 30, baseDmg: 5, basePdef: 5, baseMdef: 3 },
+      { name: 'Thornbeast',   baseHp: 36, baseDmg: 6, basePdef: 6, baseMdef: 3 }
+    ]
   }
 };
 

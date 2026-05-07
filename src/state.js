@@ -45,17 +45,19 @@ function defaultSave(data) {
     if (cls) roster[id] = makeFreshUnit(cls);
   }
   return {
-    saveVersion: 4,
+    saveVersion: 5,
     currencies: { gold: 0, dust: 0, spirit: 0 },
     roster,
     sharedStash: [],
     unlockedClasses: starters.slice(),
     party: starters.slice(0, 6),
     dungeons: {
-      iron_vaults:     { highestFloor: 0, currentRunFloor: null },
-      shattered_spire: { highestFloor: 0, currentRunFloor: null }
+      iron_vaults:       { highestFloor: 0, currentRunFloor: null },
+      whispering_spires: { highestFloor: 0, currentRunFloor: null },
+      hollowed_wilds:    { highestFloor: 0, currentRunFloor: null },
+      shattered_spire:   { highestFloor: 0, currentRunFloor: null }
     },
-    settings: { speed: 1, autoCast: true, selectedDungeon: 'iron_vaults' }
+    settings: { speed: 1, autoCast: true, autoProgress: false, selectedDungeon: 'iron_vaults' }
   };
 }
 
@@ -80,7 +82,11 @@ function ensureRosterCovers(state, data) {
   // v0.3 -> v0.4 migration: shattered_spire dungeon + selectedDungeon
   if (!state.dungeons.shattered_spire) state.dungeons.shattered_spire = { highestFloor: 0, currentRunFloor: null };
   if (!state.settings.selectedDungeon) state.settings.selectedDungeon = 'iron_vaults';
-  state.saveVersion = 4;
+  // v0.4 -> v0.5 migration: whispering_spires + hollowed_wilds + autoProgress
+  if (!state.dungeons.whispering_spires) state.dungeons.whispering_spires = { highestFloor: 0, currentRunFloor: null };
+  if (!state.dungeons.hollowed_wilds)    state.dungeons.hollowed_wilds    = { highestFloor: 0, currentRunFloor: null };
+  if (typeof state.settings.autoProgress !== 'boolean') state.settings.autoProgress = false;
+  state.saveVersion = 5;
 }
 
 function makeFreshUnit(cls) {

@@ -387,6 +387,7 @@ button:disabled:hover { background: var(--bg-panel-hi); color: var(--ink); }
 .speed-controls button { padding: 8px 12px; min-width: 44px; }
 .speed-controls button.active { background: var(--brass); color: var(--bg-deep); }
 .battle-bar .right { margin-left: auto; display: flex; gap: 8px; }
+#auto-btn.active { background: var(--verdant); color: var(--bg-deep); border-color: #8fc06a; }
 
 /* ============ LOOT POPUP ============ */
 .loot-overlay {

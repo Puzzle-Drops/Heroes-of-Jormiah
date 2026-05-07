@@ -76,10 +76,10 @@ export function showHub() {
       </div>
       <div class="dungeon-bar">
         <div class="dungeon-list">
-          ${renderDungeonBtn('iron_vaults',     state, 'armor')}
-          ${renderDungeonBtn('shattered_spire', state, 'stones')}
-          <button class="dungeon-btn" disabled><div class="name">Whispering Spires</div><div class="meta">Locked (M2)</div></button>
-          <button class="dungeon-btn" disabled><div class="name">Hollowed Wilds</div><div class="meta">Locked (M2)</div></button>
+          ${renderDungeonBtn('iron_vaults',       state, 'armor')}
+          ${renderDungeonBtn('whispering_spires', state, 'jewelry')}
+          ${renderDungeonBtn('hollowed_wilds',    state, 'weapons')}
+          ${renderDungeonBtn('shattered_spire',   state, 'stones')}
         </div>
         <button class="enter-btn" id="enter-btn">Enter ${getData().dungeonsById[state.settings.selectedDungeon]?.name ?? 'Dungeon'} ▸</button>
       </div>
@@ -798,6 +798,7 @@ function renderBattleScreen() {
           <button data-speed="4" class="${battle.speed === 4 ? 'active' : ''}">4×</button>
         </div>
         <button id="pause-btn">${battle.paused ? 'Resume' : 'Pause'}</button>
+        <button id="auto-btn" class="${state.settings.autoProgress ? 'active' : ''}" title="Auto-dismiss loot/unlock cards between floors">Auto ${state.settings.autoProgress ? 'on' : 'off'}</button>
         <div class="right">
           <button id="hub-btn">Return to Hub</button>
         </div>
@@ -821,6 +822,14 @@ function bindBattle() {
   document.getElementById('pause-btn').addEventListener('click', () => {
     _activeBattle.paused = !_activeBattle.paused;
     document.getElementById('pause-btn').textContent = _activeBattle.paused ? 'Resume' : 'Pause';
+  });
+  document.getElementById('auto-btn').addEventListener('click', () => {
+    const s = getState().settings;
+    s.autoProgress = !s.autoProgress;
+    persist();
+    const btn = document.getElementById('auto-btn');
+    btn.classList.toggle('active', s.autoProgress);
+    btn.textContent = `Auto ${s.autoProgress ? 'on' : 'off'}`;
   });
   document.getElementById('hub-btn').addEventListener('click', () => {
     if (confirm('Return to hub? Run will be paused; you can re-enter the dungeon to continue.')) {
@@ -1008,6 +1017,7 @@ function showLootCard(item, onClose) {
   const stage = document.getElementById('stage');
   const overlay = document.createElement('div');
   overlay.className = 'loot-overlay';
+  const auto = getState().settings.autoProgress;
   overlay.innerHTML = `
     <div class="loot-card r-${item.rarity}">
       <div class="title">LOOT</div>
@@ -1020,15 +1030,19 @@ function showLootCard(item, onClose) {
       </div>
       <div class="quality">Quality: ${(item.qualityScore * 100).toFixed(1)}%</div>
       <div class="actions">
-        <button id="loot-continue">Continue ▸</button>
+        <button id="loot-continue">${auto ? 'Continue ▸ (auto)' : 'Continue ▸'}</button>
       </div>
     </div>
   `;
   stage.appendChild(overlay);
-  overlay.querySelector('#loot-continue').addEventListener('click', () => {
+  let timer = null;
+  const trigger = () => {
+    if (timer) clearTimeout(timer);
     overlay.remove();
     onClose();
-  });
+  };
+  overlay.querySelector('#loot-continue').addEventListener('click', trigger);
+  if (auto) timer = setTimeout(trigger, 1500);
 }
 
 function showClassUnlockCard(classIds, onClose) {
@@ -1036,6 +1050,7 @@ function showClassUnlockCard(classIds, onClose) {
   const stage = document.getElementById('stage');
   const overlay = document.createElement('div');
   overlay.className = 'loot-overlay';
+  const auto = getState().settings.autoProgress;
   overlay.innerHTML = `
     <div class="loot-card r-legendary">
       <div class="title">CLASS UNLOCKED</div>
@@ -1050,15 +1065,20 @@ function showClassUnlockCard(classIds, onClose) {
       }).join('<hr style="border:none;border-top:1px solid var(--ink-muted);margin:14px 0;opacity:0.4">')}
       <div class="quality" style="margin-top: 16px">Available in your roster. Visit the hub to add to party.</div>
       <div class="actions">
-        <button id="unlock-continue">Continue ▸</button>
+        <button id="unlock-continue">${auto ? 'Continue ▸ (auto)' : 'Continue ▸'}</button>
       </div>
     </div>
   `;
   stage.appendChild(overlay);
-  overlay.querySelector('#unlock-continue').addEventListener('click', () => {
+  let timer = null;
+  const trigger = () => {
+    if (timer) clearTimeout(timer);
     overlay.remove();
     onClose();
-  });
+  };
+  overlay.querySelector('#unlock-continue').addEventListener('click', trigger);
+  // class unlocks get a slightly longer auto-pause so the player notices the new class
+  if (auto) timer = setTimeout(trigger, 2200);
 }
 
 function showWipeModal() {
