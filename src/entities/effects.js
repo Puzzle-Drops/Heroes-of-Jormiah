@@ -213,7 +213,39 @@ function applyEffects(tags, ctx) {
     return bestDamage;
 }
 
+// Phase 7.z — keystone post-cast hook for bespoke (non-engine) spells.
+// The 6 starter classes' useSkill methods carry rune-scaled math that
+// doesn't fit the generic effect handlers. Calling this hook at the end
+// of a bespoke spell lets keystones still affect it. Pass the list of
+// timer fields the spell just set on each unit so we extend only those
+// — not pre-existing buffs from previous casts.
+//
+// Spec:
+//   applyBespokeKeystoneHooks(caster, {
+//     casterTimers: ['tauntTimer'],         // fields the spell set on caster
+//     targetTimers: ['bleedTimer'],         // fields set on target
+//     target: enemy,                         // optional direct target
+//     partyTimers: ['damageReductionTimer'],// applied to every party member
+//   })
+function applyBespokeKeystoneHooks(caster, opts = {}) {
+    if (!caster) return;
+    if (caster.keystone_totemicWill) {
+        const stretch = (unit, fields) => {
+            if (!unit || !fields) return;
+            for (const f of fields) {
+                if (unit[f]) unit[f] = Math.round(unit[f] * 1.5);
+            }
+        };
+        stretch(caster,      opts.casterTimers);
+        stretch(opts.target, opts.targetTimers);
+        if (opts.partyTimers && window.game && Array.isArray(window.game.party)) {
+            for (const m of window.game.party) stretch(m, opts.partyTimers);
+        }
+    }
+}
+
 window.EFFECTS = {
     handlers: EFFECT_HANDLERS,
     apply: applyEffects,
+    applyBespokeKeystoneHooks,
 };

@@ -11105,12 +11105,14 @@ performPartyAttack(member, aliveEnemies) {
                             
                             aliveEnemies.forEach(enemy => {
                                 const dealt = enemy.takeDamage(aoeDamage);
-                                
+
                                 if (dealt !== 'DODGE') {
-                                    // Check for critical hit on each enemy
-                                    const isCrit = Math.random() * 100 < member.getTotalCritChance();
+                                    // Phase 7.z: Resolute Technique keystone
+                                    // disables crit on bespoke spells too.
+                                    const cantCrit = !!member.keystone_cantCrit;
+                                    const isCrit = !cantCrit && Math.random() * 100 < member.getTotalCritChance();
                                     let finalDamage = dealt;
-                                    
+
                                     if (isCrit) {
                                         const critMultiplier = member.getTotalCritDamage() / 100;
                                         finalDamage = Math.floor(dealt * critMultiplier);
@@ -11120,10 +11122,10 @@ performPartyAttack(member, aliveEnemies) {
                                     } else {
                                         this.createFloatingText(enemy.sprite, `-${dealt}`, 'damage-text');
                                     }
-                                    
+
                                     // Track damage
                                     this.floorStats.damageDealt += finalDamage;
-                                    
+
                                     // Track character-specific damage for all dungeons
                                     if (this.characterStats && this.characterStats[member.name]) {
                                         this.characterStats[member.name].damageDealt += finalDamage;
@@ -11183,10 +11185,12 @@ performPartyAttack(member, aliveEnemies) {
                                 const dealt = enemy.takeDamage(multiShotDamage / 3); // Divide by 3 since total damage is 3x
                                 
                                 if (dealt !== 'DODGE') {
-                                    // Check for critical hit
-                                    const isCrit = Math.random() * 100 < member.getTotalCritChance();
+                                    // Phase 7.z: Resolute Technique keystone
+                                    // disables crit on bespoke Multi-Shot too.
+                                    const cantCrit = !!member.keystone_cantCrit;
+                                    const isCrit = !cantCrit && Math.random() * 100 < member.getTotalCritChance();
                                     let finalDamage = dealt;
-                                    
+
                                     if (isCrit) {
                                         const critMultiplier = member.getTotalCritDamage() / 100;
                                         finalDamage = Math.floor(dealt * critMultiplier);
@@ -11196,7 +11200,7 @@ performPartyAttack(member, aliveEnemies) {
                                     } else {
                                         this.createFloatingText(enemy.sprite, `-${dealt}`, 'damage-text');
                                     }
-                                    
+
                                     // Track damage
                                     this.floorStats.damageDealt += finalDamage;
                                     

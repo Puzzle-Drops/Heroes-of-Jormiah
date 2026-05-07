@@ -71,7 +71,13 @@ class Tank extends Character {
             
             this.tauntDefenseBonus = 10 + Math.floor(baseDefense * defensePercent);
             this.tauntDefensePercent = defensePercent; // Store for display
-            
+
+            // Phase 7.z — let keystones touch this bespoke spell. Totemic
+            // Will extends tauntTimer × 1.5 here.
+            if (window.EFFECTS && window.EFFECTS.applyBespokeKeystoneHooks) {
+                window.EFFECTS.applyBespokeKeystoneHooks(this, { casterTimers: ['tauntTimer'] });
+            }
+
             // TAUNT ALL ENEMIES - make them target the tank
             if (window.game && window.game.enemies) {
                 window.game.enemies.forEach(enemy => {
