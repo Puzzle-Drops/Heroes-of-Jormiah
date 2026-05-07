@@ -26,10 +26,14 @@ const ENEMIES = {
   iron_vaults: {
     attackTpl: ENEMY_PHYS_ATTACK_TPL,
     bosses: [
-      { name: 'Iron Sentinel',  baseHp: 60,  baseDmg: 6, basePdef: 8,  baseMdef: 4 },
-      { name: 'Castellan',      baseHp: 75,  baseDmg: 7, basePdef: 10, baseMdef: 4 },
-      { name: 'Siege Captain',  baseHp: 90,  baseDmg: 8, basePdef: 12, baseMdef: 5 },
-      { name: 'Warden of Iron', baseHp: 110, baseDmg: 9, basePdef: 14, baseMdef: 6 }
+      { name: 'Iron Sentinel',         baseHp: 60,  baseDmg: 6,  basePdef: 8,  baseMdef: 4 },
+      { name: 'Castellan',             baseHp: 75,  baseDmg: 7,  basePdef: 10, baseMdef: 4 },
+      { name: 'Siege Captain',         baseHp: 90,  baseDmg: 8,  basePdef: 12, baseMdef: 5 },
+      { name: 'Warden of Iron',        baseHp: 110, baseDmg: 9,  basePdef: 14, baseMdef: 6 },
+      { name: 'Fortress Marshal',      baseHp: 125, baseDmg: 10, basePdef: 14, baseMdef: 6 },
+      { name: 'Mailed Lieutenant',     baseHp: 160, baseDmg: 9,  basePdef: 13, baseMdef: 6 },
+      { name: 'Steelguard Champion',   baseHp: 100, baseDmg: 10, basePdef: 22, baseMdef: 10, special: 'ironskin' },
+      { name: 'Shieldbreaker Berserker',baseHp: 110, baseDmg: 11, basePdef: 10, baseMdef: 5, special: 'enrage' }
     ],
     minions: [
       { name: 'Fortress Soldier',   baseHp: 24, baseDmg: 3, basePdef: 4, baseMdef: 2 },
@@ -39,10 +43,14 @@ const ENEMIES = {
   shattered_spire: {
     attackTpl: ENEMY_MAG_ATTACK_TPL,
     bosses: [
-      { name: 'Aetheric Construct', baseHp: 80,  baseDmg: 7,  basePdef: 4, baseMdef: 12 },
-      { name: 'Reality Twister',    baseHp: 100, baseDmg: 8,  basePdef: 5, baseMdef: 14 },
-      { name: 'Spire Anomaly',      baseHp: 120, baseDmg: 9,  basePdef: 6, baseMdef: 16 },
-      { name: 'Warden of the Spire',baseHp: 140, baseDmg: 10, basePdef: 7, baseMdef: 18 }
+      { name: 'Aetheric Construct',    baseHp: 80,  baseDmg: 7,  basePdef: 4, baseMdef: 12 },
+      { name: 'Reality Twister',       baseHp: 100, baseDmg: 8,  basePdef: 5, baseMdef: 14 },
+      { name: 'Spire Anomaly',         baseHp: 120, baseDmg: 9,  basePdef: 6, baseMdef: 16 },
+      { name: 'Warden of the Spire',   baseHp: 140, baseDmg: 10, basePdef: 7, baseMdef: 18 },
+      { name: 'Reality Shifter',       baseHp: 130, baseDmg: 11, basePdef: 6, baseMdef: 17 },
+      { name: 'Echo Phantom',          baseHp: 110, baseDmg: 10, basePdef: 4, baseMdef: 26 },
+      { name: 'Spire Crystal',         baseHp: 90,  baseDmg: 9,  basePdef: 16, baseMdef: 22, special: 'ironskin' },
+      { name: 'Anomaly Spawn',         baseHp: 115, baseDmg: 10, basePdef: 6, baseMdef: 14, special: 'spawner' }
     ],
     minions: [
       { name: 'Echo Wisp',    baseHp: 22, baseDmg: 4, basePdef: 2, baseMdef: 5 },
@@ -52,10 +60,14 @@ const ENEMIES = {
   whispering_spires: {
     attackTpl: ENEMY_MAG_ATTACK_TPL,
     bosses: [
-      { name: 'Spire Sage',         baseHp: 70,  baseDmg: 8,  basePdef: 3, baseMdef: 14 },
-      { name: 'Crystal Wraith',     baseHp: 85,  baseDmg: 9,  basePdef: 4, baseMdef: 16 },
-      { name: 'Aether Conjurer',    baseHp: 100, baseDmg: 10, basePdef: 5, baseMdef: 18 },
-      { name: 'Archon of Whispers', baseHp: 130, baseDmg: 11, basePdef: 6, baseMdef: 22 }
+      { name: 'Spire Sage',            baseHp: 70,  baseDmg: 8,  basePdef: 3, baseMdef: 14 },
+      { name: 'Crystal Wraith',        baseHp: 85,  baseDmg: 9,  basePdef: 4, baseMdef: 16 },
+      { name: 'Aether Conjurer',       baseHp: 100, baseDmg: 10, basePdef: 5, baseMdef: 18 },
+      { name: 'Archon of Whispers',    baseHp: 130, baseDmg: 11, basePdef: 6, baseMdef: 22 },
+      { name: 'Tower Magister',        baseHp: 120, baseDmg: 12, basePdef: 5, baseMdef: 20 },
+      { name: 'Crystal Sage',          baseHp: 95,  baseDmg: 10, basePdef: 4, baseMdef: 28 },
+      { name: 'Aether Adept',          baseHp: 110, baseDmg: 11, basePdef: 5, baseMdef: 18, special: 'spawner' },
+      { name: 'Sky Reaver',            baseHp: 105, baseDmg: 11, basePdef: 5, baseMdef: 17, special: 'enrage' }
     ],
     minions: [
       { name: 'Whisper Acolyte', baseHp: 18, baseDmg: 5, basePdef: 2, baseMdef: 6 },
@@ -66,10 +78,14 @@ const ENEMIES = {
     // Hard-hitting physical brawlers; bigger HP pools, slightly slower attacks.
     attackTpl: ENEMY_PHYS_ATTACK_TPL,
     bosses: [
-      { name: 'Tangle Warden',  baseHp: 90,  baseDmg: 8,  basePdef: 10, baseMdef: 6 },
-      { name: 'Bramble Tyrant', baseHp: 115, baseDmg: 10, basePdef: 12, baseMdef: 7 },
-      { name: 'Rotgrove Drake', baseHp: 145, baseDmg: 12, basePdef: 14, baseMdef: 8 },
-      { name: 'Mother of Vines',baseHp: 175, baseDmg: 14, basePdef: 16, baseMdef: 9 }
+      { name: 'Tangle Warden',         baseHp: 90,  baseDmg: 8,  basePdef: 10, baseMdef: 6 },
+      { name: 'Bramble Tyrant',        baseHp: 115, baseDmg: 10, basePdef: 12, baseMdef: 7 },
+      { name: 'Rotgrove Drake',        baseHp: 145, baseDmg: 12, basePdef: 14, baseMdef: 8 },
+      { name: 'Mother of Vines',       baseHp: 175, baseDmg: 14, basePdef: 16, baseMdef: 9 },
+      { name: 'Briar Lord',            baseHp: 130, baseDmg: 11, basePdef: 13, baseMdef: 7 },
+      { name: 'Vine Strangler',        baseHp: 140, baseDmg: 11, basePdef: 13, baseMdef: 7, special: 'spawner' },
+      { name: 'Rotmaw Beast',          baseHp: 125, baseDmg: 13, basePdef: 12, baseMdef: 7, special: 'enrage' },
+      { name: 'Mother Tree',           baseHp: 220, baseDmg: 12, basePdef: 14, baseMdef: 8 }
     ],
     minions: [
       { name: 'Husk Lurker',  baseHp: 30, baseDmg: 5, basePdef: 5, baseMdef: 3 },
@@ -142,6 +158,7 @@ function stepBattle(battle, dt) {
     tickRegen(u, battle);
     tickDots(u, battle);
     if (u.dead) continue;
+    if (u.isBoss && u.special) tickBossSpecial(u, battle);
     if (!isIncapacitated(u, battle.now)) tickAbilities(u, battle, dt);
   }
   // expire floating fx
@@ -316,12 +333,42 @@ function computeStats(cls, level, equipment, allocatedNodes) {
   return out;
 }
 
+function tickBossSpecial(boss, battle) {
+  const hpPct = boss.hp / boss.maxHp;
+  const state = boss.specialState ??= {};
+
+  if (boss.special === 'enrage' && !state.enraged && hpPct <= 0.30) {
+    state.enraged = true;
+    boss.buffs.push({ stat: 'patk', amountPct: 50, expires: Infinity, source: 'enrage' });
+    boss.buffs.push({ stat: 'matk', amountPct: 50, expires: Infinity, source: 'enrage' });
+    battle.log.push({ type: 'kill', text: `${boss.displayName} enrages!`, t: battle.now });
+  }
+
+  if (boss.special === 'spawner' && !state.spawned && hpPct <= 0.50) {
+    state.spawned = true;
+    const set = ENEMIES[boss.dungeonId] || ENEMIES.iron_vaults;
+    const tpl = set.minions[Math.floor(Math.random() * set.minions.length)];
+    // pick a free slot in the enemy formation
+    const taken = new Set(battle.enemyUnits.filter(e => !e.dead).map(e => `${e.row}:${e.col}`));
+    const positions = [
+      { row: 'back', col: 1 }, { row: 'back', col: 0 }, { row: 'back', col: 2 },
+      { row: 'front', col: 0 }, { row: 'front', col: 2 }
+    ];
+    const pos = positions.find(p => !taken.has(`${p.row}:${p.col}`));
+    if (pos) {
+      const minion = buildEnemy(tpl, boss.level, pos.row, pos.col, set.attackTpl);
+      battle.enemyUnits.push(minion);
+      battle.log.push({ type: 'kill', text: `${boss.displayName} summons ${tpl.name}.`, t: battle.now });
+    }
+  }
+}
+
 function spawnFloor(dungeonId, floor) {
   const set = ENEMIES[dungeonId] || ENEMIES.iron_vaults;
   const boss = set.bosses[floor % set.bosses.length];
   const minionCount = floor < 5 ? 0 : floor < 15 ? 1 : floor < 30 ? 2 : 3;
   const out = [];
-  out.push(buildEnemy(boss, floor, 'front', 1, set.attackTpl));
+  out.push(buildEnemy(boss, floor, 'front', 1, set.attackTpl, { isBoss: true, dungeonId }));
   for (let i = 0; i < minionCount; i++) {
     const m = set.minions[i % set.minions.length];
     const positions = [{ row: 'front', col: 0 }, { row: 'front', col: 2 }, { row: 'back', col: 1 }];
@@ -331,12 +378,12 @@ function spawnFloor(dungeonId, floor) {
   return out;
 }
 
-function buildEnemy(template, floor, row, col, attackTpl) {
+function buildEnemy(template, floor, row, col, attackTpl, opts = {}) {
   const hp = Math.round(F.enemyHP(template.baseHp, floor));
   const dmg = Math.round(F.enemyDmg(template.baseDmg, floor));
   const pdef = Math.round(F.enemyDef(template.basePdef, floor));
   const mdef = Math.round(F.enemyDef(template.baseMdef, floor));
-  return {
+  const unit = {
     classId: null,
     displayName: template.name,
     family: 'enemy',
@@ -353,6 +400,10 @@ function buildEnemy(template, floor, row, col, attackTpl) {
     tauntedBy: null,
     dead: false,
     isEnemy: true,
+    isBoss: !!opts.isBoss,
+    dungeonId: opts.dungeonId ?? null,
+    special: template.special ?? null,
+    specialState: {},
     displayHp: hp,
     lungeT: -10,
     onHitTakenHandlers: [],
@@ -361,6 +412,13 @@ function buildEnemy(template, floor, row, col, attackTpl) {
     dynamicBuffSpecs: [],
     castedThisFight: 0
   };
+  // Iron Skin special: apply at spawn — passive +30% to defenses (already
+  // visible in the buffMultiplier path).
+  if (unit.special === 'ironskin') {
+    unit.buffs.push({ stat: 'pdef', amountPct: 30, expires: Infinity, source: 'special' });
+    unit.buffs.push({ stat: 'mdef', amountPct: 30, expires: Infinity, source: 'special' });
+  }
+  return unit;
 }
 
 export function reviveSurvivors(playerUnits) {
