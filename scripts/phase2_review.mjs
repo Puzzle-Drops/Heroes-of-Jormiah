@@ -39,10 +39,10 @@ await new Promise(r => setTimeout(r, 1000));
 await page.screenshot({ path: join(OUT, '1_select.png') });
 
 // Pick party
-for (const cls of ['tank', 'paladin', 'rogue', 'healer', 'mage', 'archer']) {
-  await page.click(`[data-char-class="${cls}"]`);
-  await new Promise(r => setTimeout(r, 80));
-}
+await page.evaluate((picks) => {
+  for (const cls of picks) document.querySelector(`[data-char-class="${cls}"]`)?.click();
+}, ['tank', 'paladin', 'rogue', 'healer', 'mage', 'archer']);
+await new Promise(r => setTimeout(r, 150));
 await page.click('#start-adventure-btn');
 await new Promise(r => setTimeout(r, 1200));
 

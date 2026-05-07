@@ -57,12 +57,16 @@ const stage1 = await page.evaluate(() => ({
 }));
 console.log('STAGE 1 - load:', JSON.stringify(stage1, null, 2));
 
-// Pick a 6-hero party per GDD §5.1: 3 front + 3 back
+// Pick a 6-hero party per GDD §5.1: 3 front + 3 back. Click via JS
+// because the registry-driven 48-card grid means many cards are
+// off-screen and puppeteer's physical click would miss.
 const picks = ['tank', 'paladin', 'rogue', 'healer', 'mage', 'archer'];
-for (const cls of picks) {
-  await page.click(`[data-char-class="${cls}"]`);
-  await new Promise(r => setTimeout(r, 100));
-}
+await page.evaluate((picks) => {
+  for (const cls of picks) {
+    document.querySelector(`[data-char-class="${cls}"]`)?.click();
+  }
+}, picks);
+await new Promise(r => setTimeout(r, 200));
 
 const stage2 = await page.evaluate(() => ({
   startBtnText: document.getElementById('start-adventure-btn')?.textContent?.trim(),

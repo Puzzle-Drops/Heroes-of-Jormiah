@@ -436,6 +436,63 @@ console.log('✅ Steam achievement tracking loaded');
         }
         
         function setupCharacterSelect() {
+            // Phase 9: append the 42 non-starter classes from the registry
+            // before wiring click handlers, so all 48 cards become clickable.
+            // Existing hardcoded starter cards in index.html stay as-is for
+            // visual continuity; new cards inherit the same .char-select-card
+            // class and get the same handlers.
+            (function appendRosterFromRegistry() {
+                const grid = document.querySelector('.character-select-grid');
+                if (!grid || !window.CLASS_REGISTRY) return;
+                const existing = new Set(
+                    [...grid.querySelectorAll('[data-char-class]')].map(el => el.dataset.charClass)
+                );
+                // The hand-written starter cards use legacy ids (tank/rogue/
+                // mage/healer); their GDD-spec equivalents in the registry
+                // are knight/assassin/arcanist/cleric. Treat them as the
+                // same so we don't render duplicates.
+                const ALIAS = { tank:'knight', rogue:'assassin', mage:'arcanist', healer:'cleric' };
+                for (const [legacy, gdd] of Object.entries(ALIAS)) {
+                    if (existing.has(legacy)) existing.add(gdd);
+                    if (existing.has(gdd)) existing.add(legacy);
+                }
+                const FAMILY_LABEL = {
+                    tank:'Tank', fighter:'Fighter', healer:'Healer',
+                    marksman:'Marksman', rogue:'Rogue', magician:'Magician',
+                    mystic:'Mystic', farland:'Far Lands',
+                };
+                for (const entry of window.CLASS_REGISTRY) {
+                    if (existing.has(entry.id)) continue;
+                    if (existing.has(entry.id.toLowerCase())) continue;
+                    // Create a card matching the existing markup shape so the
+                    // CSS in main.css picks it up automatically.
+                    const card = document.createElement('div');
+                    card.className = 'char-select-card';
+                    card.dataset.charClass = entry.id;
+                    card.innerHTML = `
+                        <div class="char-select-portrait">
+                            <!-- Sprite sheets are 8-frame horizontal strips
+                                 at 200×220 px (manifest.json). Render frame 0
+                                 only by sizing the bg-image to 8x its frame
+                                 footprint (400×55) so the first 50×55 slice
+                                 is visible. -->
+                            <div class="char-select-icon" style="width:50px;height:55px;background-image:url('assets/sprites/sheets/${entry.sprite}');background-size:400px 55px;background-position:0 0;background-repeat:no-repeat;image-rendering:pixelated;border-radius:6px;"></div>
+                            <div class="char-select-info">
+                                <div class="char-select-name">${entry.name}</div>
+                                <div class="char-select-role">${FAMILY_LABEL[entry.family] || entry.family} • ${entry.tagline}</div>
+                            </div>
+                        </div>
+                        <div class="char-select-desc">${entry.desc || ''}</div>
+                        <div class="char-select-stats" style="font-size:11px;color:#cbd5e1;">
+                            <div><span style="color:#fda4af">P.ATK</span> ${entry.abilities.attack.school === 'physical' ? 'main' : entry.abilities.attack.school === 'mixed' ? 'split' : '—'}
+                                 <span style="color:#a5b4fc;margin-left:8px">M.ATK</span> ${entry.abilities.attack.school === 'magical' ? 'main' : entry.abilities.attack.school === 'mixed' ? 'split' : '—'}</div>
+                            <div style="font-size:10px;color:#94a3b8;margin-top:2px">${entry.abilities.attack.name} · ${entry.abilities.spell1.name} · ${entry.abilities.spell2.name} · ${entry.abilities.passive.name}</div>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                }
+            })();
+
             const cards = document.querySelectorAll('.char-select-card');
             const startBtn = document.getElementById('start-adventure-btn');
             const slots = document.querySelectorAll('.party-slot');

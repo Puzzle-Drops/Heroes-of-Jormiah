@@ -279,17 +279,23 @@ this._lastMinimapUpdate = 0;
                     }
                 }
                 
-                // Create party based on selected characters
-                const classConstructors = {
-                    'tank': Tank,
-                    'healer': Healer,
-                    'mage': Mage,
-                    'rogue': Rogue,
-                    'archer': Archer,
-                    'paladin': Paladin
+                // Phase 9: 48-class roster lookup. Uses the global registry
+                // built by class_registry.js (class_id → constructor); the 6
+                // bespoke starter subclasses are aliased into it so existing
+                // saves with 'tank'/'rogue'/'mage'/'healer' still resolve.
+                const classConstructors = window.CLASS_CONSTRUCTORS || {
+                    'tank': Tank, 'healer': Healer, 'mage': Mage,
+                    'rogue': Rogue, 'archer': Archer, 'paladin': Paladin,
                 };
-                
-                this.party = selectedParty.map(charClass => new classConstructors[charClass]());
+
+                this.party = selectedParty.map(charClass => {
+                    const C = classConstructors[charClass];
+                    if (!C) {
+                        console.warn(`Unknown class id "${charClass}" — defaulting to Tank`);
+                        return new Tank();
+                    }
+                    return new C();
+                });
                 const charNames = selectedParty; // Use the party selection as character names
 
 // Load and apply skill tree data if it exists
