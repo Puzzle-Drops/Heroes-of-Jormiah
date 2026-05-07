@@ -298,7 +298,14 @@ button:disabled:hover { background: var(--bg-panel-hi); color: var(--ink); }
 /* ============ PASSIVE TREE ============ */
 .tree-screen { display: grid; grid-template-rows: 56px 1fr; height: 100%; }
 .tree-screen .topbar .title { font-family: var(--display); letter-spacing: 4px; color: var(--brass-hot); font-size: 18px; }
-.tree-screen .topbar .currencies { margin-left: auto; }
+.tree-screen .topbar .currencies { margin-left: 16px; }
+.tree-screen .topbar #tree-search {
+  flex: 1; max-width: 320px; margin-left: 24px;
+  background: var(--bg-panel-hi); border: 1px solid #2a2c4a; color: var(--ink);
+  padding: 8px 12px; font-family: var(--mono); font-size: 12px; letter-spacing: 0.5px;
+  outline: none;
+}
+.tree-screen .topbar #tree-search:focus { border-color: var(--brass); }
 .tree-screen .topbar .back { padding: 6px 12px; font-size: 11px; }
 .tree-stage { position: relative; overflow: hidden; background: var(--bg-deep); }
 #tree-canvas { display: block; width: 100%; height: 100%; cursor: grab; }

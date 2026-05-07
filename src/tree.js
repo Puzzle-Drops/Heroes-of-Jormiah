@@ -51,17 +51,33 @@ export function allocateNode(classId, nodeId) {
   return true;
 }
 
-export function refundAll(classId) {
+export const REFUND_ALL_COST_SPIRIT = 5;
+export const REFUND_NODE_COST_SPIRIT = 1;
+
+// Returns the number of refundable nodes (i.e. excludes the start node) so the
+// UI can disable the button when there's nothing to refund.
+export function refundableCount(classId) {
+  const start = startNodeFor(classId);
   const unit = getState().roster[classId];
   if (!unit) return 0;
-  const start = startNodeFor(classId);
-  const before = (unit.allocatedNodes ?? []).length;
-  unit.allocatedNodes = start ? [start] : [];
-  persist();
-  return before - unit.allocatedNodes.length;
+  return (unit.allocatedNodes ?? []).filter(id => id !== start).length;
 }
 
-export const REFUND_NODE_COST_SPIRIT = 1;
+export function refundAll(classId) {
+  const unit = getState().roster[classId];
+  if (!unit) return { ok: false, reason: 'no unit', refunded: 0 };
+  if (refundableCount(classId) === 0) return { ok: false, reason: 'nothing to refund', refunded: 0 };
+  const state = getState();
+  if ((state.currencies.spirit ?? 0) < REFUND_ALL_COST_SPIRIT) {
+    return { ok: false, reason: 'not enough spirit', refunded: 0 };
+  }
+  const start = startNodeFor(classId);
+  const before = unit.allocatedNodes.length;
+  unit.allocatedNodes = start ? [start] : [];
+  state.currencies.spirit -= REFUND_ALL_COST_SPIRIT;
+  persist();
+  return { ok: true, refunded: before - unit.allocatedNodes.length };
+}
 
 // Per-node refund (POE-style): allowed only if removing the node leaves every
 // remaining allocated node still reachable from the class's start node.

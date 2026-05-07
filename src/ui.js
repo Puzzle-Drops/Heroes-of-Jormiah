@@ -16,7 +16,7 @@ import { humanizeEffect, prettyAbility, statLabel, humanizeScalingKey, formatSca
 import { scaleParam } from './combat/formulas.js';
 import { effectiveStat, sumBuffPct } from './combat/abilities.js';
 import { createTreeView } from './tree_render.js';
-import { allocateNode, refundAll, refundNode, canRefundNode, REFUND_NODE_COST_SPIRIT, pointsAvailable, getAllocated, canAllocate, startNodeFor } from './tree.js';
+import { allocateNode, refundAll, refundNode, canRefundNode, REFUND_NODE_COST_SPIRIT, REFUND_ALL_COST_SPIRIT, refundableCount, pointsAvailable, getAllocated, canAllocate, startNodeFor } from './tree.js';
 
 const root = () => document.getElementById('app');
 
@@ -731,12 +731,14 @@ function showTreeScreen(classId) {
       <div class="topbar">
         <button id="tree-back" class="back" style="margin-right: 16px;">← ${cls.displayName}</button>
         <div class="title">PASSIVE TREE</div>
+        <input type="text" id="tree-search" placeholder="Search nodes (e.g. crit, hp, fire)…" autocomplete="off">
         <div class="currencies">
           <div class="cur">Lvl <b>${unit.level}</b></div>
           <div class="cur">Allocated <b id="tree-alloc-count">${unit.allocatedNodes.length}</b></div>
           <div class="cur">Points <b id="tree-points">${pointsAvailable(classId)}</b></div>
+          <div class="cur">Spirit <b id="tree-spirit">${getState().currencies.spirit}</b></div>
         </div>
-        <button id="tree-refund" style="margin-left: 16px;">Refund All</button>
+        <button id="tree-refund" style="margin-left: 16px;" title="Costs ${REFUND_ALL_COST_SPIRIT} Spirit">Refund All (${REFUND_ALL_COST_SPIRIT}◆)</button>
       </div>
       <div class="tree-stage">
         <canvas id="tree-canvas"></canvas>
@@ -792,11 +794,19 @@ function showTreeScreen(classId) {
     showUnitDetail(classId);
   });
   document.getElementById('tree-refund').addEventListener('click', () => {
-    if (!confirm('Refund all allocated nodes? Start node stays.')) return;
-    refundAll(classId);
+    if (refundableCount(classId) === 0) { flash('Nothing to refund.'); return; }
+    if ((getState().currencies.spirit ?? 0) < REFUND_ALL_COST_SPIRIT) {
+      flash(`Need ${REFUND_ALL_COST_SPIRIT} Spirit to Refund All (you have ${getState().currencies.spirit}).`);
+      return;
+    }
+    if (!confirm(`Refund all allocated nodes for ${REFUND_ALL_COST_SPIRIT} Spirit? Start node stays.`)) return;
+    const r = refundAll(classId);
+    if (r.ok) flash(`Refunded ${r.refunded} nodes (-${REFUND_ALL_COST_SPIRIT} Spirit).`);
     updateTreeHud(classId);
     _treeView?.draw();
   });
+  const searchEl = document.getElementById('tree-search');
+  if (searchEl) searchEl.addEventListener('input', e => _treeView?.setSearch(e.target.value));
   window.addEventListener('resize', onTreeResize);
 }
 
@@ -810,8 +820,10 @@ function updateTreeHud(classId) {
   const unit = getState().roster[classId];
   const ptsEl = document.getElementById('tree-points');
   const allocEl = document.getElementById('tree-alloc-count');
+  const spiritEl = document.getElementById('tree-spirit');
   if (ptsEl) ptsEl.textContent = pointsAvailable(classId);
   if (allocEl) allocEl.textContent = unit.allocatedNodes.length;
+  if (spiritEl) spiritEl.textContent = getState().currencies.spirit;
 }
 
 function buildNodeTooltip(node, classId) {

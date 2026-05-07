@@ -31,6 +31,17 @@ export function createTreeView(canvas, classId, opts = {}) {
   let isPanning = false;
   let panStartX = 0, panStartY = 0, camStartX = 0, camStartY = 0;
   let hoveredId = null;
+  let searchTerm = '';
+
+  function nodeMatchesSearch(node) {
+    if (!searchTerm) return true;
+    if (node.name && node.name.toLowerCase().includes(searchTerm)) return true;
+    for (const eff of node.effects ?? []) {
+      if (eff.stat && eff.stat.toLowerCase().includes(searchTerm)) return true;
+      if (eff.flag && eff.flag.toLowerCase().includes(searchTerm)) return true;
+    }
+    return false;
+  }
 
   function resize() {
     const rect = canvas.getBoundingClientRect();
@@ -100,6 +111,9 @@ export function createTreeView(canvas, classId, opts = {}) {
       const r = (NODE_R[node.kind] ?? 8) * Math.max(0.7, Math.min(1.6, scale * 1.3));
       const alloc = allocated.has(node.id);
       const avail = !alloc && canAllocate(classId, node.id);
+      const matches = nodeMatchesSearch(node);
+
+      if (searchTerm && !matches) ctx.globalAlpha = 0.18;
 
       // halo
       if (alloc) {
@@ -136,6 +150,7 @@ export function createTreeView(canvas, classId, opts = {}) {
         ctx.textAlign = 'center';
         ctx.fillText(node.name, sx, sy - r - 6);
       }
+      ctx.globalAlpha = 1;
     }
   }
 
@@ -208,6 +223,7 @@ export function createTreeView(canvas, classId, opts = {}) {
     resize,
     draw,
     nodeAtClient,
+    setSearch(term) { searchTerm = (term || '').toLowerCase().trim(); draw(); },
     destroy() {
       canvas.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mouseup', onMouseUp);

@@ -38,14 +38,8 @@
         1000,
         880
       ],
-      "kind": "stat",
-      "effects": [
-        {
-          "type": "stat",
-          "stat": "hp",
-          "amount": 8
-        }
-      ],
+      "kind": "connector",
+      "effects": [],
       "edges": [
         "root"
       ]
@@ -60,8 +54,8 @@
       "effects": [
         {
           "type": "stat",
-          "stat": "pdef",
-          "amount": 4
+          "stat": "hp",
+          "amount": 8
         }
       ],
       "edges": [
@@ -74,12 +68,13 @@
         996,
         680
       ],
-      "kind": "stat",
+      "kind": "notable",
+      "name": "Stout",
       "effects": [
         {
           "type": "stat",
           "stat": "hp",
-          "amount": 12
+          "amount": 20
         }
       ],
       "edges": [
@@ -174,12 +169,18 @@
         1040,
         181
       ],
-      "kind": "stat",
+      "kind": "notable",
+      "name": "Aegis",
       "effects": [
         {
           "type": "stat",
-          "stat": "hp",
-          "amount": 18
+          "stat": "pdef",
+          "amount": 12
+        },
+        {
+          "type": "stat",
+          "stat": "mdef",
+          "amount": 6
         }
       ],
       "edges": [
@@ -196,8 +197,8 @@
       "effects": [
         {
           "type": "stat",
-          "stat": "pdef",
-          "amount": 8
+          "stat": "hp",
+          "amount": 18
         }
       ],
       "edges": [
@@ -233,14 +234,8 @@
         1085,
         915
       ],
-      "kind": "stat",
-      "effects": [
-        {
-          "type": "stat",
-          "stat": "patk",
-          "amount": 3
-        }
-      ],
+      "kind": "connector",
+      "effects": [],
       "edges": [
         "root"
       ]
@@ -255,8 +250,8 @@
       "effects": [
         {
           "type": "stat",
-          "stat": "hp",
-          "amount": 6
+          "stat": "patk",
+          "amount": 3
         }
       ],
       "edges": [
@@ -269,12 +264,13 @@
         1223,
         771
       ],
-      "kind": "stat",
+      "kind": "notable",
+      "name": "Aggression",
       "effects": [
         {
           "type": "stat",
           "stat": "patk",
-          "amount": 4
+          "amountPct": 8
         }
       ],
       "edges": [
@@ -364,12 +360,18 @@
         1607,
         449
       ],
-      "kind": "stat",
+      "kind": "notable",
+      "name": "Hot Blooded",
       "effects": [
         {
           "type": "stat",
+          "stat": "patk",
+          "amount": 4
+        },
+        {
+          "type": "stat",
           "stat": "hp",
-          "amount": 10
+          "amount": 14
         }
       ],
       "edges": [
@@ -423,14 +425,8 @@
         1120,
         1000
       ],
-      "kind": "stat",
-      "effects": [
-        {
-          "type": "stat",
-          "stat": "patk",
-          "amount": 4
-        }
-      ],
+      "kind": "connector",
+      "effects": [],
       "edges": [
         "root"
       ]
@@ -445,7 +441,7 @@
       "effects": [
         {
           "type": "stat",
-          "stat": "mp",
+          "stat": "patk",
           "amount": 4
         }
       ],
@@ -459,12 +455,13 @@
         1320,
         996
       ],
-      "kind": "stat",
+      "kind": "notable",
+      "name": "Quick Hands",
       "effects": [
         {
           "type": "stat",
-          "stat": "patk",
-          "amount": 5
+          "stat": "attackSpeedPct",
+          "amountPct": 5
         }
       ],
       "edges": [
@@ -539,7 +536,7 @@
         {
           "type": "stat",
           "stat": "patk",
-          "amount": 6
+          "amount": 7
         }
       ],
       "edges": [
@@ -554,12 +551,13 @@
         1819,
         1040
       ],
-      "kind": "stat",
+      "kind": "notable",
+      "name": "Coup de Grace",
       "effects": [
         {
           "type": "stat",
-          "stat": "patk",
-          "amount": 7
+          "stat": "critDamagePct",
+          "amountPct": 20
         }
       ],
       "edges": [
@@ -613,14 +611,8 @@
         1085,
         1085
       ],
-      "kind": "stat",
-      "effects": [
-        {
-          "type": "stat",
-          "stat": "patk",
-          "amount": 4
-        }
-      ],
+      "kind": "connector",
+      "effects": [],
       "edges": [
         "root"
       ]
@@ -636,7 +628,7 @@
         {
           "type": "stat",
           "stat": "patk",
-          "amount": 5
+          "amount": 4
         }
       ],
       "edges": [
@@ -649,12 +641,13 @@
         1229,
         1223
       ],
-      "kind": "stat",
+      "kind": "notable",
+      "name": "Steady Hand",
       "effects": [
         {
           "type": "stat",
-          "stat": "patk",
-          "amount": 6
+          "stat": "critChancePct",
+          "amountPct": 5
         }
       ],
       "edges": [
@@ -673,8 +666,8 @@
       "effects": [
         {
           "type": "stat",
-          "stat": "mp",
-          "amount": 4
+          "stat": "patk",
+          "amount": 6
         }
       ],
       "edges": [
@@ -744,12 +737,18 @@
         1551,
         1607
       ],
-      "kind": "stat",
+      "kind": "notable",
+      "name": "Heavy Draw",
       "effects": [
         {
           "type": "stat",
           "stat": "patk",
-          "amount": 7
+          "amount": 8
+        },
+        {
+          "type": "stat",
+          "stat": "critDamagePct",
+          "amountPct": 15
         }
       ],
       "edges": [
@@ -803,14 +802,8 @@
         1000,
         1120
       ],
-      "kind": "stat",
-      "effects": [
-        {
-          "type": "stat",
-          "stat": "matk",
-          "amount": 4
-        }
-      ],
+      "kind": "connector",
+      "effects": [],
       "edges": [
         "root"
       ]
@@ -825,8 +818,8 @@
       "effects": [
         {
           "type": "stat",
-          "stat": "mp",
-          "amount": 6
+          "stat": "matk",
+          "amount": 4
         }
       ],
       "edges": [
@@ -839,12 +832,13 @@
         1004,
         1320
       ],
-      "kind": "stat",
+      "kind": "notable",
+      "name": "Spell Focus",
       "effects": [
         {
           "type": "stat",
           "stat": "matk",
-          "amount": 5
+          "amountPct": 8
         }
       ],
       "edges": [
@@ -918,8 +912,8 @@
       "effects": [
         {
           "type": "stat",
-          "stat": "mp",
-          "amount": 8
+          "stat": "matk",
+          "amount": 7
         }
       ],
       "edges": [
@@ -934,12 +928,18 @@
         960,
         1819
       ],
-      "kind": "stat",
+      "kind": "notable",
+      "name": "Mana Pool",
       "effects": [
         {
           "type": "stat",
-          "stat": "matk",
-          "amount": 7
+          "stat": "mp",
+          "amount": 30
+        },
+        {
+          "type": "stat",
+          "stat": "mp",
+          "amountPct": 10
         }
       ],
       "edges": [
@@ -993,14 +993,8 @@
         915,
         1085
       ],
-      "kind": "stat",
-      "effects": [
-        {
-          "type": "stat",
-          "stat": "mp",
-          "amount": 6
-        }
-      ],
+      "kind": "connector",
+      "effects": [],
       "edges": [
         "root"
       ]
@@ -1015,8 +1009,8 @@
       "effects": [
         {
           "type": "stat",
-          "stat": "matk",
-          "amount": 4
+          "stat": "mp",
+          "amount": 6
         }
       ],
       "edges": [
@@ -1029,12 +1023,13 @@
         777,
         1229
       ],
-      "kind": "stat",
+      "kind": "notable",
+      "name": "Devoted",
       "effects": [
         {
           "type": "stat",
-          "stat": "mdef",
-          "amount": 4
+          "stat": "mp",
+          "amountPct": 12
         }
       ],
       "edges": [
@@ -1053,8 +1048,8 @@
       "effects": [
         {
           "type": "stat",
-          "stat": "mp",
-          "amount": 8
+          "stat": "mdef",
+          "amount": 4
         }
       ],
       "edges": [
@@ -1113,8 +1108,8 @@
       "effects": [
         {
           "type": "stat",
-          "stat": "mdef",
-          "amount": 5
+          "stat": "mp",
+          "amount": 10
         }
       ],
       "edges": [
@@ -1129,12 +1124,18 @@
         393,
         1551
       ],
-      "kind": "stat",
+      "kind": "notable",
+      "name": "Sanctified",
       "effects": [
         {
           "type": "stat",
+          "stat": "mdef",
+          "amount": 12
+        },
+        {
+          "type": "stat",
           "stat": "mp",
-          "amount": 10
+          "amount": 12
         }
       ],
       "edges": [
@@ -1188,14 +1189,8 @@
         880,
         1000
       ],
-      "kind": "stat",
-      "effects": [
-        {
-          "type": "stat",
-          "stat": "matk",
-          "amount": 3
-        }
-      ],
+      "kind": "connector",
+      "effects": [],
       "edges": [
         "root"
       ]
@@ -1210,8 +1205,8 @@
       "effects": [
         {
           "type": "stat",
-          "stat": "mdef",
-          "amount": 4
+          "stat": "matk",
+          "amount": 3
         }
       ],
       "edges": [
@@ -1224,12 +1219,13 @@
         680,
         1004
       ],
-      "kind": "stat",
+      "kind": "notable",
+      "name": "Hexer",
       "effects": [
         {
           "type": "stat",
           "stat": "matk",
-          "amount": 4
+          "amount": 6
         }
       ],
       "edges": [
@@ -1266,8 +1262,8 @@
       "effects": [
         {
           "type": "stat",
-          "stat": "mp",
-          "amount": 6
+          "stat": "matk",
+          "amount": 4
         }
       ],
       "edges": [
@@ -1324,12 +1320,18 @@
         181,
         960
       ],
-      "kind": "stat",
+      "kind": "notable",
+      "name": "Spirit Ward",
       "effects": [
         {
           "type": "stat",
+          "stat": "mdef",
+          "amount": 14
+        },
+        {
+          "type": "stat",
           "stat": "matk",
-          "amount": 6
+          "amount": 4
         }
       ],
       "edges": [
@@ -1383,14 +1385,8 @@
         915,
         915
       ],
-      "kind": "stat",
-      "effects": [
-        {
-          "type": "stat",
-          "stat": "patk",
-          "amount": 3
-        }
-      ],
+      "kind": "connector",
+      "effects": [],
       "edges": [
         "root"
       ]
@@ -1405,7 +1401,7 @@
       "effects": [
         {
           "type": "stat",
-          "stat": "matk",
+          "stat": "patk",
           "amount": 3
         }
       ],
@@ -1419,12 +1415,18 @@
         771,
         777
       ],
-      "kind": "stat",
+      "kind": "notable",
+      "name": "Adaptable",
       "effects": [
         {
           "type": "stat",
           "stat": "patk",
-          "amount": 4
+          "amount": 5
+        },
+        {
+          "type": "stat",
+          "stat": "matk",
+          "amount": 5
         }
       ],
       "edges": [
@@ -1519,12 +1521,23 @@
         449,
         393
       ],
-      "kind": "stat",
+      "kind": "notable",
+      "name": "Outlandish",
       "effects": [
         {
           "type": "stat",
           "stat": "patk",
-          "amount": 5
+          "amountPct": 5
+        },
+        {
+          "type": "stat",
+          "stat": "matk",
+          "amountPct": 5
+        },
+        {
+          "type": "stat",
+          "stat": "hp",
+          "amountPct": 5
         }
       ],
       "edges": [
