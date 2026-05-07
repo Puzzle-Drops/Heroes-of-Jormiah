@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-06T21:39:15.179Z",
+  "generatedAt": "2026-05-07T03:50:55.151Z",
   "source": "assets/sprites/class_sprites.html",
   "state": "idle",
   "frame": {
@@ -223,6 +223,36 @@
       "className": "Alchemist",
       "file": "Alchemist.png",
       "bytes": 39038
+    },
+    {
+      "className": "Warden",
+      "file": "Warden.png",
+      "bytes": 28819
+    },
+    {
+      "className": "Bloodpriest",
+      "file": "Bloodpriest.png",
+      "bytes": 27047
+    },
+    {
+      "className": "Spiritualist",
+      "file": "Spiritualist.png",
+      "bytes": 19409
+    },
+    {
+      "className": "Beastmaster2",
+      "file": "Beastmaster2.png",
+      "bytes": 26098
+    },
+    {
+      "className": "Astromancer",
+      "file": "Astromancer.png",
+      "bytes": 30397
+    },
+    {
+      "className": "Sandwalker",
+      "file": "Sandwalker.png",
+      "bytes": 38467
     }
   ]
 }

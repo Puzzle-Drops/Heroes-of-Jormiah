@@ -9,12 +9,12 @@
     "knight":        { "spriteKey": "Tank",         "note": "CLASS_SPRITES key 'Tank' renders as 'Knight' (display name in viewer)" },
     "crusader":      { "spriteKey": "Crusader" },
     "sentinel":      { "spriteKey": "Sentinel" },
-    "warden":        { "spriteKey": null,           "note": "TODO: not in CLASS_SPRITES; consider repurposing 'Druid' palette or commission new" },
+    "warden":        { "spriteKey": "Warden",       "note": "Authored v0.20 — nature tank with antlered helm, vine pauldrons, branching staff." },
     "juggernaut":    { "spriteKey": "Juggernaut" },
-    "shieldmage":    { "spriteKey": null,           "note": "TODO: candidate base = 'Bulwark' (tower-shield specialist)" },
+    "shieldmage":    { "spriteKey": "Bulwark",      "note": "Repurposed v0.20 — orphan Bulwark (tower-shield specialist) is the GDD shieldmage's tower-shield magic-tank." },
 
     "berserker":     { "spriteKey": "Berserker" },
-    "gladiator":     { "spriteKey": null,           "note": "TODO: not in CLASS_SPRITES" },
+    "gladiator":     { "spriteKey": "Dragoon",     "note": "Repurposed v0.20 — orphan Dragoon's lance/spear silhouette fits the GDD Gladiator (crowd-pleaser, brief taunt, net + spear)." },
     "samurai":       { "spriteKey": "Samurai" },
     "monk":          { "spriteKey": "Monk" },
     "spellblade":    { "spriteKey": "Spellblade" },
@@ -24,22 +24,22 @@
     "druid":         { "spriteKey": "Druid" },
     "templar":       { "spriteKey": "Templar",      "note": "GDD places Templar as Healer; CLASS_SPRITES groups it under Divine — keep sprite, family per GDD" },
     "oracle":        { "spriteKey": "Oracle" },
-    "bloodpriest":   { "spriteKey": null,           "note": "TODO: candidate base = 'Bloodmage' palette" },
-    "lifebinder":    { "spriteKey": null,           "note": "TODO: not in CLASS_SPRITES" },
+    "bloodpriest":   { "spriteKey": "Bloodpriest", "note": "Authored v0.20 — crimson robes, raised dagger, floating blood drops; heals via damage dealt." },
+    "lifebinder":    { "spriteKey": "Apothecary",  "note": "Repurposed v0.20 — orphan Apothecary (scientific healer) fits the GDD Lifebinder (chain heals + soul tether vial-y aesthetic)." },
 
     "archer":        { "spriteKey": "Archer" },
     "crossbowman":   { "spriteKey": "Crossbowman" },
     "sniper":        { "spriteKey": "Sniper" },
     "hunter":        { "spriteKey": "Beastmaster", "note": "CLASS_SPRITES 'Beastmaster' = Hunter per GDD (beast companion). Also matches 'beastmaster' farlands class — see orphanSprites."  },
     "gunner":        { "spriteKey": "Gunslinger",  "note": "CLASS_SPRITES key 'Gunslinger' renders as Gunner" },
-    "falconer":      { "spriteKey": null,           "note": "TODO: not in CLASS_SPRITES" },
+    "falconer":      { "spriteKey": "Valkyrie",    "note": "Repurposed v0.20 — orphan Valkyrie's winged silhouette fits the GDD Falconer (bird scout, dive bomb)." },
 
     "assassin":      { "spriteKey": "Rogue",        "note": "CLASS_SPRITES key 'Rogue' = Assassin per GDD intent" },
     "duelist":       { "spriteKey": "Duelist" },
     "shadowdancer":  { "spriteKey": "Shadowdancer" },
     "trickster":     { "spriteKey": "Saboteur",     "note": "CLASS_SPRITES key 'Saboteur' fits Trickster's status-effect identity" },
     "bladestorm":    { "spriteKey": "Ninja",        "note": "CLASS_SPRITES 'Ninja' covers multi-hit AoE rogue silhouette" },
-    "reaper":        { "spriteKey": null,           "note": "TODO: candidate base = 'Necromancer' palette adapted, but Reaper is Rogue family" },
+    "reaper":        { "spriteKey": "DeathKnight", "note": "Repurposed v0.20 — orphan DeathKnight's death/skull-armor silhouette fits the GDD Reaper (death-themed kill-bonus rogue)." },
 
     "pyromancer":    { "spriteKey": "Pyromancer" },
     "cryomancer":    { "spriteKey": "Cryomancer" },
@@ -52,30 +52,26 @@
     "witch":         { "spriteKey": "Warlock",      "note": "CLASS_SPRITES 'Warlock' adapted to Witch (curses/hexes)" },
     "shaman":        { "spriteKey": "Shaman" },
     "inquisitor":    { "spriteKey": "Inquisitor" },
-    "spiritualist":  { "spriteKey": null,           "note": "TODO: not in CLASS_SPRITES" },
+    "spiritualist":  { "spriteKey": "Spiritualist","note": "Authored v0.20 — totemic mask, beaded shoulder cape, ghost-trail particles." },
     "geomancer":     { "spriteKey": "Geomancer" },
 
     "engineer":      { "spriteKey": "Engineer" },
     "alchemist":     { "spriteKey": "Alchemist" },
-    "beastmaster":   { "spriteKey": null,           "note": "TODO: 'Beastmaster' sprite key currently used for Hunter; needs rename or duplicate art for the farlands multi-pet class" },
-    "astromancer":   { "spriteKey": null,           "note": "TODO: not in CLASS_SPRITES" },
-    "sandwalker":    { "spriteKey": null,           "note": "TODO: not in CLASS_SPRITES" },
+    "beastmaster":   { "spriteKey": "Beastmaster2","note": "Authored v0.20 — leather/fur, coiled whip, wolf companion at feet (the marksman 'Hunter' keeps the original 'Beastmaster' sprite key)." },
+    "astromancer":   { "spriteKey": "Astromancer", "note": "Authored v0.20 — deep blue robe, star particles, crescent crown." },
+    "sandwalker":    { "spriteKey": "Sandwalker",  "note": "Authored v0.20 — tan robes, hooded face, scimitar, sand-swirl particles at feet." },
     "voidcaller":    { "spriteKey": "Bloodmage",    "note": "CLASS_SPRITES 'Bloodmage' adapted (HP-cost dark magic vibe matches Voidcaller)" }
   },
 
   "orphanSprites": {
-    "$comment": "Sprites that exist in CLASS_SPRITES but don't directly match a GDD class. Either repurpose, rename, or retire.",
-    "Bulwark":      "tower-shield specialist — best fit: shieldmage",
-    "Apothecary":   "scientific healer — no GDD slot; candidate for a future healer or merge with bloodpriest",
-    "DeathKnight":  "no GDD slot; candidate for a wildcard or retire",
-    "Valkyrie":     "no GDD slot; candidate for a wildcard or retire",
-    "Dragoon":      "no GDD slot (lance/dragon-themed); candidate for fighter or marksman swap"
+    "$comment": "Sprites that exist in CLASS_SPRITES but don't directly match a GDD class. Either repurpose, rename, or retire."
   },
 
   "summary": {
     "gddClassesTotal": 48,
-    "withSprites": 33,
-    "withoutSprites": 15,
-    "orphanSprites": 5
+    "withSprites": 48,
+    "withoutSprites": 0,
+    "orphanSprites": 0,
+    "note_v0_20": "Sprite gap closed: every GDD class has a procedural sprite. Authored 6 new (warden, bloodpriest, spiritualist, beastmaster2, astromancer, sandwalker) and repurposed 5 orphans (Bulwark→shieldmage, Apothecary→lifebinder, DeathKnight→reaper, Valkyrie→falconer, Dragoon→gladiator)."
   }
 }

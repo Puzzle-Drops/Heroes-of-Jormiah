@@ -20912,6 +20912,450 @@ const CLASS_SPRITES = {
   // Wildcard (8/8):    Berserker, Bard, Engineer, Monk, Samurai, Spellblade,
   //                    Dragoon, Alchemist
   // ============================================================================
+
+  // ============================================================================
+  // GAP-FILL CLASSES (v0.20) — six procedural sprites for GDD classes that
+  // didn't yet have a CLASS_SPRITES function. Style: simpler than the original
+  // 42 (~80–110 lines each) but each carries a distinctive silhouette,
+  // signature accent color, and one subtle animated overlay so identity reads
+  // at game scale.
+  // ============================================================================
+
+  // WARDEN — nature tank: mossy green plate, antlered helm, branching staff.
+  Warden(ctx, x, y, time, breathe) {
+    const b = breathe;
+    // Falling petals/leaf motes (slow drift)
+    for (let i = 0; i < 4; i++) {
+      const ph = ((time * 0.25 + i * 0.27) % 1);
+      const sw = Math.sin(time * 0.6 + i * 1.3) * 5;
+      const px = x - 12 + i * 8 + sw;
+      const py = y - 28 + ph * 50;
+      const al = ph < 0.15 ? ph * 6 : (ph > 0.85 ? (1 - ph) * 6 : 1) * 0.7;
+      ctx.fillStyle = `rgba(132, 204, 22, ${al})`;
+      ctx.beginPath(); ctx.ellipse(px, py, 1.2, 0.6, 0.5, 0, Math.PI * 2); ctx.fill();
+    }
+    // Greaves (mossy plate)
+    ctx.fillStyle = '#3f5d2a';
+    ctx.fillRect(x - 6, y + 12 + b, 5, 7);
+    ctx.fillRect(x + 1, y + 12 + b, 5, 7);
+    // Sabatons (boots)
+    ctx.fillStyle = '#1a2410'; ctx.fillRect(x - 7, y + 19 + b, 6, 3); ctx.fillRect(x + 1, y + 19 + b, 6, 3);
+    // Cape (rich brown leather)
+    const capeSway = Math.sin(time * 0.9) * 0.7;
+    ctx.fillStyle = '#5a3a1d';
+    ctx.beginPath();
+    ctx.moveTo(x - 8, y - 8 + b); ctx.lineTo(x - 12 + capeSway, y + 18);
+    ctx.lineTo(x + 12 + capeSway, y + 18); ctx.lineTo(x + 8, y - 8 + b);
+    ctx.closePath(); ctx.fill();
+    // Cuirass (forest green plate w/ vine etching)
+    const grad = ctx.createLinearGradient(x - 11, y - 8, x + 11, y + 14);
+    grad.addColorStop(0, '#65a30d'); grad.addColorStop(0.5, '#3f5d2a'); grad.addColorStop(1, '#1a2410');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(x - 9, y - 8 + b); ctx.lineTo(x + 9, y - 8 + b);
+    ctx.lineTo(x + 11, y + 4 + b); ctx.lineTo(x + 10, y + 12 + b);
+    ctx.lineTo(x - 10, y + 12 + b); ctx.lineTo(x - 11, y + 4 + b);
+    ctx.closePath(); ctx.fill();
+    // Vine etching down the front
+    ctx.strokeStyle = '#84cc16'; ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    ctx.moveTo(x, y - 6 + b); ctx.bezierCurveTo(x - 2, y - 2 + b, x + 2, y + 4 + b, x, y + 10 + b);
+    ctx.stroke();
+    // Vine pauldrons (twin leaf clusters)
+    ctx.fillStyle = '#15803d';
+    ctx.beginPath(); ctx.arc(x - 11, y - 6 + b, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 11, y - 6 + b, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#84cc16';
+    ctx.fillRect(x - 13, y - 8 + b, 1.5, 1); ctx.fillRect(x + 12, y - 8 + b, 1.5, 1);
+    // Belt
+    ctx.fillStyle = '#3a2410'; ctx.fillRect(x - 10, y + 10 + b, 20, 2);
+    ctx.fillStyle = '#a16207'; ctx.fillRect(x - 1, y + 10 + b, 2, 2);
+    // Branching staff (left side, vertical)
+    ctx.strokeStyle = '#5a3a1d'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x - 14, y - 18 + b); ctx.lineTo(x - 14, y + 14 + b); ctx.stroke();
+    ctx.strokeStyle = '#7c5b2d'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x - 14, y - 14 + b); ctx.lineTo(x - 18, y - 17 + b);
+    ctx.moveTo(x - 14, y - 8 + b); ctx.lineTo(x - 11, y - 11 + b);
+    ctx.stroke();
+    // Glowing leaf at staff top
+    ctx.fillStyle = '#84cc16';
+    ctx.beginPath(); ctx.ellipse(x - 14, y - 19 + b, 2.5, 1.5, 0.4, 0, Math.PI * 2); ctx.fill();
+    // Head
+    ctx.fillStyle = '#fdbcb4'; ctx.fillRect(x - 5, y - 18 + b, 10, 9);
+    // Eyes (faint green glow)
+    ctx.fillStyle = '#a3e635';
+    ctx.fillRect(x - 4, y - 14 + b, 2, 1); ctx.fillRect(x + 2, y - 14 + b, 2, 1);
+    // Helm (open-faced) with antlers
+    ctx.fillStyle = '#3f5d2a'; ctx.fillRect(x - 6, y - 22 + b, 12, 5);
+    ctx.fillStyle = '#65a30d'; ctx.fillRect(x - 6, y - 22 + b, 12, 1);
+    // Antlers (branching off helm)
+    ctx.strokeStyle = '#7c5b2d'; ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(x - 4, y - 22 + b); ctx.lineTo(x - 7, y - 28 + b);
+    ctx.moveTo(x - 7, y - 28 + b); ctx.lineTo(x - 9, y - 27 + b);
+    ctx.moveTo(x - 7, y - 28 + b); ctx.lineTo(x - 6, y - 31 + b);
+    ctx.moveTo(x + 4, y - 22 + b); ctx.lineTo(x + 7, y - 28 + b);
+    ctx.moveTo(x + 7, y - 28 + b); ctx.lineTo(x + 9, y - 27 + b);
+    ctx.moveTo(x + 7, y - 28 + b); ctx.lineTo(x + 6, y - 31 + b);
+    ctx.stroke();
+  },
+
+  // BLOODPRIEST — heals via damage: crimson robes, raised dagger, floating drops.
+  Bloodpriest(ctx, x, y, time, breathe) {
+    const b = breathe;
+    // Floating blood droplets (slow upward drift then fade)
+    for (let i = 0; i < 5; i++) {
+      const ph = ((time * 0.4 + i * 0.21) % 1);
+      const sw = Math.sin(time * 1.2 + i * 1.7) * 3;
+      const px = x - 10 + i * 5 + sw;
+      const py = y + 10 - ph * 35;
+      const al = ph < 0.1 ? ph * 8 : (ph > 0.8 ? (1 - ph) * 5 : 1) * 0.85;
+      ctx.fillStyle = `rgba(220, 38, 38, ${al})`;
+      ctx.beginPath(); ctx.ellipse(px, py, 1.2, 1.6, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    // Robe base (deep crimson w/ darker streaks)
+    const grad = ctx.createLinearGradient(x - 13, y - 8, x + 13, y + 12);
+    grad.addColorStop(0, '#7f1d1d'); grad.addColorStop(0.5, '#450a0a'); grad.addColorStop(1, '#1c0606');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(x - 13, y + 14); ctx.lineTo(x - 9, y - 10 + b); ctx.lineTo(x + 9, y - 10 + b);
+    ctx.lineTo(x + 13, y + 14); ctx.closePath(); ctx.fill();
+    // Robe blood-trim along the bottom
+    ctx.fillStyle = '#dc2626'; ctx.fillRect(x - 13, y + 12, 26, 1);
+    // Robe central dripping motif
+    ctx.strokeStyle = '#7f1d1d'; ctx.lineWidth = 0.7;
+    ctx.beginPath();
+    ctx.moveTo(x, y - 8 + b); ctx.lineTo(x, y + 12);
+    ctx.stroke();
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath(); ctx.arc(x, y + 4 + b, 1.4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y + 9 + b, 1, 0, Math.PI * 2); ctx.fill();
+    // Belt with red gem
+    ctx.fillStyle = '#0c0606'; ctx.fillRect(x - 11, y + 4 + b, 22, 2);
+    ctx.fillStyle = '#ef4444'; ctx.fillRect(x - 1, y + 4 + b, 2, 2);
+    // Hood (drawn before face so it frames it)
+    ctx.fillStyle = '#450a0a';
+    ctx.beginPath();
+    ctx.moveTo(x - 9, y - 10 + b); ctx.lineTo(x - 8, y - 22 + b);
+    ctx.lineTo(x - 4, y - 26 + b); ctx.lineTo(x + 4, y - 26 + b);
+    ctx.lineTo(x + 8, y - 22 + b); ctx.lineTo(x + 9, y - 10 + b);
+    ctx.closePath(); ctx.fill();
+    // Hood inner shadow
+    ctx.fillStyle = '#1c0606';
+    ctx.beginPath();
+    ctx.moveTo(x - 6, y - 18 + b); ctx.lineTo(x - 4, y - 21 + b);
+    ctx.lineTo(x + 4, y - 21 + b); ctx.lineTo(x + 6, y - 18 + b);
+    ctx.lineTo(x + 5, y - 11 + b); ctx.lineTo(x - 5, y - 11 + b);
+    ctx.closePath(); ctx.fill();
+    // Eyes (red glow inside hood)
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(x - 4, y - 17 + b, 2, 1.5); ctx.fillRect(x + 2, y - 17 + b, 2, 1.5);
+    ctx.fillStyle = '#fecaca';
+    ctx.fillRect(x - 3, y - 17 + b, 0.8, 0.8); ctx.fillRect(x + 3, y - 17 + b, 0.8, 0.8);
+    // Right hand raised holding curved dagger
+    ctx.fillStyle = '#fdbcb4';
+    ctx.fillRect(x + 9, y - 14 + b, 3, 4);
+    ctx.fillStyle = '#0c0606';                       // hilt
+    ctx.fillRect(x + 9, y - 17 + b, 3, 3);
+    ctx.fillStyle = '#dc2626';                       // pommel gem
+    ctx.fillRect(x + 10, y - 18 + b, 1, 1);
+    // Curved blade
+    ctx.fillStyle = '#e5e5e5';
+    ctx.beginPath();
+    ctx.moveTo(x + 11, y - 17 + b);
+    ctx.lineTo(x + 16, y - 22 + b);
+    ctx.lineTo(x + 14, y - 23 + b);
+    ctx.lineTo(x + 10, y - 18 + b);
+    ctx.closePath(); ctx.fill();
+    // Blood drip from blade
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath(); ctx.arc(x + 13, y - 19 + b, 0.7, 0, Math.PI * 2); ctx.fill();
+  },
+
+  // SPIRITUALIST — totemic mask, beaded cape, ghost-trail particles.
+  Spiritualist(ctx, x, y, time, breathe) {
+    const b = breathe;
+    // Spirit wisps (ghost trail orbiting)
+    for (let i = 0; i < 4; i++) {
+      const ph = (time * 0.5 + i * 0.25) % 1;
+      const ang = ph * Math.PI * 2 + i;
+      const r = 14;
+      const px = x + Math.cos(ang) * r;
+      const py = y - 4 + Math.sin(ang) * r * 0.6 + b;
+      const al = (1 - ph) * 0.55;
+      ctx.fillStyle = `rgba(196, 181, 253, ${al})`;
+      ctx.beginPath(); ctx.arc(px, py, 1.6, 0, Math.PI * 2); ctx.fill();
+    }
+    // Robe base (cream / tan)
+    ctx.fillStyle = '#e7d5b3';
+    ctx.beginPath();
+    ctx.moveTo(x - 12, y + 14); ctx.lineTo(x - 9, y - 8 + b); ctx.lineTo(x + 9, y - 8 + b);
+    ctx.lineTo(x + 12, y + 14); ctx.closePath(); ctx.fill();
+    // Robe shadow on right
+    ctx.fillStyle = '#c4ad88';
+    ctx.beginPath();
+    ctx.moveTo(x + 6, y - 8 + b); ctx.lineTo(x + 12, y + 14); ctx.lineTo(x + 8, y + 14);
+    ctx.lineTo(x + 4, y - 8 + b); ctx.closePath(); ctx.fill();
+    // Beaded shoulder cape (feathered fringe)
+    ctx.fillStyle = '#7c2d12';
+    ctx.fillRect(x - 12, y - 8 + b, 24, 4);
+    ctx.fillStyle = '#a16207';
+    for (let i = 0; i < 6; i++) ctx.fillRect(x - 11 + i * 4, y - 5 + b, 1, 3);
+    // Beads (line of dots along the cape)
+    ctx.fillStyle = '#fbbf24';
+    for (let i = 0; i < 6; i++) ctx.fillRect(x - 11 + i * 4, y - 6 + b, 1, 1);
+    // Belt + sash
+    ctx.fillStyle = '#7c2d12'; ctx.fillRect(x - 11, y + 6 + b, 22, 2);
+    ctx.fillStyle = '#fbbf24'; ctx.fillRect(x - 1, y + 6 + b, 2, 2);
+    // Totem staff in left hand (right side of sprite)
+    ctx.fillStyle = '#5a3a1d';
+    ctx.fillRect(x + 10, y - 22 + b, 2, 32);
+    // Totem head (carved)
+    ctx.fillStyle = '#f3e8b0';
+    ctx.fillRect(x + 8, y - 26 + b, 6, 6);
+    ctx.fillStyle = '#7c2d12';
+    ctx.fillRect(x + 9, y - 24 + b, 1, 1); ctx.fillRect(x + 12, y - 24 + b, 1, 1); // eyes
+    ctx.fillRect(x + 9, y - 22 + b, 4, 1); // mouth
+    // Feather decoration on totem
+    ctx.fillStyle = '#7c2d12';
+    ctx.beginPath();
+    ctx.moveTo(x + 13, y - 26 + b); ctx.lineTo(x + 17, y - 30 + b);
+    ctx.lineTo(x + 16, y - 30 + b); ctx.lineTo(x + 13, y - 24 + b); ctx.closePath(); ctx.fill();
+    // Bone mask (top of face, white with markings)
+    ctx.fillStyle = '#f5f5dc';
+    ctx.fillRect(x - 6, y - 19 + b, 12, 7);
+    // Mask markings (vertical lines)
+    ctx.fillStyle = '#7c2d12';
+    ctx.fillRect(x - 4, y - 18 + b, 1, 4);
+    ctx.fillRect(x + 3, y - 18 + b, 1, 4);
+    ctx.fillRect(x - 0.5, y - 17 + b, 1, 5);
+    // Eye holes (dark with violet gleam)
+    ctx.fillStyle = '#1c0a3a';
+    ctx.fillRect(x - 4, y - 16 + b, 2, 2); ctx.fillRect(x + 2, y - 16 + b, 2, 2);
+    ctx.fillStyle = '#c4b5fd';
+    ctx.fillRect(x - 3, y - 16 + b, 0.7, 0.7); ctx.fillRect(x + 3, y - 16 + b, 0.7, 0.7);
+    // Lower face (chin)
+    ctx.fillStyle = '#fdbcb4';
+    ctx.fillRect(x - 4, y - 12 + b, 8, 4);
+    // Hair (dark, falls behind mask)
+    ctx.fillStyle = '#1c1917';
+    ctx.fillRect(x - 7, y - 19 + b, 1.5, 9);
+    ctx.fillRect(x + 5.5, y - 19 + b, 1.5, 9);
+  },
+
+  // BEASTMASTER (farlands variant) — leather/fur, coiled whip, wolf at feet.
+  Beastmaster2(ctx, x, y, time, breathe) {
+    const b = breathe;
+    // Wolf companion silhouette (sits at left foot, slow head bob)
+    const wolfBob = Math.sin(time * 1.6) * 0.4;
+    const wx = x - 14, wy = y + 18 + wolfBob;
+    ctx.fillStyle = '#52525b';
+    ctx.fillRect(wx - 4, wy - 2, 8, 4);                        // body
+    ctx.fillRect(wx - 5, wy - 4, 4, 3);                        // head
+    ctx.fillStyle = '#27272a';
+    ctx.fillRect(wx - 5, wy - 4, 1.5, 1);                      // ear
+    ctx.fillRect(wx - 3, wy - 4, 1, 1);                        // ear
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(wx - 4.5, wy - 3, 0.7, 0.7);                  // eye glint
+    ctx.fillStyle = '#52525b';
+    ctx.fillRect(wx + 4, wy - 1, 2, 1);                        // tail
+    // Greaves (leather)
+    ctx.fillStyle = '#5a3a1d';
+    ctx.fillRect(x - 5, y + 12 + b, 4, 7);
+    ctx.fillRect(x + 1, y + 12 + b, 4, 7);
+    ctx.fillStyle = '#1a1006';
+    ctx.fillRect(x - 6, y + 19 + b, 5, 3);
+    ctx.fillRect(x + 1, y + 19 + b, 5, 3);
+    // Body — tan leather chest with fur trim
+    const grad = ctx.createLinearGradient(x - 10, y - 8, x + 10, y + 12);
+    grad.addColorStop(0, '#a16207'); grad.addColorStop(0.5, '#7c4a14'); grad.addColorStop(1, '#3a2410');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x - 9, y - 6 + b, 18, 18);
+    // Fur trim across the chest top
+    ctx.fillStyle = '#d6d3d1';
+    for (let i = 0; i < 9; i++) ctx.fillRect(x - 9 + i * 2, y - 8 + b, 1.5, 2);
+    ctx.fillStyle = '#a8a29e';
+    for (let i = 0; i < 4; i++) ctx.fillRect(x - 8 + i * 4, y - 7 + b, 1, 1);
+    // Crossbody belt
+    ctx.strokeStyle = '#1a1006'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x - 9, y - 4 + b); ctx.lineTo(x + 9, y + 8 + b); ctx.stroke();
+    // Coiled whip on right hip
+    ctx.strokeStyle = '#1a1006'; ctx.lineWidth = 0.8;
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc(x + 7, y + 8 + b, 2 + i * 0.5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    // Whip handle nub
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(x + 6, y + 7 + b, 2, 1);
+    // Belt
+    ctx.fillStyle = '#1a1006'; ctx.fillRect(x - 9, y + 9 + b, 18, 2);
+    ctx.fillStyle = '#a16207'; ctx.fillRect(x - 1, y + 9 + b, 2, 2);
+    // Head
+    ctx.fillStyle = '#fdbcb4';
+    ctx.fillRect(x - 5, y - 18 + b, 10, 10);
+    // Beard / scar
+    ctx.fillStyle = '#5a3a1d';
+    ctx.fillRect(x - 5, y - 11 + b, 10, 2);
+    ctx.fillRect(x + 1, y - 13 + b, 1, 1);
+    // Eyes
+    ctx.fillStyle = '#0c0606';
+    ctx.fillRect(x - 4, y - 14 + b, 2, 1); ctx.fillRect(x + 2, y - 14 + b, 2, 1);
+    // Fur hat with horns
+    ctx.fillStyle = '#3a2410'; ctx.fillRect(x - 7, y - 22 + b, 14, 4);
+    ctx.fillStyle = '#7c4a14'; ctx.fillRect(x - 7, y - 22 + b, 14, 1);
+    ctx.fillStyle = '#d6d3d1';
+    for (let i = 0; i < 7; i++) ctx.fillRect(x - 6 + i * 2, y - 23 + b, 1.2, 1);
+    // Curved horns
+    ctx.strokeStyle = '#fef3c7'; ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(x - 6, y - 22 + b); ctx.quadraticCurveTo(x - 11, y - 26 + b, x - 9, y - 30 + b);
+    ctx.moveTo(x + 6, y - 22 + b); ctx.quadraticCurveTo(x + 11, y - 26 + b, x + 9, y - 30 + b);
+    ctx.stroke();
+  },
+
+  // ASTROMANCER — deep blue robe with star particles, tall pointed hat with crescent.
+  Astromancer(ctx, x, y, time, breathe) {
+    const b = breathe;
+    // Orbiting star sparkles (slow drift around upper body)
+    for (let i = 0; i < 6; i++) {
+      const ang = (time * 0.4 + i * Math.PI / 3) % (Math.PI * 2);
+      const r = 14 + Math.sin(time * 0.7 + i) * 2;
+      const px = x + Math.cos(ang) * r;
+      const py = y - 6 + b + Math.sin(ang) * r * 0.55;
+      const al = 0.55 + Math.sin(time * 2 + i) * 0.3;
+      ctx.fillStyle = `rgba(253, 224, 71, ${Math.max(0.2, al)})`;
+      // 4-point star
+      ctx.fillRect(px - 0.5, py - 1.5, 1, 3);
+      ctx.fillRect(px - 1.5, py - 0.5, 3, 1);
+    }
+    // Robe (deep blue with star sparkles in fabric)
+    const grad = ctx.createLinearGradient(x - 13, y - 8, x + 13, y + 14);
+    grad.addColorStop(0, '#1e3a8a'); grad.addColorStop(0.5, '#172554'); grad.addColorStop(1, '#0a0e27');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(x - 13, y + 14); ctx.lineTo(x - 9, y - 8 + b); ctx.lineTo(x + 9, y - 8 + b);
+    ctx.lineTo(x + 13, y + 14); ctx.closePath(); ctx.fill();
+    // Tiny star sparkles ON the robe
+    ctx.fillStyle = 'rgba(253, 224, 71, 0.85)';
+    [[x - 6, y + 2], [x + 4, y + 6], [x - 2, y + 9], [x + 7, y - 2], [x - 8, y + 8]].forEach(([px, py]) => {
+      ctx.fillRect(px - 0.5, py - 0.5 + b, 1, 1);
+    });
+    // Belt with celestial buckle
+    ctx.fillStyle = '#0a0e27'; ctx.fillRect(x - 11, y + 4 + b, 22, 2);
+    ctx.fillStyle = '#fde047'; ctx.fillRect(x - 2, y + 3 + b, 4, 4);
+    ctx.fillStyle = '#1e3a8a'; ctx.fillRect(x - 1, y + 4 + b, 2, 2);
+    // Star wand (right hand, raised slightly)
+    ctx.strokeStyle = '#1e3a8a'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x + 11, y + 4 + b); ctx.lineTo(x + 15, y - 12 + b); ctx.stroke();
+    // Star at wand tip
+    ctx.fillStyle = '#fde047';
+    ctx.fillRect(x + 14.5, y - 15 + b, 1, 6);
+    ctx.fillRect(x + 12, y - 12.5 + b, 6, 1);
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath(); ctx.arc(x + 15, y - 12 + b, 1.2, 0, Math.PI * 2); ctx.fill();
+    // Head
+    ctx.fillStyle = '#fdbcb4'; ctx.fillRect(x - 5, y - 17 + b, 10, 8);
+    // Eyes (golden)
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(x - 4, y - 14 + b, 2, 1); ctx.fillRect(x + 2, y - 14 + b, 2, 1);
+    // Hair (dark blue, frames hat brim)
+    ctx.fillStyle = '#1e3a8a';
+    ctx.fillRect(x - 6, y - 17 + b, 1.5, 9); ctx.fillRect(x + 4.5, y - 17 + b, 1.5, 9);
+    // Tall pointed hat
+    ctx.fillStyle = '#1e3a8a';
+    ctx.beginPath();
+    ctx.moveTo(x - 8, y - 19 + b); ctx.lineTo(x + 8, y - 19 + b);
+    ctx.lineTo(x + 1, y - 32 + b); ctx.closePath(); ctx.fill();
+    // Hat brim
+    ctx.fillStyle = '#172554'; ctx.fillRect(x - 9, y - 19 + b, 18, 2);
+    // Crescent moon decoration on hat
+    ctx.fillStyle = '#fde047';
+    ctx.beginPath(); ctx.arc(x + 1, y - 26 + b, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1e3a8a';
+    ctx.beginPath(); ctx.arc(x + 2, y - 26 + b, 1.5, 0, Math.PI * 2); ctx.fill();
+    // Tiny star at hat tip
+    ctx.fillStyle = '#fde047';
+    ctx.fillRect(x + 0.5, y - 33 + b, 1, 2);
+    ctx.fillRect(x - 0.5, y - 32 + b, 3, 1);
+  },
+
+  // SANDWALKER — tan flowing robes, hooded face, scimitar, sand swirls at feet.
+  Sandwalker(ctx, x, y, time, breathe) {
+    const b = breathe;
+    // Sand swirl particles at feet
+    for (let i = 0; i < 6; i++) {
+      const ang = (time * 1.2 + i * Math.PI / 3) % (Math.PI * 2);
+      const r = 8 + Math.sin(time * 1.5 + i) * 2;
+      const px = x + Math.cos(ang) * r;
+      const py = y + 18 + Math.sin(ang * 2) * 1.2;
+      const al = 0.4 + Math.sin(time * 2 + i) * 0.3;
+      ctx.fillStyle = `rgba(217, 180, 122, ${Math.max(0.15, al)})`;
+      ctx.beginPath(); ctx.arc(px, py, 1.4, 0, Math.PI * 2); ctx.fill();
+    }
+    // Robe (tan, flowing — slight sway)
+    const sway = Math.sin(time * 1.0) * 1.2;
+    const grad = ctx.createLinearGradient(x - 12, y - 8, x + 12, y + 14);
+    grad.addColorStop(0, '#fde68a'); grad.addColorStop(0.5, '#d4a373'); grad.addColorStop(1, '#7c5b2d');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(x - 13 + sway, y + 14); ctx.lineTo(x - 9, y - 8 + b); ctx.lineTo(x + 9, y - 8 + b);
+    ctx.lineTo(x + 13 - sway, y + 14); ctx.closePath(); ctx.fill();
+    // Sash (rust red diagonal)
+    ctx.fillStyle = '#9a3412';
+    ctx.beginPath();
+    ctx.moveTo(x - 9, y - 4 + b); ctx.lineTo(x - 9, y - 1 + b);
+    ctx.lineTo(x + 9, y + 9 + b); ctx.lineTo(x + 9, y + 6 + b); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#c2410c';
+    ctx.fillRect(x - 9, y - 4 + b, 18, 0.7);
+    // Belt with curved buckle
+    ctx.fillStyle = '#7c2d12'; ctx.fillRect(x - 11, y + 6 + b, 22, 2);
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath(); ctx.arc(x, y + 7 + b, 1.5, 0, Math.PI * 2); ctx.fill();
+    // Scimitar (right hand, curved blade pointing up-right)
+    ctx.strokeStyle = '#7c2d12'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x + 10, y + 4 + b); ctx.lineTo(x + 11, y - 4 + b); ctx.stroke();
+    ctx.fillStyle = '#fbbf24';                          // hilt
+    ctx.fillRect(x + 9.5, y - 6 + b, 3, 2);
+    // Curved blade
+    ctx.fillStyle = '#e5e5e5';
+    ctx.beginPath();
+    ctx.moveTo(x + 11, y - 6 + b);
+    ctx.quadraticCurveTo(x + 18, y - 14 + b, x + 14, y - 22 + b);
+    ctx.quadraticCurveTo(x + 16, y - 14 + b, x + 12, y - 5 + b);
+    ctx.closePath(); ctx.fill();
+    // Blade highlight
+    ctx.strokeStyle = '#f5f5f4'; ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x + 12, y - 8 + b);
+    ctx.quadraticCurveTo(x + 16, y - 14 + b, x + 14, y - 21 + b);
+    ctx.stroke();
+    // Hood (drawn before face)
+    ctx.fillStyle = '#7c5b2d';
+    ctx.beginPath();
+    ctx.moveTo(x - 9, y - 8 + b); ctx.lineTo(x - 8, y - 22 + b);
+    ctx.lineTo(x - 4, y - 25 + b); ctx.lineTo(x + 4, y - 25 + b);
+    ctx.lineTo(x + 8, y - 22 + b); ctx.lineTo(x + 9, y - 8 + b);
+    ctx.closePath(); ctx.fill();
+    // Hood inner
+    ctx.fillStyle = '#3a2410';
+    ctx.beginPath();
+    ctx.moveTo(x - 6, y - 19 + b); ctx.lineTo(x - 4, y - 21 + b);
+    ctx.lineTo(x + 4, y - 21 + b); ctx.lineTo(x + 6, y - 19 + b);
+    ctx.lineTo(x + 5, y - 11 + b); ctx.lineTo(x - 5, y - 11 + b);
+    ctx.closePath(); ctx.fill();
+    // Half-veil over lower face (light tan)
+    ctx.fillStyle = '#fde68a';
+    ctx.fillRect(x - 5, y - 14 + b, 10, 4);
+    // Eyes (visible above veil)
+    ctx.fillStyle = '#0c0606';
+    ctx.fillRect(x - 4, y - 16 + b, 2, 1.2); ctx.fillRect(x + 2, y - 16 + b, 2, 1.2);
+    ctx.fillStyle = '#fde68a';
+    ctx.fillRect(x - 3, y - 16 + b, 0.7, 0.7); ctx.fillRect(x + 3, y - 16 + b, 0.7, 0.7);
+  },
+
 };
 
 // ============================================================================
