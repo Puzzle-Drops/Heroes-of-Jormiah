@@ -134,6 +134,24 @@ button:disabled:hover { background: var(--bg-panel-hi); color: var(--ink); }
   text-align: center;
 }
 .party-slot.empty { color: var(--ink-muted); font-style: italic; font-family: var(--body); }
+
+/* ============ PARTY POWER ============ */
+.party-power {
+  margin-top: 16px; padding: 12px 14px;
+  background: var(--bg-panel-hi);
+  border: 1px solid #2a2c4a;
+}
+.party-power .pp-label {
+  font-family: var(--mono); font-size: 9px; color: var(--brass); letter-spacing: 1.5px;
+  text-transform: uppercase; margin-bottom: 8px;
+}
+.party-power .pp-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px;
+  font-family: var(--mono); font-size: 11px;
+}
+.party-power .pp-row { display: flex; justify-content: space-between; }
+.party-power .pp-row span { color: var(--ink-muted); }
+.party-power .pp-row b { color: var(--brass-hot); font-weight: 600; }
 .party-slot .role { font-size: 10px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; font-family: var(--body); }
 
 .dungeon-bar {
@@ -563,6 +581,7 @@ button:disabled:hover { background: var(--bg-panel-hi); color: var(--ink); }
 .modal h1 { font-family: var(--display); font-size: 28px; letter-spacing: 6px; color: var(--ember); margin-bottom: 8px; }
 .modal .sub { color: var(--ink-muted); font-size: 13px; margin-bottom: 24px; }
 .modal .actions { display: flex; gap: 12px; justify-content: center; }
+.modal .modal-hint { font-family: var(--mono); font-size: 11px; color: var(--ink-muted); margin-top: 14px; }
 
 /* ============ ITEM MODAL ============ */
 .item-modal {

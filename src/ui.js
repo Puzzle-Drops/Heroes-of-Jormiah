@@ -77,6 +77,7 @@ export function showHub() {
             Top row = Back. Bottom row = Front. Slots 0–2 are Front (take hits).<br>
             Click a roster card to manage equipment and party membership.
           </div>
+          ${renderPartyPower()}
         </div>
       </div>
       <div class="dungeon-bar">
@@ -141,6 +142,66 @@ function renderRosterCard(classId, inParty) {
       <div class="name">${cls.displayName}</div>
       <div class="family">${fam?.name ?? cls.family}</div>
       <div class="lvl">Lvl ${unit.level} · XP ${unit.xp}${equippedNonStarter ? ` · ${equippedNonStarter} eq` : ''}</div>
+    </div>
+  `;
+}
+
+function computePartyPower() {
+  const state = getState();
+  const data = getData();
+  let hp = 0, patk = 0, matk = 0, qSum = 0, qCount = 0, treeNodes = 0;
+  for (const cid of state.party) {
+    const cls = data.classesById[cid];
+    const u = state.roster[cid];
+    if (!cls || !u) continue;
+    const stats = { hp: 0, patk: 0, matk: 0 };
+    for (const k in stats) stats[k] = (cls.baseStats[k] ?? 0) + (cls.perLevelStats[k] ?? 0) * (u.level - 1);
+    for (const slotId in u.equipment) {
+      const it = u.equipment[slotId];
+      if (!it || !it.stats) continue;
+      stats.hp   += it.stats.hp   ?? 0;
+      stats.patk += it.stats.patk ?? 0;
+      stats.matk += it.stats.matk ?? 0;
+      if (!it.isStarter && typeof it.qualityScore === 'number') {
+        qSum += it.qualityScore;
+        qCount++;
+      }
+    }
+    // tree-derived flat additions (close enough for at-a-glance summary; skip % to keep it light)
+    for (const id of u.allocatedNodes ?? []) {
+      const node = data.treeNodesById[id];
+      if (!node) continue;
+      treeNodes++;
+      for (const eff of node.effects ?? []) {
+        if (eff.type !== 'stat' || typeof eff.amount !== 'number') continue;
+        if (eff.stat in stats) stats[eff.stat] += eff.amount;
+      }
+    }
+    hp += stats.hp; patk += stats.patk; matk += stats.matk;
+  }
+  return {
+    hp: Math.round(hp),
+    patk: Math.round(patk),
+    matk: Math.round(matk),
+    avgQuality: qCount ? qSum / qCount : 0,
+    equipped: qCount,
+    treeNodes
+  };
+}
+
+function renderPartyPower() {
+  const p = computePartyPower();
+  return `
+    <div class="party-power">
+      <div class="pp-label">Party Power</div>
+      <div class="pp-grid">
+        <div class="pp-row"><span>HP</span><b>${p.hp}</b></div>
+        <div class="pp-row"><span>P.ATK</span><b>${p.patk}</b></div>
+        <div class="pp-row"><span>M.ATK</span><b>${p.matk}</b></div>
+        <div class="pp-row"><span>Avg gear quality</span><b>${(p.avgQuality * 100).toFixed(0)}%</b></div>
+        <div class="pp-row"><span>Equipped items</span><b>${p.equipped}</b></div>
+        <div class="pp-row"><span>Tree nodes</span><b>${p.treeNodes}</b></div>
+      </div>
     </div>
   `;
 }
@@ -1433,19 +1494,35 @@ function showClassUnlockCard(classIds, onClose) {
 }
 
 function showWipeModal() {
+  const battle = _activeBattle;
+  const state = getState();
+  const retryCost = Math.max(5, battle.floor);
+  const canAfford = (state.currencies.spirit ?? 0) >= retryCost;
   const stage = document.getElementById('stage');
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal">
       <h1>PARTY WIPED</h1>
-      <div class="sub">Your run ended on floor ${_activeBattle.floor}. Items kept.</div>
+      <div class="sub">Your run ended on floor ${battle.floor}. Items kept.</div>
       <div class="actions">
+        <button id="wipe-retry" ${canAfford ? '' : 'disabled title="not enough Spirit"'}>Retry Floor (${retryCost} ◆)</button>
         <button id="wipe-hub">Return to Hub</button>
       </div>
+      ${canAfford ? '' : `<div class="modal-hint">You need ${retryCost} Spirit to retry. You have ${state.currencies.spirit}.</div>`}
     </div>
   `;
   stage.appendChild(overlay);
+  const retryBtn = overlay.querySelector('#wipe-retry');
+  if (retryBtn && canAfford) retryBtn.addEventListener('click', () => {
+    state.currencies.spirit -= retryCost;
+    persist();
+    const dungeonId = battle.dungeonId;
+    const floor = battle.floor;
+    overlay.remove();
+    stopBattle();
+    startBattle(dungeonId, floor);
+  });
   overlay.querySelector('#wipe-hub').addEventListener('click', () => {
     stopBattle();
     showHub();
