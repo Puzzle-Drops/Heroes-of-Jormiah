@@ -61,6 +61,46 @@ export function refundAll(classId) {
   return before - unit.allocatedNodes.length;
 }
 
+export const REFUND_NODE_COST_SPIRIT = 1;
+
+// Per-node refund (POE-style): allowed only if removing the node leaves every
+// remaining allocated node still reachable from the class's start node.
+export function canRefundNode(classId, nodeId) {
+  const allocated = getAllocated(classId);
+  if (!allocated.has(nodeId)) return false;
+  const start = startNodeFor(classId);
+  if (nodeId === start) return false;
+  const sim = new Set(allocated);
+  sim.delete(nodeId);
+  const idx = nodesById();
+  const visited = new Set();
+  const queue = [start];
+  while (queue.length) {
+    const cur = queue.shift();
+    if (visited.has(cur)) continue;
+    visited.add(cur);
+    const node = idx[cur];
+    if (!node) continue;
+    for (const e of node.edges) {
+      if (sim.has(e) && !visited.has(e)) queue.push(e);
+    }
+  }
+  return [...sim].every(id => visited.has(id));
+}
+
+export function refundNode(classId, nodeId) {
+  if (!canRefundNode(classId, nodeId)) return false;
+  const state = getState();
+  if ((state.currencies.spirit ?? 0) < REFUND_NODE_COST_SPIRIT) return false;
+  const unit = state.roster[classId];
+  const idx = (unit.allocatedNodes ?? []).indexOf(nodeId);
+  if (idx === -1) return false;
+  unit.allocatedNodes.splice(idx, 1);
+  state.currencies.spirit -= REFUND_NODE_COST_SPIRIT;
+  persist();
+  return true;
+}
+
 // Sum tree-derived stat additions for a unit. Used by combat.computeStats.
 // Treats `amount` as flat additive and `amountPct` as a multiplier added to 1.
 const STAT_KEYS = ['hp', 'mp', 'patk', 'matk', 'pdef', 'mdef'];

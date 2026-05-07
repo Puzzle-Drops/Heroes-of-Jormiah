@@ -109,6 +109,15 @@ export function createBattle({ dungeonId, floor }) {
     }
     u.keystones = treeKeystoneFlags(alloc);
   }
+
+  // Wisdom of Ages keystone: passive party regen whenever any party member owns it.
+  // 0.5% max HP per second, ticking out of the regen array so existing tick loop handles it.
+  const anyWisdom = battle.playerUnits.some(u => u.keystones?.has?.('wisdom_of_ages'));
+  if (anyWisdom) {
+    for (const u of battle.playerUnits) {
+      u.regen.push({ pct: 0.005, expires: Infinity, lastTick: -1, source: 'wisdom_of_ages' });
+    }
+  }
   return battle;
 }
 
@@ -282,7 +291,8 @@ function buildPlayerUnit(cls, unit, slotPos) {
     onHitTakenHandlers: [],
     onKillHandlers: [],
     onDodgeHandlers: [],
-    dynamicBuffSpecs: []
+    dynamicBuffSpecs: [],
+    castedThisFight: 0
   };
 }
 
@@ -342,7 +352,8 @@ function buildEnemy(template, floor, row, col, attackTpl) {
     onHitTakenHandlers: [],
     onKillHandlers: [],
     onDodgeHandlers: [],
-    dynamicBuffSpecs: []
+    dynamicBuffSpecs: [],
+    castedThisFight: 0
   };
 }
 
@@ -358,6 +369,7 @@ export function reviveSurvivors(playerUnits) {
     u.buffs = []; u.hots = []; u.regen = []; u.tauntedBy = null;
     u.dots = []; u.shields = []; u.marks = []; u.statuses = {};
     u.onHitTakenHandlers = []; u.onKillHandlers = []; u.onDodgeHandlers = []; u.dynamicBuffSpecs = [];
+    u.castedThisFight = 0;
     for (const slot of Object.keys(u.abilities)) u.abilities[slot].cooldown = 0;
   }
 }

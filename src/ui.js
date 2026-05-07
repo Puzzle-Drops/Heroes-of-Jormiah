@@ -16,7 +16,7 @@ import { humanizeEffect, prettyAbility, statLabel, humanizeScalingKey, formatSca
 import { scaleParam } from './combat/formulas.js';
 import { effectiveStat, sumBuffPct } from './combat/abilities.js';
 import { createTreeView } from './tree_render.js';
-import { allocateNode, refundAll, pointsAvailable, getAllocated, canAllocate, startNodeFor } from './tree.js';
+import { allocateNode, refundAll, refundNode, canRefundNode, REFUND_NODE_COST_SPIRIT, pointsAvailable, getAllocated, canAllocate, startNodeFor } from './tree.js';
 
 const root = () => document.getElementById('app');
 
@@ -525,13 +525,24 @@ function buildStatTooltip(classId, stat) {
   const base = cls.baseStats[stat] ?? 0;
   const perLvl = cls.perLevelStats[stat] ?? 0;
   const fromLevel = perLvl * (unit.level - 1);
-  const fromGear = STAT_KEYS.reduce((acc, _) => acc, 0); // placeholder
   let gear = 0;
   for (const slotId in unit.equipment) {
     const it = unit.equipment[slotId];
     if (it && it.stats) gear += it.stats[stat] ?? 0;
   }
-  const total = base + fromLevel + gear;
+  let treeFlat = 0;
+  let treePct = 0;
+  for (const nodeId of unit.allocatedNodes ?? []) {
+    const node = data.treeNodesById[nodeId];
+    if (!node) continue;
+    for (const eff of node.effects ?? []) {
+      if (eff.type !== 'stat' || eff.stat !== stat) continue;
+      if (typeof eff.amount === 'number') treeFlat += eff.amount;
+      if (typeof eff.amountPct === 'number') treePct += eff.amountPct;
+    }
+  }
+  const flatTotal = base + fromLevel + gear + treeFlat;
+  const total = treePct > 0 ? flatTotal * (1 + treePct / 100) : flatTotal;
   const help = STAT_HELP[stat] ?? [STAT_LABEL[stat], ''];
   return `
     <div class="t-title">${help[0]}</div>
@@ -541,6 +552,8 @@ function buildStatTooltip(classId, stat) {
       <div class="t-row"><span>Base</span><span>${base}</span></div>
       <div class="t-row"><span>From level (${unit.level - 1} × ${perLvl})</span><span>${fromLevel.toFixed(1)}</span></div>
       <div class="t-row"><span>From gear</span><span>${gear}</span></div>
+      ${treeFlat ? `<div class="t-row"><span>From tree (flat)</span><span class="up">+${treeFlat}</span></div>` : ''}
+      ${treePct  ? `<div class="t-row"><span>From tree (%)</span><span class="up">×${(1 + treePct/100).toFixed(2)}</span></div>` : ''}
     </div>
   `;
 }
@@ -745,14 +758,27 @@ function showTreeScreen(classId) {
           updateTreeHud(classId);
           _treeView?.draw();
         }
-      } else if (getAllocated(classId).has(node.id)) {
-        flash('Already allocated · use Refund All to reset.');
-      } else {
-        const reason = pointsAvailable(classId) <= 0
-          ? 'No points available — level up to earn more.'
-          : 'Path not connected to your tree yet.';
-        flash(reason);
+        return;
       }
+      if (getAllocated(classId).has(node.id)) {
+        if (node.id === startNodeFor(classId)) { flash('Start node — cannot refund.'); return; }
+        if (!canRefundNode(classId, node.id)) { flash('Refunding this node would orphan others.'); return; }
+        if ((getState().currencies.spirit ?? 0) < REFUND_NODE_COST_SPIRIT) {
+          flash(`Need ${REFUND_NODE_COST_SPIRIT} Spirit to refund (you have ${getState().currencies.spirit}).`);
+          return;
+        }
+        if (!confirm(`Refund "${node.name ?? node.id}" for ${REFUND_NODE_COST_SPIRIT} Spirit?`)) return;
+        if (refundNode(classId, node.id)) {
+          updateTreeHud(classId);
+          _treeView?.draw();
+          flash(`Refunded ${node.name ?? node.id} (-${REFUND_NODE_COST_SPIRIT} Spirit).`);
+        }
+        return;
+      }
+      const reason = pointsAvailable(classId) <= 0
+        ? 'No points available — level up to earn more.'
+        : 'Path not connected to your tree yet.';
+      flash(reason);
     },
     onHover(node, e) {
       if (!node || !e) { hideTooltip(); return; }
@@ -803,7 +829,16 @@ function buildNodeTooltip(node, classId) {
     }
     return '';
   }).join('');
-  const status = isAlloc ? '<span class="up">ALLOCATED</span>' : (canAlloc ? '<span class="dim">Available · click to allocate</span>' : '<span class="down">Locked · path not reached</span>');
+  let status;
+  if (isAlloc) {
+    if (node.id === startNodeFor(classId)) status = '<span class="up">ALLOCATED</span> · start node (cannot refund)';
+    else if (canRefundNode(classId, node.id)) status = `<span class="up">ALLOCATED</span> · click to refund (${REFUND_NODE_COST_SPIRIT} Spirit)`;
+    else status = '<span class="up">ALLOCATED</span> · refund would orphan others';
+  } else if (canAlloc) {
+    status = '<span class="dim">Available · click to allocate</span>';
+  } else {
+    status = '<span class="down">Locked · path not reached</span>';
+  }
   return `
     <div class="t-title">${node.name ?? kindLabel}</div>
     <div class="t-sub">${kindLabel}</div>

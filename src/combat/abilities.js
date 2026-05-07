@@ -113,6 +113,10 @@ export function effectiveStat(unit, stat, now) {
   return (unit.stats[stat] ?? 0) * buffMultiplier(unit, stat, now);
 }
 
+function hasKeystone(unit, flag) {
+  return unit?.keystones?.has?.(flag) ?? false;
+}
+
 function rollDodge(target, now) {
   const chance = sumBuffPct(target, 'dodgePct', now);
   if (chance <= 0) return false;
@@ -120,6 +124,14 @@ function rollDodge(target, now) {
 }
 
 function rollCritMultiplier(caster, now) {
+  // Resolute Technique: hits cannot crit. (The +25% damage is applied separately
+  // in the damage handler so the trade-off is visible.)
+  if (hasKeystone(caster, 'resolute_technique')) return 1;
+  // Point Blank: first attack of the fight always crits.
+  if (hasKeystone(caster, 'point_blank') && (caster.castedThisFight ?? 0) === 0) {
+    const bonus = sumBuffPct(caster, 'critDamagePct', now);
+    return 1.5 + bonus / 100;
+  }
   const chance = sumBuffPct(caster, 'critChancePct', now);
   if (chance <= 0) return 1;
   if (Math.random() * 100 >= chance) return 1;
@@ -133,6 +145,18 @@ function rollCritMultiplier(caster, now) {
 
 function applyDamage(target, raw, ctx) {
   if (target.dead) return;
+  // Living Wall keystone: redirect to a player who has it and is below 30% HP.
+  // Damage taken by the wall is also halved.
+  if (target.side === 'player' && ctx.battle) {
+    const wall = (ctx.battle.playerUnits ?? []).find(u =>
+      u !== target && !u.dead && hasKeystone(u, 'living_wall') && u.hp / u.maxHp <= 0.30
+    );
+    if (wall) {
+      const reduced = Math.max(1, Math.round(raw * 0.5));
+      target = wall;
+      raw = reduced;
+    }
+  }
   let amount = raw;
 
   // damage taken modifier (e.g. Shield Wall reduces; Frozen amplifies via tag)
@@ -152,6 +176,14 @@ function applyDamage(target, raw, ctx) {
   target.shields = (target.shields ?? []).filter(s => s.amount > 0 && s.expires > ctx.now);
 
   if (remaining > 0) {
+    // Mind Over Matter: 30% of damage that gets past shields hits MP first.
+    if (hasKeystone(target, 'mind_over_matter') && target.maxMp > 0 && target.mp > 0) {
+      const toMp = Math.min(target.mp, Math.round(remaining * 0.30));
+      if (toMp > 0) {
+        target.mp -= toMp;
+        remaining -= toMp;
+      }
+    }
     target.hp = Math.max(0, target.hp - remaining);
     ctx.fx?.push({ type: 'dmg', target, amount: remaining, t: ctx.now });
     ctx.fx?.push({ type: 'impact', target, t: ctx.now });
@@ -182,7 +214,13 @@ function applyHeal(target, amount, ctx) {
   if (target.dead || amount <= 0) return;
   const before = target.hp;
   target.hp = Math.min(target.maxHp, target.hp + amount);
-  if (target.hp - before > 0) ctx.fx?.push({ type: 'heal', target, amount: target.hp - before, t: ctx.now });
+  const healed = target.hp - before;
+  if (healed > 0) ctx.fx?.push({ type: 'heal', target, amount: healed, t: ctx.now });
+  // Vital Spring keystone: overheal converts 1:1 to MP.
+  if (hasKeystone(target, 'vital_spring') && target.maxMp > 0) {
+    const overheal = amount - healed;
+    if (overheal > 0) target.mp = Math.min(target.maxMp, target.mp + overheal);
+  }
 }
 
 function setStatus(target, key, expires) {
@@ -205,6 +243,13 @@ const HANDLERS = {
     const defStat = (effect.damageType === 'physical' || stat === 'patk') ? 'pdef' : 'mdef';
     const hits = effect.hits ? Math.max(1, Math.round(scalar(effect.hits, ctx.ability, ctx.stoneLevel))) : 1;
     const ignorePct = effect.ignoreDefPct ? scalar(effect.ignoreDefPct, ctx.ability, ctx.stoneLevel) : 0;
+    // Shadow Strike: first attack of the fight ignores all defense.
+    const firstHitOfFight = (ctx.caster?.castedThisFight ?? 0) === 0;
+    const shadowStrikeBypass = firstHitOfFight && hasKeystone(ctx.caster, 'shadow_strike');
+    const effectiveIgnorePct = shadowStrikeBypass ? 100 : ignorePct;
+    // Resolute Technique: +25% damage trade-off (the can't-crit half is in rollCritMultiplier).
+    const resoluteMul = hasKeystone(ctx.caster, 'resolute_technique') ? 1.25 : 1;
+
     for (const t of targets) {
       // dodge gates the entire hit (single roll covers all sub-hits for clarity)
       if (rollDodge(t, ctx.now)) {
@@ -215,7 +260,7 @@ const HANDLERS = {
         }
         continue;
       }
-      const def = effectiveStat(t, defStat, ctx.now) * (1 - ignorePct / 100);
+      const def = effectiveStat(t, defStat, ctx.now) * (1 - effectiveIgnorePct / 100);
       let total = 0;
       let crit = false;
       for (let i = 0; i < hits; i++) {
@@ -224,9 +269,11 @@ const HANDLERS = {
         if (critMul > 1) { dmg = Math.round(dmg * critMul); crit = true; }
         total += dmg;
       }
+      total = Math.round(total * resoluteMul);
       if (crit) ctx.fx?.push({ type: 'crit', target: t, t: ctx.now });
       applyDamage(t, total, ctx);
     }
+    if (ctx.caster) ctx.caster.castedThisFight = (ctx.caster.castedThisFight ?? 0) + 1;
   },
 
   heal(effect, ctx) {
