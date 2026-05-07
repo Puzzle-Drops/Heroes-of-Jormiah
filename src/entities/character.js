@@ -72,6 +72,8 @@ this._baseMana = maxMana; // Store base for recalculation
                     passiveStone: null,
                 };
                 this.cooldown = 0;
+                // GDD §6.2 spell2 has its own independent cooldown.
+                this.cooldown2 = 0;
                 this.sprite = null;
                 this.isAlive = true;
                 // GDD §13 — passive-tree allocation. Initialised empty;
@@ -265,6 +267,49 @@ getTotalDefense() {
     total = Math.min(total, 999);
 
     return parseFloat(total.toFixed(2));
+}
+
+// Phase 7.y — generic spell2 cast. Reads gddAbilities.spell2.effects[]
+// and dispatches via the EFFECTS engine. cooldown2/manaCost interpolate
+// from stone level via _abilityParam. Returns the primary damage dealt
+// (0 = success, utility-only). Returns -1 if spell2 not ready.
+useSpell2(target) {
+    const sp = this.gddAbilities && this.gddAbilities.spell2;
+    if (!sp) return -1;
+    const haveStone = !!(this.equipment && this.equipment.spell2Stone);
+    if (!haveStone) return -1; // dead-slot
+    const liveManaCost = Math.round(this._abilityParam('spell2', 'manaCost', sp.manaCost ?? 25));
+    if ((this.cooldown2 || 0) > 0) return -1;
+    if (this.mana < liveManaCost) return -1;
+    this.mana -= liveManaCost;
+    this.cooldown2 = this._abilityParam('spell2', 'cooldown', sp.baseCooldown ?? 14);
+
+    const school = sp.school || this.damageType || 'physical';
+    const baseAtk = this.getEffectiveAtk ? this.getEffectiveAtk(school) : this.attack;
+    const stoneFactor = this._stoneFactor ? this._stoneFactor('spell2') : 0;
+    const power = baseAtk * (sp.power || 1.0) * (0.5 + 0.5 * stoneFactor);
+    this._lastAttackSchool = school;
+
+    const game = window.game || {};
+    const ctx = {
+        caster: this,
+        target: Array.isArray(target) ? null : target,
+        targets: Array.isArray(target) ? target : (target ? [target] : []),
+        party: (game.party || []).filter(m => m && m.isAlive),
+        enemies: (game.enemies || []).filter(e => e && e.isAlive),
+        school,
+        floor: game.dungeonFloor || 0,
+        power,
+        notes: [],
+        note(kind, who, n) { this.notes.push({ kind, who, n }); },
+    };
+    if (window.EFFECTS && typeof window.EFFECTS.apply === 'function') {
+        return window.EFFECTS.apply(sp.effects, ctx) | 0;
+    }
+    if (ctx.target && ctx.target.takeDamage) {
+        return ctx.target.takeDamage(power, school, ctx.floor);
+    }
+    return Math.floor(power);
 }
 
 // GDD §13 — allocate one passive-tree node. Honors POE-style adjacency:

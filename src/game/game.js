@@ -10909,6 +10909,11 @@ if (unit.cooldown > 0 && !this.paused) {
     const cooldownMultiplier = 1 + (cdr / 100); // Faster reduction with CDR
     unit.cooldown -= elapsed * cooldownMultiplier;
     if (unit.cooldown < 0) unit.cooldown = 0;
+    // Phase 7.y: spell2 has its own cooldown timer; tick it in parallel.
+    if (unit.cooldown2 != null) {
+        unit.cooldown2 -= elapsed * cooldownMultiplier;
+        if (unit.cooldown2 < 0) unit.cooldown2 = 0;
+    }
 } else if (this.paused) {
     // Reset cooldown timer when paused to prevent incorrect elapsed time when unpausing
     unit.lastCooldownTime = Date.now();
@@ -11639,6 +11644,25 @@ performPartyAttack(member, aliveEnemies) {
                             member.lastKeystoneCooldownTime = undefined; // Reset tracker when cooldown completes
                             member._lastCDLog = undefined;
                         }
+                    }
+                }
+
+                // Phase 7.y: spell2 dispatch. After the class-specific spell1
+                // logic above resolves, give every character a chance to fire
+                // their second spell if it's off cooldown. Spell2 supersedes
+                // the basic attack this tick when it succeeds.
+                if (!performedAction && member.gddAbilities && member.gddAbilities.spell2 && (member.cooldown2 || 0) === 0) {
+                    const sp2 = member.gddAbilities.spell2;
+                    const isHealLike = sp2.effects && sp2.effects.some(t => t.startsWith('heal_'));
+                    const sp2Target = isHealLike ? null : target;
+                    const r = member.useSpell2 ? member.useSpell2(sp2Target) : -1;
+                    if (r >= 0) {
+                        member.sprite.attacking = true;
+                        this.addLog(`${member.name} casts ${sp2.name}!`, 'damage');
+                        if (r > 0 && target && target.sprite) {
+                            this.createFloatingText(target.sprite, `-${r}`, 'damage-text');
+                        }
+                        performedAction = true;
                     }
                 }
 
