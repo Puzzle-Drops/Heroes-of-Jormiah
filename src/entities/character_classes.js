@@ -38,62 +38,39 @@ class Tank extends Character {
         this.skillCost = this.baseManaSkillCost + costIncrease;
     }
 
+    // Phase 7.zz — Taunt routed through Character._fireBespoke. Helper
+    // owns mana/cooldown/Spell Echo/Totemic Will. The bespoke math
+    // (rune-scaled defensePercent + tauntDefenseBonus + the
+    // enemy-targeting loop) stays here.
     useSkill(target) {
-        this.updateSkillCost();
-        if (this.cooldown === 0 && this.mana >= this.skillCost) {
-            this.mana -= this.skillCost;
-            this.cooldown = this.maxCooldown;
-            this.tauntActive = true;
-            this.tauntTimer = 300; // 5 seconds at 60fps
-            
-            // Calculate defense bonus: +10 flat + percentage of current defense
-            const baseDefense = this.getTotalDefense();
-            let defensePercent = 0.02; // Base 2%
-            
-            // Check for taunt rune to increase percentage
-            // FIX: Use this.className.toLowerCase() instead of hardcoded party order
-            if (window.game) {
-                const charKey = this.className.toLowerCase();
-                const equippedRunes = window.game.equippedRunes[charKey];
-                
-                if (equippedRunes) {
-                    for (let i = 0; i < equippedRunes.length; i++) {
-                        const rune = equippedRunes[i];
-                        if (rune && rune.runeType === 'taunt') {
-                            // +4% per tier (2% base + 4% per tier)
-                            // Tier 1: 6%, Tier 2: 10%, Tier 3: 14%, Tier 4: 18%, Tier 5: 22%
-                            defensePercent = 0.02 + (rune.tier * 0.04);
-                            break;
+        return this._fireBespoke({
+            target,
+            runeType: 'taunt',
+            timersTouched: { caster: ['tauntTimer'] },
+            apply({ runeTier, iteration }) {
+                // 2% base + 4% per rune tier. Tier 5 = 22%.
+                const defensePercent = 0.02 + runeTier * 0.04;
+                const baseDefense = this.getTotalDefense();
+                this.tauntActive = true;
+                this.tauntTimer = 300; // 5s @ 60fps
+                this.tauntDefenseBonus = 10 + Math.floor(baseDefense * defensePercent);
+                this.tauntDefensePercent = defensePercent;
+                if (window.game && window.game.enemies) {
+                    for (const enemy of window.game.enemies) {
+                        if (enemy.isAlive) {
+                            enemy.currentTarget = this;
+                            enemy.isTaunted = true;
+                            enemy.tauntTimer = 300;
                         }
                     }
-                }
-            }
-            
-            this.tauntDefenseBonus = 10 + Math.floor(baseDefense * defensePercent);
-            this.tauntDefensePercent = defensePercent; // Store for display
-
-            // Phase 7.z — let keystones touch this bespoke spell. Totemic
-            // Will extends tauntTimer × 1.5 here.
-            if (window.EFFECTS && window.EFFECTS.applyBespokeKeystoneHooks) {
-                window.EFFECTS.applyBespokeKeystoneHooks(this, { casterTimers: ['tauntTimer'] });
-            }
-
-            // TAUNT ALL ENEMIES - make them target the tank
-            if (window.game && window.game.enemies) {
-                window.game.enemies.forEach(enemy => {
-                    if (enemy.isAlive) {
-                        enemy.currentTarget = this;
-                        enemy.isTaunted = true;
-                        enemy.tauntTimer = 300; // 5 seconds
+                    if (iteration === 0) {
+                        const pct = Math.round(defensePercent * 100);
+                        window.game.addLog(`${this.name} taunts all enemies! (+${this.tauntDefenseBonus} DEF [+10 + ${pct}%] for 5s)`, 'heal');
                     }
-                });
-                const percentDisplay = Math.round(defensePercent * 100);
-                window.game.addLog(`${this.name} taunts all enemies! (+${this.tauntDefenseBonus} DEF [+10 + ${percentDisplay}%] for 5s)`, 'heal');
-            }
-            
-            return 0; // Taunt doesn't deal damage
-        }
-        return 0;
+                }
+                return 0; // Taunt deals no direct damage.
+            },
+        });
     }
 }
 
@@ -126,34 +103,18 @@ class Rogue extends Character {
         this.skillCost = this.baseManaSkillCost + costIncrease;
     }
 
+    // Phase 7.zz — Double Strike via _fireBespoke. Returns damage
+    // (combat tick applies it to the target).
     useSkill(target) {
-        this.updateSkillCost();
-        if (this.cooldown === 0 && this.mana >= this.skillCost) {
-            this.mana -= this.skillCost;
-            this.cooldown = this.maxCooldown;
-            
-            // Base 150% damage, check for doublestrike rune to increase
-            let damageMultiplier = 1.5;
-            
-            if (window.game) {
-                const charKey = this.className.toLowerCase();
-                const equippedRunes = window.game.equippedRunes[charKey];
-                
-                if (equippedRunes) {
-                    for (let i = 0; i < equippedRunes.length; i++) {
-                        const rune = equippedRunes[i];
-                        if (rune && rune.runeType === 'doublestrike') {
-                            // +50% per tier (150% base + 50% per tier)
-                            damageMultiplier = 1.5 + (rune.tier * 0.5);
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            return this.getTotalAttack() * damageMultiplier;
-        }
-        return 0;
+        return this._fireBespoke({
+            target,
+            runeType: 'doublestrike',
+            apply({ runeTier }) {
+                // 150% base + 50% per rune tier. Tier 5 = 400%.
+                const mult = 1.5 + runeTier * 0.5;
+                return this.getTotalAttack() * mult;
+            },
+        });
     }
 }
 
@@ -186,34 +147,18 @@ class Mage extends Character {
                 this.skillCost = this.baseManaSkillCost + costIncrease;
             }
 
+            // Phase 7.zz — Fireball via _fireBespoke. Returns per-target
+            // AoE damage (combat tick fans it across all alive enemies).
             useSkill(targets) {
-                this.updateSkillCost();
-                if (this.cooldown === 0 && this.mana >= this.skillCost) {
-                    this.mana -= this.skillCost;
-                    this.cooldown = this.maxCooldown;
-                    
-                    // Base 80% AOE damage, check for fireball rune to increase
-                    let damageMultiplier = 0.8;
-                    
-                    if (window.game) {
-                        const charKey = this.className.toLowerCase();
-                        const equippedRunes = window.game.equippedRunes[charKey];
-                        
-                        if (equippedRunes) {
-                            for (let i = 0; i < equippedRunes.length; i++) {
-                                const rune = equippedRunes[i];
-                                if (rune && rune.runeType === 'fireball') {
-                                    // +20% per tier (80% base + 20% per tier)
-                                    damageMultiplier = 0.8 + (rune.tier * 0.2);
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    
-                    return this.getTotalAttack() * damageMultiplier; // AOE damage
-                }
-                return 0;
+                return this._fireBespoke({
+                    target: Array.isArray(targets) ? targets[0] : targets,
+                    runeType: 'fireball',
+                    apply({ runeTier }) {
+                        // 80% base + 20% per rune tier. Tier 5 = 180%.
+                        const mult = 0.8 + runeTier * 0.2;
+                        return this.getTotalAttack() * mult;
+                    },
+                });
             }
         }
 
@@ -246,42 +191,24 @@ class Healer extends Character {
         this.skillCost = this.baseManaSkillCost + costIncrease;
     }
 
+    // Phase 7.zz — Greater Heal via _fireBespoke. Returns the heal
+    // amount; combat tick applies it via target.heal().
     useSkill(target) {
-        this.updateSkillCost();
-        if (this.cooldown === 0 && this.mana >= this.skillCost) {
-            this.mana -= this.skillCost;
-            this.cooldown = this.maxCooldown;
-            // New Healing Formula: 5% of target's max HP + (Bonus Mana × 0.4) + 10 flat
-            // Bonus Mana = Total Mana - Base Mana (80 for Healer)
-            const baseMana = 80;
-            const bonusMana = Math.max(0, this.maxMana - baseMana);
-            
-            // Get heal rune scaling if equipped
-            let percentScaling = 0.05; // Base 5%
-            let manaScaling = 0.4; // Base 0.4
-            
-            // Check for equipped heal rune
-            // FIX: Use this.className.toLowerCase() instead of hardcoded party order
-            if (window.game) {
-                const charKey = this.className.toLowerCase();
-                const equippedRunes = window.game.equippedRunes[charKey];
-                
-                if (equippedRunes) {
-                    for (let i = 0; i < equippedRunes.length; i++) {
-                        const rune = equippedRunes[i];
-                        if (rune && rune.runeType === 'heal') {
-                            // Apply tier-based scaling
-                            percentScaling = 0.05 * (1 + (rune.tier * 0.15)); // +15% effectiveness per tier
-                            manaScaling = 0.4 + (rune.tier * 0.1); // +0.1 per tier
-                            break; // Only use first heal rune found
-                        }
-                    }
-                }
-            }
-            
-            return (target.getTotalMaxHp() * percentScaling) + (bonusMana * manaScaling) + 10;
-        }
-        return 0;
+        return this._fireBespoke({
+            target,
+            runeType: 'heal',
+            apply({ target, runeTier }) {
+                // 5% of target max HP × (1 + 15%/tier), plus
+                // (bonus mana × (0.4 + 0.1/tier)), plus 10 flat.
+                const baseMana = 80;
+                const bonusMana = Math.max(0, this.maxMana - baseMana);
+                const percentScaling = 0.05 * (1 + runeTier * 0.15);
+                const manaScaling = 0.4 + runeTier * 0.1;
+                return (target.getTotalMaxHp() * percentScaling)
+                     + (bonusMana * manaScaling)
+                     + 10;
+            },
+        });
     }
 }
 
@@ -314,36 +241,18 @@ class Archer extends Character {
         this.skillCost = this.baseManaSkillCost + costIncrease;
     }
 
+    // Phase 7.zz — Multi-Shot via _fireBespoke. Returns total damage
+    // for all 3 arrows; combat tick splits it across 3 targets.
     useSkill(targets) {
-        this.updateSkillCost();
-        if (this.cooldown === 0 && this.mana >= this.skillCost) {
-            this.mana -= this.skillCost;
-            this.cooldown = this.maxCooldown;
-            
-            // Multi-shot: 3 arrows at 70% damage each
-            let damageMultiplier = 0.7;
-            
-            // Check for multi-shot rune to increase damage
-            // FIX: Use this.className.toLowerCase() instead of hardcoded party order
-            if (window.game) {
-                const charKey = this.className.toLowerCase();
-                const equippedRunes = window.game.equippedRunes[charKey];
-                
-                if (equippedRunes) {
-                    for (let i = 0; i < equippedRunes.length; i++) {
-                        const rune = equippedRunes[i];
-                        if (rune && rune.runeType === 'multishot') {
-                            // +15% per tier
-                            damageMultiplier = 0.7 + (rune.tier * 0.15);
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            return this.getTotalAttack() * damageMultiplier * 3; // 3 hits
-        }
-        return 0;
+        return this._fireBespoke({
+            target: Array.isArray(targets) ? targets[0] : targets,
+            runeType: 'multishot',
+            apply({ runeTier }) {
+                // 70% base + 15% per rune tier, × 3 arrows.
+                const perArrow = 0.7 + runeTier * 0.15;
+                return this.getTotalAttack() * perArrow * 3;
+            },
+        });
     }
 }
 
@@ -379,61 +288,37 @@ class Paladin extends Character {
         this.skillCost = this.baseManaSkillCost + costIncrease;
     }
 
+    // Phase 7.zz — Divine Shield via _fireBespoke. Grants party-wide
+    // shields scaled by rune tier; uses Date.now()-based shieldEndTime
+    // (not a frame counter), so Totemic Will doesn't apply.
     useSkill(target) {
-        this.updateSkillCost();
-        if (this.cooldown === 0 && this.mana >= this.skillCost) {
-            this.mana -= this.skillCost;
-            this.cooldown = this.maxCooldown;
-            
-            // Divine Shield: Grant shield to self and nearby allies
-            let shieldStrength = 0.15; // Base 15% of max HP
-            let duration = 4; // 4 seconds
-            
-            // Check for divine shield rune
-            // FIX: Use this.className.toLowerCase() instead of hardcoded party order
-            if (window.game) {
-                const charKey = this.className.toLowerCase();
-                const equippedRunes = window.game.equippedRunes[charKey];
-                
-                if (equippedRunes) {
-                    for (let i = 0; i < equippedRunes.length; i++) {
-                        const rune = equippedRunes[i];
-                        if (rune && rune.runeType === 'divineshield') {
-                            // +5% per tier
-                            shieldStrength = 0.15 + (rune.tier * 0.05);
-                            break;
-                        }
-                    }
-                }
-                
-                // Apply shield to all party members
+        return this._fireBespoke({
+            target,
+            runeType: 'divineshield',
+            apply({ runeTier, iteration }) {
+                // 15% base + 5% per rune tier. Tier 5 = 40% max HP shield.
+                const shieldStrength = 0.15 + runeTier * 0.05;
+                const duration = 4;
                 if (window.game && window.game.party) {
                     const now = Date.now();
                     let totalShieldAmount = 0;
-                    window.game.party.forEach(member => {
-                        if (member.isAlive) {
-                            const shieldAmount = Math.floor(member.maxHp * shieldStrength);
-                            member.shieldAmount = (member.shieldAmount || 0) + shieldAmount;
-                            member.shieldEndTime = now + (duration * 1000); // duration in seconds, convert to ms
-                            totalShieldAmount += shieldAmount;
-                        }
-                    });
-                    
-                    // Track total shields granted in stats
+                    for (const member of window.game.party) {
+                        if (!member.isAlive) continue;
+                        const amt = Math.floor(member.maxHp * shieldStrength);
+                        member.shieldAmount = (member.shieldAmount || 0) + amt;
+                        member.shieldEndTime = now + duration * 1000;
+                        totalShieldAmount += amt;
+                    }
                     if (window.game.characterStats && window.game.characterStats[this.name]) {
                         window.game.characterStats[this.name].healingDone += totalShieldAmount;
-                        
-                    } else {
-                        
                     }
-                    
-                    const percentDisplay = Math.round(shieldStrength * 100);
-                    window.game.addLog(`${this.name} grants ${percentDisplay}% max HP shields to all allies!`, 'heal');
+                    if (iteration === 0) {
+                        const pct = Math.round(shieldStrength * 100);
+                        window.game.addLog(`${this.name} grants ${pct}% max HP shields to all allies!`, 'heal');
+                    }
                 }
-            }
-            
-            return 0; // Shield doesn't deal damage
-        }
-        return 0;
+                return 0; // Shield grants do not deal damage.
+            },
+        });
     }
 }

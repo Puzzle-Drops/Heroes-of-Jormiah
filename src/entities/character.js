@@ -305,6 +305,64 @@ getTotalDefense() {
     return parseFloat(total.toFixed(2));
 }
 
+// Phase 7.zz — unified bespoke-spell helper for the 6 starter classes.
+// Owns the cross-cutting concerns (mana, cooldown, Spell Echo double
+// fire, Totemic Will timer extension) so each starter's useSkill
+// stays focused on its rune-scaled logic.
+//
+// Spec:
+//   _fireBespoke({
+//     target,                              // primary target (ally/enemy/null)
+//     runeType,                            // rune type to look up (e.g. 'taunt')
+//     timersTouched,                       // { caster:[..], target:[..], party:[..] }
+//     apply({ target, runeTier, iteration }) { ... bespoke logic ... return n; }
+//   })
+//
+// Returns the sum of apply() return values (one or two iterations
+// depending on Spell Echo). Returns 0 if the spell can't fire
+// (cooldown / insufficient mana).
+_fireBespoke(opts) {
+    if (typeof this.updateSkillCost === 'function') this.updateSkillCost();
+    const echo = !!this.keystone_spellEcho;
+    const baseCost = this.skillCost ?? this.baseManaSkillCost ?? 0;
+    const finalCost = echo ? Math.round(baseCost * 1.5) : baseCost;
+    if ((this.cooldown || 0) !== 0 || this.mana < finalCost) return 0;
+    this.mana -= finalCost;
+    this.cooldown = this.maxCooldown;
+
+    const runeTier = this._getRuneTier(opts.runeType);
+    let total = 0;
+    const ctx = { target: opts.target, runeTier, iteration: 0 };
+    total += (opts.apply.call(this, ctx) || 0);
+    if (echo) {
+        ctx.iteration = 1;
+        total += (opts.apply.call(this, ctx) || 0);
+    }
+
+    // Totemic Will: extend timers the spell just set on listed units.
+    if (window.EFFECTS && window.EFFECTS.applyBespokeKeystoneHooks && opts.timersTouched) {
+        window.EFFECTS.applyBespokeKeystoneHooks(this, {
+            casterTimers: opts.timersTouched.caster,
+            targetTimers: opts.timersTouched.target,
+            partyTimers:  opts.timersTouched.party,
+            target: opts.target,
+        });
+    }
+    return total;
+}
+
+// Resolve the equipped rune tier for the given rune type, scoped to
+// this character's class. Returns 0 if no matching rune is equipped.
+_getRuneTier(runeType) {
+    if (!runeType || !window.game || !window.game.equippedRunes) return 0;
+    const charKey = (this.className || '').toLowerCase();
+    const runes = window.game.equippedRunes[charKey] || [];
+    for (const r of runes) {
+        if (r && r.runeType === runeType) return r.tier || 0;
+    }
+    return 0;
+}
+
 // Phase 7.y — generic spell2 cast. Reads gddAbilities.spell2.effects[]
 // and dispatches via the EFFECTS engine. cooldown2/manaCost interpolate
 // from stone level via _abilityParam. Returns the primary damage dealt
