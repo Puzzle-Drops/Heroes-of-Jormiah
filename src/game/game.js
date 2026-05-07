@@ -116,11 +116,18 @@ this.keystoneSlots = {
                     minLevel: 1  // Minimum item level to keep
                 };
                 
-// Dungeon loot tables
+// Dungeon loot tables — GDD §10.1 specialty mapping. Keys are the
+// internal dungeon ids (kept stable so saves don't need migration); the
+// loot pools are reassigned to match the GDD-canonical display names:
+//   stoneforge  → "The Iron Vaults"       → armor (helm/chest/gloves/belt/boots)
+//   umbral      → "The Whispering Spires" → jewelry (rings, amulets)
+//   everfall    → "The Hollowed Wilds"    → weapons
+// Vault is the special elite-key dungeon and continues to drop the full
+// pool. Stones (Phase 8) will eventually anchor a 4th main dungeon.
                 this.dungeonLootTables = {
+                    stoneforge: ['helmet', 'gloves', 'belt', 'boots', 'chest'],
                     umbral: ['amulet', 'ring'],
-                    everfall: ['helmet', 'gloves', 'belt', 'boots', 'chest'],
-                    stoneforge: ['wand', 'dagger', 'greatsword', 'staff', 'bow', 'warhammer'],
+                    everfall: ['wand', 'dagger', 'greatsword', 'staff', 'bow', 'warhammer'],
                     vault: ['helmet', 'chest', 'gloves', 'boots', 'belt', 'amulet', 'ring', 'wand', 'dagger', 'greatsword', 'staff', 'bow', 'warhammer']
                 };
                 

@@ -53,6 +53,41 @@ const REPLACEMENTS = [
             </div>`,
   ],
   ['SELECT 4 HEROES', 'SELECT 6 HEROES'],
+  // Phase 6: GDD §10.1 dungeon-loot specialty swaps. The original everfall
+  // (now Hollowed Wilds) source labelled itself as armor; per GDD that
+  // specialty belongs to the Iron Vaults (formerly stoneforge) and weapons
+  // belong to Hollowed Wilds.
+  [
+    `<div class="dungeon-option everfall" data-dungeon="everfall">
+                        <div class="dungeon-title">🌿 The Hollowed Wilds</div>
+                        <div class="dungeon-loot">Drops: Chests, Helmets, Gloves, Belts, Boots</div>
+                    </div>
+                    <div class="dungeon-option stoneforge" data-dungeon="stoneforge">
+                        <div class="dungeon-title">🛡️ The Iron Vaults</div>
+                        <div class="dungeon-loot">Drops: Weapons</div>
+                    </div>`,
+    `<div class="dungeon-option everfall" data-dungeon="everfall">
+                        <div class="dungeon-title">🌿 The Hollowed Wilds</div>
+                        <div class="dungeon-loot">Drops: Weapons</div>
+                    </div>
+                    <div class="dungeon-option stoneforge" data-dungeon="stoneforge">
+                        <div class="dungeon-title">🛡️ The Iron Vaults</div>
+                        <div class="dungeon-loot">Drops: Helmets, Chestplates, Gloves, Belts, Boots</div>
+                    </div>`,
+  ],
+  [
+    `<div class="dungeon-card-loot" style="color: #fff; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9);">Drops: Chests, Helmets, Gloves, Belts, Boots</div>`,
+    `<div class="dungeon-card-loot" style="color: #fff; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9);">Drops: Weapons</div>`,
+  ],
+  [
+    // The 2nd "Drops: Weapons" entry under stoneforge becomes armor.
+    `style="background-image: url('https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/stoneforge.jpg'); background-size: cover; background-position: center;">
+                                <div class="dungeon-card-title" style="text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);">The Iron Vaults</div>
+                                <div class="dungeon-card-loot" style="color: #fff; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9);">Drops: Weapons</div>`,
+    `style="background-image: url('https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/stoneforge.jpg'); background-size: cover; background-position: center;">
+                                <div class="dungeon-card-title" style="text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);">The Iron Vaults</div>
+                                <div class="dungeon-card-loot" style="color: #fff; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9);">Drops: Helmets, Chestplates, Gloves, Belts, Boots</div>`,
+  ],
 ];
 for (const [from, to] of REPLACEMENTS) {
   if (!bodyMarkup.includes(from)) {
