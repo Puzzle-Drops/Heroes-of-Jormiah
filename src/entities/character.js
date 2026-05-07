@@ -188,6 +188,14 @@ takeDamage(damage, damageType, floorLevel) {
             actualDamage = remainingDamage;
         }
     } else {
+        // GDD §13 Mind Over Matter (keystone): a fraction of incoming
+        // damage hits MP first; only the remainder bleeds through to HP.
+        if (this.keystone_mpAbsorbsDamageFraction > 0 && this.mana > 0) {
+            const fraction = this.keystone_mpAbsorbsDamageFraction;
+            const mpAbsorbCap = Math.min(this.mana, actualDamage * fraction);
+            this.mana = Math.max(0, this.mana - mpAbsorbCap);
+            actualDamage = Math.max(0, actualDamage - mpAbsorbCap);
+        }
         // No shield, damage goes directly to HP
         this.hp = Math.max(0, this.hp - actualDamage);
     }

@@ -174,6 +174,38 @@ function applyTreeBonuses(character) {
   character.skillTreeHPPct  = total.hp_pct || 0;
   character.skillTreeMPPct  = total.mp_pct || 0;
   character.skillTreeAttackSpeedPct = total.attackSpeed_pct || 0;
+
+  // Phase 10.y: keystone behavioral flags. Walk the allocated set and
+  // mirror each keystone's behavioral side-effects onto the character.
+  // These flags are read directly by combat hooks (takeDamage, kill).
+  character.keystone_cantCrit                = false;
+  character.keystone_allDamageMultiplier     = 1;
+  character.keystone_mpAbsorbsDamageFraction = 0;
+  character.keystone_firstHitMultiplier      = 1;
+  character.keystone_onKillRandomBuff        = false;
+  for (const id of alloc) {
+    const node = TREE_NODES.find(n => n.id === id);
+    if (!node || node.kind !== 'keystone') continue;
+    switch (node.name) {
+      case 'Resolute Technique':
+        character.keystone_cantCrit = true;
+        character.keystone_allDamageMultiplier = 1.25;
+        break;
+      case 'Mind Over Matter':
+        character.keystone_mpAbsorbsDamageFraction = 0.30;
+        break;
+      case "Hunter's Mark":
+        character.keystone_firstHitMultiplier = 1.5;
+        if (!character._hunterMarkHits) character._hunterMarkHits = new WeakSet();
+        break;
+      case 'From Beyond':
+        character.keystone_onKillRandomBuff = true;
+        break;
+      // Behavioral hooks for Living Wall / Spell Echo / Ghost Step /
+      // Totemic Will land in Phase 10.z; their stat bonuses already
+      // apply via the aggregate above.
+    }
+  }
 }
 
 window.PASSIVE_TREE = {

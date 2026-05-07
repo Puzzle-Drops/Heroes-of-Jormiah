@@ -11685,6 +11685,16 @@ if (!performedAction) {
             const baseAtk = member.getEffectiveAtk ? member.getEffectiveAtk(school) : member.getTotalAttack();
             const power = (atkAbility.power ?? 1.0) * (0.5 + 0.5 * stoneFactor);
             damage = baseAtk * power;
+            // Phase 10.y keystone bonuses applied to outgoing damage.
+            //   Resolute Technique → flat ×1.25 (paired with cantCrit).
+            //   Hunter's Mark → first hit on a given target ×1.5.
+            damage *= (member.keystone_allDamageMultiplier || 1);
+            if (member.keystone_firstHitMultiplier > 1 && target && member._hunterMarkHits) {
+                if (!member._hunterMarkHits.has(target)) {
+                    damage *= member.keystone_firstHitMultiplier;
+                    member._hunterMarkHits.add(target);
+                }
+            }
             member._lastAttackSchool = school;
         }
     } else {
@@ -11902,8 +11912,13 @@ if (member.className === 'Healer') {
                         } else if (dealt === 0 && target.invulnerable) {
                             this.createFloatingText(target.sprite, 'INVULNERABLE', 'gold-text');
                         } else {
-                            // Check for critical hit (with void surge bonus)
-                            const isCrit = Math.random() * 100 < (member.getTotalCritChance() + critBonus);
+                            // Check for critical hit (with void surge bonus).
+                            // Phase 10.y: Resolute Technique keystone — your hits
+                            // can never crit (already factored as flat +25% damage
+                            // via keystone_allDamageMultiplier in the basic-attack
+                            // pipeline above).
+                            const cantCrit = !!member.keystone_cantCrit;
+                            const isCrit = !cantCrit && Math.random() * 100 < (member.getTotalCritChance() + critBonus);
                             let finalDamage = dealt;
                             
                             if (isCrit) {
@@ -11918,12 +11933,28 @@ if (member.className === 'Healer') {
                             
                             // Track damage dealt
                             this.floorStats.damageDealt += finalDamage;
-                            
+
                             // Track character-specific damage for all dungeons
                             if (this.characterStats && this.characterStats[member.name]) {
                                 this.characterStats[member.name].damageDealt += finalDamage;
                             }
-                            
+
+                            // Phase 10.y: From Beyond keystone — kill grants
+                            // a random buff for 4s. Pick a buff at random from
+                            // a small pool of stat percent boosts.
+                            if (!target.isAlive && member.keystone_onKillRandomBuff) {
+                                const BUFFS = [
+                                    { kind: '+atk',     apply: m => { m._fromBeyondAtkPct = 0.20; }, label: '+20% ATK' },
+                                    { kind: '+def',     apply: m => { m._fromBeyondDefPct = 0.20; }, label: '+20% DEF' },
+                                    { kind: '+as',      apply: m => { m._fromBeyondAttackSpeedPct = 0.30; }, label: '+30% AS' },
+                                    { kind: '+lifesteal',apply: m => { m._fromBeyondLifestealPct = 0.20; }, label: '+20% LS' },
+                                ];
+                                const pick = BUFFS[Math.floor(Math.random() * BUFFS.length)];
+                                pick.apply(member);
+                                member._fromBeyondTimer = 240; // 4s @ 60fps
+                                this.addLog(`${member.name}: From Beyond — ${pick.label} 4s`, 'heal');
+                            }
+
                             // Apply lifesteal (base + marked bonus)
                             let lifesteal = member.getTotalLifesteal();
                             if (target.markedBy === member && target.markedLifesteal) {
