@@ -1,16 +1,855 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=1920">
-  <title>Crucible — Heroes of Jormiah</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0b14'/%3E%3Cpath d='M16 4 L26 14 L16 28 L6 14 Z' fill='%23c89860'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="./styles/app.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heroes of Jormiah</title>
+    <link rel="stylesheet" href="src/styles/main.css">
+<!-- Steam-only build - Firebase removed -->
 </head>
 <body>
-  <div id="app">
-    <div class="boot">Loading…</div>
-  </div>
-  <script type="module" src="./src/main.js"></script>
+    <!-- LOOT DROP POPUP CONTAINER -->
+    <div id="loot-popup-container"></div>
+    
+    <!-- CHARACTER SELECT SCREEN -->
+    <div id="character-select-overlay">
+        <h1>BUILD YOUR PARTY</h1>
+        
+        <!-- Party Slots Display -->
+        <div style="display: flex; gap: 12px; justify-content: center; margin-bottom: 15px; flex-wrap: wrap;">
+            <div class="party-slot" data-slot="0">
+                <div class="slot-number">Slot 1 - Front</div>
+                <div class="slot-icon">?</div>
+                <div class="slot-name">Empty</div>
+            </div>
+            <div class="party-slot" data-slot="1">
+                <div class="slot-number">Slot 2 - Front</div>
+                <div class="slot-icon">?</div>
+                <div class="slot-name">Empty</div>
+            </div>
+            <div class="party-slot" data-slot="2">
+                <div class="slot-number">Slot 3 - Back</div>
+                <div class="slot-icon">?</div>
+                <div class="slot-name">Empty</div>
+            </div>
+            <div class="party-slot" data-slot="3">
+                <div class="slot-number">Slot 4 - Back</div>
+                <div class="slot-icon">?</div>
+                <div class="slot-name">Empty</div>
+            </div>
+        </div>
+        
+        <div class="character-select-grid">
+            <!-- TANK -->
+            <div class="char-select-card" data-char-class="tank">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                    <div class="char-select-icon"><img src="https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/tank.png" alt="Tank"></div>
+                    <div>
+                        <div class="char-select-name">Tank</div>
+                        <div class="char-select-role">Tank • Frontline</div>
+                    </div>
+                </div>
+                <div class="char-select-desc">
+                    A stalwart defender who protects allies with unbreakable resolve and powerful taunts.
+                </div>
+                <div class="char-select-stats">
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">HP</span>
+                        <span class="char-stat-value">100</span>
+                    </div>
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">Mana</span>
+                        <span class="char-stat-value">50</span>
+                    </div>
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">Attack</span>
+                        <span class="char-stat-value">5</span>
+                    </div>
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">Defense</span>
+                        <span class="char-stat-value">10</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PALADIN -->
+            <div class="char-select-card" data-char-class="paladin">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                    <div class="char-select-icon"><img src="https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/paladin.png" alt="Paladin"></div>
+                    <div>
+                        <div class="char-select-name">Paladin</div>
+                        <div class="char-select-role">Off-Tank • Support</div>
+                    </div>
+                </div>
+                <div class="char-select-desc">
+                    A holy warrior who shields allies with divine blessings and smites enemies with righteous fury.
+                </div>
+                <div class="char-select-stats">
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">HP</span>
+                        <span class="char-stat-value">90</span>
+                    </div>
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">Mana</span>
+                        <span class="char-stat-value">65</span>
+                    </div>
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">Attack</span>
+                        <span class="char-stat-value">6</span>
+                    </div>
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">Defense</span>
+                        <span class="char-stat-value">8</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HEALER -->
+            <div class="char-select-card" data-char-class="healer">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                    <div class="char-select-icon"><img src="https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/healer.png" alt="Healer"></div>
+                    <div>
+                        <div class="char-select-name">Healer</div>
+                        <div class="char-select-role">Support • Healer</div>
+                    </div>
+                </div>
+                <div class="char-select-desc">
+                    A divine caster who keeps allies alive with powerful restoration magic and blessings.
+                </div>
+                <div class="char-select-stats">
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">HP</span>
+                        <span class="char-stat-value">75</span>
+                    </div>
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">Mana</span>
+                        <span class="char-stat-value">80</span>
+                    </div>
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">Attack</span>
+                        <span class="char-stat-value">4</span>
+                    </div>
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">Defense</span>
+                        <span class="char-stat-value">5</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MAGE -->
+            <div class="char-select-card" data-char-class="mage">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                    <div class="char-select-icon"><img src="https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/mage.png" alt="Mage"></div>
+                    <div>
+                        <div class="char-select-name">Mage</div>
+                        <div class="char-select-role">DPS • Caster</div>
+                    </div>
+                </div>
+                <div class="char-select-desc">
+                    A master of arcane arts who unleashes devastating spells from afar with explosive power.
+                </div>
+                <div class="char-select-stats">
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">HP</span>
+                        <span class="char-stat-value">70</span>
+                    </div>
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">Mana</span>
+                        <span class="char-stat-value">100</span>
+                    </div>
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">Attack</span>
+                        <span class="char-stat-value">10</span>
+                    </div>
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">Defense</span>
+                        <span class="char-stat-value">3</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ARCHER -->
+            <div class="char-select-card" data-char-class="archer">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                    <div class="char-select-icon"><img src="https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/archer.png" alt="Archer"></div>
+                    <div>
+                        <div class="char-select-name">Archer</div>
+                        <div class="char-select-role">DPS • Ranged</div>
+                    </div>
+                </div>
+                <div class="char-select-desc">
+                    A nimble marksman who rains arrows on enemies with deadly accuracy and rapid fire.
+                </div>
+                <div class="char-select-stats">
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">HP</span>
+                        <span class="char-stat-value">85</span>
+                    </div>
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">Mana</span>
+                        <span class="char-stat-value">70</span>
+                    </div>
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">Attack</span>
+                        <span class="char-stat-value">9</span>
+                    </div>
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">Defense</span>
+                        <span class="char-stat-value">4</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROGUE -->
+            <div class="char-select-card" data-char-class="rogue">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                    <div class="char-select-icon"><img src="https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/rogue.png" alt="Rogue" style="transform: translateX(-3px);"></div>
+                    <div>
+                        <div class="char-select-name">Rogue</div>
+                        <div class="char-select-role">DPS • Assassin</div>
+                    </div>
+                </div>
+                <div class="char-select-desc">
+                    A deadly assassin who strikes with precision, dealing massive burst damage from the shadows.
+                </div>
+                <div class="char-select-stats">
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">HP</span>
+                        <span class="char-stat-value">80</span>
+                    </div>
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">Mana</span>
+                        <span class="char-stat-value">60</span>
+                    </div>
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">Attack</span>
+                        <span class="char-stat-value">8</span>
+                    </div>
+                    <div class="char-stat-item">
+                        <span class="char-stat-label">Defense</span>
+                        <span class="char-stat-value">5</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button class="start-adventure-btn" id="start-adventure-btn" disabled>SELECT 4 HEROES</button>
+    </div>
+
+    <!-- Invisible drag bar for window movement -->
+    <div id="drag-region"></div>
+
+    <div id="game-container">
+        <div id="main-content">
+            <div id="main-view">
+                <canvas id="dungeon-canvas"></canvas>
+<div id="top-ui-container">
+    <div id="game-title-display" style="position: absolute; top: 10px; left: 10px; font-family: 'Orbitron', sans-serif; font-size: 14px; font-weight: 700; color: rgba(168, 85, 247, 0.8); text-shadow: 0 0 10px rgba(168, 85, 247, 0.5); letter-spacing: 1px;">EVERFALL 2</div>
+    <div id="room-label" style="display: none;">Dungeon Name - Floor 1</div>
+    <div id="currency-container" style="display: flex; gap: 12px; align-items: center;">
+        <div id="gold-display-top">0g</div>
+        <div id="blessing-display-top" style="display: none;">0 ✨</div>
+        <div id="kill-counter" style="display: none;">0 Kills</div>
+        <button id="end-run-btn" style="display: none; padding: 8px 16px; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; border-radius: 8px; font-family: 'Orbitron', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(239, 68, 68, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(239, 68, 68, 0.4)';" onclick="window.game.endDivineArenaRun()">🛑 End Run</button>
+    </div>
+</div>                <div id="enemy-health-bars" style="position: absolute; top: 80px; left: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 100;"></div>
+
+<!-- Bottom-right damage/healing stats container -->
+<div id="combat-stats-container" style="position: absolute; top: 50%; right: 20px; transform: translateY(-50%); z-index: 150; display: none; flex-direction: column; align-items: center; gap: 8px; pointer-events: auto; user-select: none;">
+    <div id="damage-stats-display" style="pointer-events: auto;" title="Click: Toggle Damage/Healing | Drag: Move | Double-Click: Reset Position">
+        <span style="opacity: 0.5; margin-right: 4px;">⋮⋮</span>📊 Stats
+    </div>
+    <div id="character-stats-panel" style="pointer-events: auto;"></div>
+</div>
+
+<div id="dungeon-selector">
+                    <h2 style="text-align: center; margin-bottom: 5px; font-size: 28px; color: #a855f7; font-weight: 900;">EVERFALL 2</h2>
+                    <div style="text-align: center; margin-bottom: 20px; font-size: 14px; color: #64748b;">Idle Dungeon RPG</div>
+                    <div class="dungeon-option everfall" data-dungeon="everfall">
+                        <div class="dungeon-title">⚔️ Everfall</div>
+                        <div class="dungeon-loot">Drops: Chests, Helmets, Gloves, Belts, Boots</div>
+                    </div>
+                    <div class="dungeon-option stoneforge" data-dungeon="stoneforge">
+                        <div class="dungeon-title">🔥 Stoneforge</div>
+                        <div class="dungeon-loot">Drops: Weapons</div>
+                    </div>
+                    <div class="dungeon-option umbral" data-dungeon="umbral">
+                        <div class="dungeon-title">🌑 Umbral Depths</div>
+                        <div class="dungeon-loot">Drops: Amulets, Rings</div>
+                    </div>
+                    <div class="dungeon-option vault" data-dungeon="vault">
+                        <div class="dungeon-title">🔒 Vault</div>
+                        <div class="dungeon-loot">Elite Boss - Hard (Requires Vault Key) - Earn Keystones</div>
+                    </div>
+                    <div class="dungeon-option runetrial" data-dungeon="runetrial">
+                        <div class="dungeon-title">🔮 Rune Trial</div>
+                        <div class="dungeon-loot">Elite Boss - Hard (Requires Rune Trial Key) - Earn Runes</div>
+                    </div>
+                </div>
+                <div id="dungeon-map">
+                    <canvas id="map-canvas"></canvas>
+                    <div id="map-tooltip" style="position: absolute; background: rgba(15, 23, 42, 0.98); border: 1px solid rgba(99, 102, 241, 0.5); border-radius: 8px; padding: 8px 12px; font-size: 11px; color: #e2e8f0; pointer-events: none; display: none; z-index: 1000; font-family: 'Rajdhani', sans-serif;"></div>
+                </div>
+            </div>
+
+            <div id="side-panel">
+                <div id="tab-navigation">
+                    <button class="tab-button active" data-tab="log" title="Combat Log"><img src="https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/combat%20log2.png"></button>
+                    <div style="height: 1px; background: rgba(99, 102, 241, 0.2); margin: 10px 5px;"></div>
+                    <button class="tab-button" data-tab="loot" title="Loot"><img src="https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/Lootbad3.png"></button>          
+                    <button class="tab-button" data-tab="chests" title="Cache"><img src="https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/cache%20tab.png"></button>
+                    <button class="tab-button" data-tab="keystones" title="Keystones"><img src="https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/keystone%20tabs.png"></button>
+                    <button class="tab-button" data-tab="bless" title="Bless"><div style="font-size: 48px;">✨</div></button>
+                    <div style="height: 1px; background: rgba(99, 102, 241, 0.2); margin: 10px 5px;"></div>
+                    <button class="tab-button" data-tab="dungeons" title="Dungeons"><img src="https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/dungeon%20tab.png" style="width: 64px; height: 64px;"></button>
+                    <button class="tab-button" data-tab="controls" title="Controls"><img src="https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/settings%20tab.png"></button>
+                    <button class="tab-button" data-tab="stats" title="Stats"><img src="https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/stats.png" style="width: 64px; height: 64px;"></button>
+                    <button class="tab-button" data-tab="pets" title="Pets"><div style="font-size: 48px;">🐾</div></button>
+                    <button class="tab-button" data-tab="leaderboard" title="Leaderboard"><div style="font-size: 48px;">🏆</div></button>
+                </div>
+                <div id="tab-content">
+                    <div id="log-tab" class="tab-panel active">
+                        <div class="section-title">Combat Log</div>
+                        <div id="log-container"></div>
+                    </div>
+                    <div id="leaderboard-tab" class="tab-panel">
+                        <div class="section-title">Leaderboard</div>
+                        <div style="text-align: center; padding: 10px; margin-bottom: 10px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(139, 92, 246, 0.1)); border: 2px solid rgba(168, 85, 247, 0.3); border-radius: 10px;">
+                            <div style="color: #a855f7; font-family: 'Orbitron', sans-serif; font-size: 16px; font-weight: 700; text-shadow: 0 0 10px rgba(168, 85, 247, 0.5);">
+                                🎮 Game Version: <span style="color: #fbbf24;">v1.0.0</span>
+                            </div>
+                        </div>
+                        <div style="padding: 20px;">
+                            <button onclick="viewLeaderboard('highest_floor')" style="width: 100%; padding: 15px; background: #a855f7; border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; font-size: 16px; margin-bottom: 15px;">🏆 VIEW LEADERBOARD</button>
+                            <div style="padding: 15px; background: rgba(99, 102, 241, 0.1); border-radius: 5px; font-size: 14px; line-height: 1.6;">
+                                <strong style="color: #f59e0b;">Auto-Submit Timer</strong><br>
+                                • First submission: 2 minutes after game start<br>
+                                • Then every 30 minutes automatically<br><br>
+                                <strong style="color: #a855f7;">Tracking Categories:</strong><br>
+                                • Highest Gear Score<br>
+                                • Highest Floor Reached<br>
+                                • Most Pets Found<br>
+                                • Most Mythics Found<br>
+                                • Rune Trial Boss Kills<br>
+                                • Vault Boss Kills<br>
+                                • Divine Arena Kills
+                            </div>
+                        </div>
+                    </div>
+                    <div id="loot-tab" class="tab-panel">
+                        <div class="section-title">Items</div>
+                        
+                        <!-- Sub-tabs for Loot/Inventory -->
+                        <div style="display: flex; gap: 5px; margin-bottom: 15px; background: rgba(15, 23, 42, 0.5); padding: 4px; border-radius: 8px;">
+                            <button class="loot-sub-tab active" data-loot-tab="loot" style="flex: 1; padding: 8px; background: transparent; color: #94a3b8; border: none; border-radius: 6px; cursor: pointer; font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 600; transition: all 0.2s ease;">
+                                 LOOT
+                            </button>
+                            <button class="loot-sub-tab" data-loot-tab="inventory" style="flex: 1; padding: 8px; background: transparent; color: #94a3b8; border: none; border-radius: 6px; cursor: pointer; font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 600; transition: all 0.2s ease;">
+                                 INVENTORY
+                            </button>
+                        </div>
+                        
+                        <!-- Loot Section -->
+                        <div id="loot-loot-section" class="loot-section active">
+                            <div style="display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap;">
+                                <button class="loot-filter-btn" data-filter="rarity" style="flex: 1; padding: 6px 12px; background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; color: #94a3b8; cursor: pointer; font-size: 10px; font-weight: 600; font-family: 'Orbitron', sans-serif; transition: all 0.2s;">
+                                    SORT: RARITY
+                                </button>
+                                <button class="loot-filter-btn" data-filter="level" style="flex: 1; padding: 6px 12px; background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; color: #94a3b8; cursor: pointer; font-size: 10px; font-weight: 600; font-family: 'Orbitron', sans-serif; transition: all 0.2s;">
+                                    SORT: LEVEL
+                                </button>
+                                <button class="loot-filter-btn" data-filter="type" style="flex: 1; padding: 6px 12px; background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; color: #94a3b8; cursor: pointer; font-size: 10px; font-weight: 600; font-family: 'Orbitron', sans-serif; transition: all 0.2s;">
+                                    SORT: TYPE
+                                </button>
+                            </div>
+                            <div id="loot-container"></div>
+                        </div>
+                        
+                        <!-- Inventory Section -->
+                        <div id="loot-inventory-section" class="loot-section" style="display: none;">
+                            <div style="display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap;">
+                                <button class="inventory-filter-btn" data-filter="rarity" style="flex: 1; padding: 6px 12px; background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; color: #94a3b8; cursor: pointer; font-size: 10px; font-weight: 600; font-family: 'Orbitron', sans-serif; transition: all 0.2s;">
+                                    SORT: RARITY
+                                </button>
+                                <button class="inventory-filter-btn" data-filter="level" style="flex: 1; padding: 6px 12px; background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; color: #94a3b8; cursor: pointer; font-size: 10px; font-weight: 600; font-family: 'Orbitron', sans-serif; transition: all 0.2s;">
+                                    SORT: LEVEL
+                                </button>
+                                <button class="inventory-filter-btn" data-filter="type" style="flex: 1; padding: 6px 12px; background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; color: #94a3b8; cursor: pointer; font-size: 10px; font-weight: 600; font-family: 'Orbitron', sans-serif; transition: all 0.2s;">
+                                    SORT: TYPE
+                                </button>
+                                <button id="sell-all-inventory-btn" style="flex: 1; padding: 6px 12px; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; color: #ef4444; cursor: pointer; font-size: 10px; font-weight: 600; font-family: 'Orbitron', sans-serif; transition: all 0.2s;">
+                                    SELL ALL
+                                </button>
+                            </div>
+                            <div id="inventory-container"></div>
+                        </div>
+                    </div>
+                    
+<div id="chests-tab" class="tab-panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <div class="section-title" style="margin-bottom: 0;">Cache</div>
+        <div style="padding: 8px 16px; background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2)); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 8px; font-size: 16px; font-weight: 700; color: #f59e0b; font-family: 'Orbitron', sans-serif;">
+            💰 <span id="gold-display">0</span>g
+        </div>
+    </div>
+    
+    <!-- Sub-tabs for Cache -->
+	<button class="cache-sub-tab" data-cache-tab="chests" style="flex: 1; padding: 8px; background: transparent; color: #94a3b8; border: none; border-radius: 6px; cursor: pointer; font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 600; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 6px;">
+        <img src="https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/chest.png" style="width: 18px; height: 18px;"> CHESTS
+    </button>
+    <div style="display: flex; gap: 5px; margin-bottom: 15px; background: rgba(15, 23, 42, 0.5); padding: 4px; border-radius: 8px;">
+	<button class="cache-sub-tab" data-cache-tab="keys" style="flex: 1; padding: 8px; background: transparent; color: #94a3b8; border: none; border-radius: 6px; cursor: pointer; font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 600; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 6px;">
+        <img src="https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/gold_key_64_transparent.png" style="width: 18px; height: 18px;"> VAULT
+    </button> 
+    <button class="cache-sub-tab active" data-cache-tab="rune-keys" style="flex: 1; padding: 8px; background: transparent; color: #94a3b8; border: none; border-radius: 6px; cursor: pointer; font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 600; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 6px;">
+        <img src="https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/blue_key_64_transparent.png" style="width: 18px; height: 18px;"> RUNE
+    </button>
+</div>
+    
+    <!-- Rune Trial Keys Section -->
+    <div id="cache-rune-keys-section" class="cache-section active">
+        <div id="rune-trial-keys-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;"></div>
+        <div id="no-rune-keys" style="display: none; color: #64748b; text-align: center; padding: 30px; font-size: 12px; font-style: italic;">
+            No Rune Trial Keys<br>
+            <span style="font-size: 10px;">Keys drop from floor 45+ (2% chance)</span>
+        </div>
+    </div>
+    
+    <!-- Vault Keys Section -->
+    <div id="cache-keys-section" class="cache-section" style="display: none;">
+        <div id="vault-keys-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;"></div>
+        <div id="no-keys" style="display: none; color: #64748b; text-align: center; padding: 30px; font-size: 12px; font-style: italic;">
+            No Vault Keys<br>
+            <span style="font-size: 10px;">10% drop chance per floor cleared</span>
+        </div>
+    </div>
+    
+    <!-- Chests Section -->
+    <div id="cache-chests-section" class="cache-section" style="display: none;">
+        <div id="chests-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px;"></div>
+        <div id="no-chests" style="display: none; color: #64748b; text-align: center; padding: 30px; font-size: 12px; font-style: italic;">
+            No Chests<br>
+            <span style="font-size: 10px;">10% drop chance per floor (10% are Mythic)</span>
+        </div>
+    </div>
+</div>
+                    <div id="keystones-tab" class="tab-panel">
+                        <!-- Sub-tabs for Keystones/Runes -->
+<div style="display: flex; gap: 5px; margin-bottom: 15px; background: rgba(15, 23, 42, 0.5); padding: 4px; border-radius: 8px;">
+    <button class="keystone-sub-tab active" data-keystone-tab="keystones" style="flex: 1; padding: 8px; background: transparent; color: #94a3b8; border: none; border-radius: 6px; cursor: pointer; font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 600; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 6px;">
+        <img src="https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/keystone%20emoji.png" style="width: 24px; height: 24px;"> KEYSTONES
+    </button>
+    <button class="keystone-sub-tab" data-keystone-tab="runes" style="flex: 1; padding: 8px; background: transparent; color: #94a3b8; border: none; border-radius: 6px; cursor: pointer; font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 600; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 6px;">
+        <img src="https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/rune%20emoji.png" style="width: 24px; height: 24px;"> RUNES
+    </button>
+</div>
+                        
+                        <!-- Keystones Section -->
+                        <div id="keystone-keystones-section" class="keystone-section active">
+                            <div id="keystone-slots-container" style="margin-bottom: 20px;">
+                                <div style="background: rgba(15, 23, 42, 0.5); padding: 15px; border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.2);">
+                                    <div style="font-size: 11px; color: #94a3b8; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Equipped Keystones</div>
+                                    <div id="keystone-slots-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;"></div>
+                                </div>
+                            </div>
+                            <div style="font-size: 11px; color: #94a3b8; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Keystone Inventory</div>
+                            <div id="keystone-list"></div>
+                        </div>
+                        
+                        <!-- Runes Section -->
+                        <div id="keystone-runes-section" class="keystone-section" style="display: none;">
+                            <!-- Character Sub-tabs for Runes -->
+                            <style>
+                                .rune-char-tab {
+                                    flex: 1;
+                                    padding: 8px;
+                                    background: transparent;
+                                    border: none;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    transition: all 0.2s ease;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                }
+                                
+                                .rune-char-tab img {
+                                    width: 32px;
+                                    height: 32px;
+                                    object-fit: contain;
+                                    filter: grayscale(50%) brightness(0.8);
+                                    transition: all 0.2s ease;
+                                }
+                                
+                                .rune-char-tab.active {
+                                    background: rgba(99, 102, 241, 0.2);
+                                }
+                                
+                                .rune-char-tab.active img {
+                                    filter: grayscale(0%) brightness(1);
+                                }
+                                
+                                .rune-char-tab:hover img {
+                                    filter: grayscale(0%) brightness(1.1);
+                                    transform: scale(1.1);
+                                }
+                            </style>
+                            <div id="rune-char-tabs-container" style="display: flex; gap: 5px; margin-bottom: 15px; background: rgba(15, 23, 42, 0.5); padding: 4px; border-radius: 8px;">
+                                <!-- Character tabs will be dynamically generated here -->
+                            </div>
+                            
+                            <div id="rune-slots-container" style="margin-bottom: 20px;">
+                                <div style="background: rgba(15, 23, 42, 0.5); padding: 15px; border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.2);">
+                                    <div style="font-size: 11px; color: #94a3b8; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Equipped Runes (5 Slots)</div>
+                                    <div id="rune-slots-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                        <!-- Populated by showRunesForCharacter() -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="font-size: 11px; color: #94a3b8; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Rune Inventory</div>
+                            <div id="rune-list">
+                                <!-- Populated by showRunesForCharacter() -->
+                            </div>
+                        </div>
+                    </div>
+                    <div id="keystones-tab" class="tab-panel">
+                        <div class="section-title">Keystones</div>
+                        <div id="keystone-slots-container" style="margin-bottom: 20px;">
+                            <div style="background: rgba(15, 23, 42, 0.5); padding: 15px; border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.2);">
+                                <div style="font-size: 11px; color: #94a3b8; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Equipped Keystones</div>
+                                <div id="keystone-slots-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;"></div>
+                            </div>
+                        </div>
+                        <div style="font-size: 11px; color: #94a3b8; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Keystone Inventory</div>
+                        <div id="keystone-list"></div>
+                    </div>
+                    <div id="bless-tab" class="tab-panel">
+                        <div class="section-title">Bless Items</div>
+                        <div style="background: rgba(168, 85, 247, 0.1); padding: 20px; border-radius: 12px; border: 2px solid rgba(168, 85, 247, 0.3); margin-bottom: 20px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                                <div style="font-size: 18px; font-weight: 700; color: #e9d5ff; font-family: 'Orbitron', sans-serif;">✨ Blessing Currency</div>
+                                <div id="blessing-currency-display" style="font-size: 24px; font-weight: 800; color: #a855f7; font-family: 'Orbitron', sans-serif; text-shadow: 0 0 15px rgba(168, 85, 247, 0.6);">0</div>
+                            </div>
+                            <div style="font-size: 12px; color: #c4b5fd; line-height: 1.6;">
+                                Earned from the <span style="color: #a855f7; font-weight: 700;">Divine Arena</span> dungeon. Each blessing costs <span style="color: #fbbf24; font-weight: 700;">Blessing Currency equal to the item's level</span> and permanently enhances an item with powerful bonuses.<br><br>
+                                <span style="color: #c910a7; font-weight: 700;">⚡ BLESSING POWER:</span> Increases <span style="color: #a855f7; font-weight: 700;">ONE random stat</span> on your item by <span style="color: #22c55e; font-weight: 700;">50%</span>! Works on all rarities, including <span style="color: #c910a7; font-weight: 700;">MYTHIC</span> items!
+                            </div>
+                        </div>
+                        
+                        <div id="bless-item-selected" style="display: none; background: rgba(15, 23, 42, 0.8); padding: 20px; border-radius: 12px; border: 2px solid rgba(168, 85, 247, 0.5); margin-bottom: 20px;">
+                            <!-- Selected item details will be shown here -->
+                        </div>
+                        
+                        <div style="text-align: center; padding: 60px 20px; color: #64748b;">
+                            <div style="font-size: 72px; margin-bottom: 20px; opacity: 0.5;">✨</div>
+                            <div style="font-size: 16px; font-weight: 600; margin-bottom: 10px; color: #94a3b8;">Select an Item to Bless</div>
+                            <div style="font-size: 13px; color: #64748b; line-height: 1.6;">
+                                Click on any equipped item on your characters<br>
+                                and choose "Bless Item" to enhance it here
+                            </div>
+                        </div>
+                    </div>
+                    <div id="dungeons-tab" class="tab-panel">
+                        <div class="section-title">Select Dungeon</div>
+<div id="dungeon-selection-grid">
+                            <div class="dungeon-card everfall" data-dungeon="everfall" style="background-image: url('https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/everfall%20button.jpg'); background-size: cover; background-position: center;">
+                                <div class="dungeon-card-title" style="text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);">Everfall</div>
+                                <div class="dungeon-card-loot" style="color: #fff; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9);">Drops: Chests, Helmets, Gloves, Belts, Boots</div>
+                            </div>
+                            <div class="dungeon-card stoneforge" data-dungeon="stoneforge" style="background-image: url('https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/stoneforge.jpg'); background-size: cover; background-position: center;">
+                                <div class="dungeon-card-title" style="text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);">Stoneforge</div>
+                                <div class="dungeon-card-loot" style="color: #fff; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9);">Drops: Weapons</div>
+                            </div>
+                            <div class="dungeon-card umbral" data-dungeon="umbral" style="background-image: url('https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/umbraldepths.jpg'); background-size: cover; background-position: center;">
+                                <div class="dungeon-card-title" style="text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);">Umbral Depths</div>
+                                <div class="dungeon-card-loot" style="color: #fff; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9);">Drops: Amulets, Rings</div>
+                            </div>
+                            
+                            <div style="grid-column: 1 / -1; height: 1px; background: rgba(99, 102, 241, 0.2); margin: 10px 0;"></div>
+                            
+                            <div class="dungeon-card vault" data-dungeon="vault" style="background-image: url('https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/vault.jpg'); background-size: cover; background-position: center; ${this.vaultKeys.length === 0 ? 'filter: grayscale(100%) brightness(0.5); opacity: 0.6;' : ''}">
+                                <div class="dungeon-card-title" style="text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);">Vault</div>
+                                <div class="dungeon-card-loot" style="color: #fff; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9);">Elite Boss - Hard (Requires Vault Key) - Earn Keystones</div>
+                            </div>
+                            <div class="dungeon-card runetrial" data-dungeon="runetrial" style="background-image: url('https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/runetrials.jpg'); background-size: cover; background-position: center; ${this.runeTrialKeys.length === 0 ? 'filter: grayscale(100%) brightness(0.5); opacity: 0.6;' : ''}">
+                                <div class="dungeon-card-title" style="text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);">Rune Trial</div>
+                                <div class="dungeon-card-loot" style="color: #fff; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9);">Elite Boss - Hard (Requires Rune Trial Key) - Earn Runes</div>
+                            </div>
+                            <div class="dungeon-card pinnacle" data-dungeon="pinnacle" style="background-image: url('https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/test%20background%20for%20everfall%202.jpg'); background-size: cover; background-position: center; border: 2px solid #ec4899; box-shadow: 0 0 20px rgba(236, 72, 153, 0.4);">
+                                <div class="dungeon-card-title" style="text-shadow: 0 0 10px rgba(236, 72, 153, 0.8), 2px 2px 4px rgba(0, 0, 0, 0.9); color: #f472b6;">👑 Pinnacle Boss 👑</div>
+                                <div class="dungeon-card-loot" style="color: #e9d5ff; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9);">End Game Boss - Insane Difficulty (Requires 300+ Total Team Level) - Unique Pinnacle Weapon Drops</div>
+                            </div>
+                            
+                            <div style="grid-column: 1 / -1; height: 1px; background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.5), transparent); margin: 10px 0;"></div>
+                            
+                            <div class="dungeon-card endless-blessings" data-dungeon="endlessblessings" style="background: rgba(184, 134, 11, 0.3); background-size: cover; background-position: center; border: 2px solid #d4a747; box-shadow: 0 0 25px rgba(200, 160, 50, 0.5), inset 0 0 15px rgba(218, 165, 32, 0.25);">
+                                <div class="dungeon-card-title" style="text-shadow: 0 0 6px rgba(200, 160, 50, 0.7), 2px 2px 4px rgba(0, 0, 0, 0.9); color: #f5deb3; font-weight: 800;">✨ Divine Arena ✨</div>
+                                <div class="dungeon-card-loot" style="color: #e8d5a8; text-shadow: 0 0 4px rgba(200, 160, 50, 0.5), 1px 1px 3px rgba(0, 0, 0, 0.9); font-weight: 600;">⚡ Ultra Endgame - Infinite Floors - Earn Blessing Currency ⚡</div>
+                                <button onclick="showDropTable()" style="margin-top: 10px; padding: 8px 16px; background: linear-gradient(135deg, rgba(184, 134, 11, 0.5), rgba(160, 130, 50, 0.4)); border: 2px solid #d4a747; border-radius: 8px; color: #f5deb3; font-family: 'Orbitron', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(200, 160, 50, 0.3); transition: all 0.3s ease;">
+                                    📊 View Drop Table
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+<div id="controls-tab" class="tab-panel">
+                        <div class="section-title">Controls</div>
+<button id="pause-btn">⸸️ Pause</button>
+<button id="graphics-toggle-btn" style="margin-top: 5px; background: linear-gradient(135deg, #8b5cf6, #6d28d9);">✨ Graphics: V2</button>
+<button id="collapse-all-btn" style="margin-top: 5px;">Collapse All</button>
+<button id="reset-account-controls-btn" style="margin-top: 15px; width: 100%; padding: 12px; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; border-radius: 10px; cursor: pointer; font-family: 'Orbitron', sans-serif; font-size: 14px; font-weight: 700; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3); transition: all 0.3s ease;">
+    🔄 RESET ACCOUNT
+</button>
+<div style="margin-top: 15px;" class="collapsible-section collapsed">
+    <div class="section-title" style="cursor: pointer; user-select: none;" onclick="this.parentElement.classList.toggle('collapsed')">
+        <span class="collapse-arrow">▼</span> Party Names
+    </div>
+    <div class="collapsible-content" style="background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.2);">
+        <div style="margin-bottom: 8px;">
+            <label style="color: #94a3b8; font-size: 11px; display: block; margin-bottom: 4px;">Tank:</label>
+            <input type="text" id="name-tank" value="Tank" maxlength="12" style="width: 100%; padding: 6px; background: rgba(30, 41, 59, 0.9); color: #e2e8f0; border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; font-family: 'Rajdhani', sans-serif; font-size: 12px;">
+        </div>
+        <div style="margin-bottom: 8px;">
+            <label style="color: #94a3b8; font-size: 11px; display: block; margin-bottom: 4px;">Healer:</label>
+            <input type="text" id="name-healer" value="Healer" maxlength="12" style="width: 100%; padding: 6px; background: rgba(30, 41, 59, 0.9); color: #e2e8f0; border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; font-family: 'Rajdhani', sans-serif; font-size: 12px;">
+        </div>
+        <div style="margin-bottom: 8px;">
+            <label style="color: #94a3b8; font-size: 11px; display: block; margin-bottom: 4px;">Mage:</label>
+            <input type="text" id="name-mage" value="Mage" maxlength="12" style="width: 100%; padding: 6px; background: rgba(30, 41, 59, 0.9); color: #e2e8f0; border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; font-family: 'Rajdhani', sans-serif; font-size: 12px;">
+        </div>
+        <div style="margin-bottom: 8px;">
+            <label style="color: #94a3b8; font-size: 11px; display: block; margin-bottom: 4px;">Rogue:</label>
+            <input type="text" id="name-rogue" value="Rogue" maxlength="12" style="width: 100%; padding: 6px; background: rgba(30, 41, 59, 0.9); color: #e2e8f0; border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; font-family: 'Rajdhani', sans-serif; font-size: 12px;">
+        </div>
+        <div style="margin-bottom: 8px;">
+            <label style="color: #94a3b8; font-size: 11px; display: block; margin-bottom: 4px;">Archer:</label>
+            <input type="text" id="name-archer" value="Archer" maxlength="12" style="width: 100%; padding: 6px; background: rgba(30, 41, 59, 0.9); color: #e2e8f0; border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; font-family: 'Rajdhani', sans-serif; font-size: 12px;">
+        </div>
+        <div style="margin-bottom: 8px;">
+            <label style="color: #94a3b8; font-size: 11px; display: block; margin-bottom: 4px;">Paladin:</label>
+            <input type="text" id="name-paladin" value="Paladin" maxlength="12" style="width: 100%; padding: 6px; background: rgba(30, 41, 59, 0.9); color: #e2e8f0; border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; font-family: 'Rajdhani', sans-serif; font-size: 12px;">
+        </div>
+    </div>
+</div>
+<div style="margin-top: 15px;" class="collapsible-section collapsed">
+                            <div class="section-title" style="cursor: pointer; user-select: none;" onclick="this.parentElement.classList.toggle('collapsed')">
+                                <span class="collapse-arrow">▼</span> Popups
+                            </div>
+                            <div class="collapsible-content" style="background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.2);">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                    <input type="checkbox" id="show-fountain-popup" checked style="width: 16px; height: 16px;">
+                                    <span style="color: #94a3b8; font-size: 12px; font-weight: 600;">Show Fountain of Youth Popup</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="checkbox" id="show-treasure-popup" checked style="width: 16px; height: 16px;">
+                                    <span style="color: #94a3b8; font-size: 12px; font-weight: 600;">Show Treasure Room Popup</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 15px;" class="collapsible-section">
+                            <div class="section-title" style="cursor: pointer; user-select: none;" onclick="this.parentElement.classList.toggle('collapsed')">
+                                <span class="collapse-arrow">▼</span> Summary Duration
+                            </div>
+                            <div class="collapsible-content" style="background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.2);">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <input type="range" id="summary-duration-slider" min="1" max="10" value="4" style="flex: 1; cursor: pointer;">
+                                    <span id="summary-duration-value" style="color: #f59e0b; font-weight: 600; min-width: 40px;">4s</span>
+                                </div>
+                                <div style="font-size: 10px; color: #64748b; margin-top: 8px; text-align: center;">
+                                    Victory/Defeat screen duration
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 15px;" class="collapsible-section">
+                            <div class="section-title" style="cursor: pointer; user-select: none;" onclick="this.parentElement.classList.toggle('collapsed')">
+                                <span class="collapse-arrow">▼</span> Loot Filter - Rarity
+                            </div>
+                            <div class="collapsible-content" style="background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.2);">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                    <input type="checkbox" class="filter-checkbox" data-rarity="common" checked style="width: 16px; height: 16px;">
+                                    <span style="color: #94a3b8; font-size: 12px; font-weight: 600;">Common</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                    <input type="checkbox" class="filter-checkbox" data-rarity="uncommon" checked style="width: 16px; height: 16px;">
+                                    <span style="color: #10b981; font-size: 12px; font-weight: 600;">Uncommon</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                    <input type="checkbox" class="filter-checkbox" data-rarity="rare" checked style="width: 16px; height: 16px;">
+                                    <span style="color: #3b82f6; font-size: 12px; font-weight: 600;">Rare</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                    <input type="checkbox" class="filter-checkbox" data-rarity="epic" checked style="width: 16px; height: 16px;">
+                                    <span style="color: #a855f7; font-size: 12px; font-weight: 600;">Epic</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                    <input type="checkbox" class="filter-checkbox" data-rarity="legendary" checked style="width: 16px; height: 16px;">
+                                    <span style="color: #f59e0b; font-size: 12px; font-weight: 600;">Legendary</span>
+                                </div>
+                                <div style="font-size: 9px; color: #64748b; margin-top: 8px; text-align: center; font-style: italic;">
+                                    Unchecked rarities will auto-sell
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 15px;" class="collapsible-section">
+                            <div class="section-title" style="cursor: pointer; user-select: none;" onclick="this.parentElement.classList.toggle('collapsed')">
+                                <span class="collapse-arrow">▼</span> Loot Filter - Level
+                            </div>
+                            <div class="collapsible-content" style="background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.2);">
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                    <label style="color: #94a3b8; font-size: 12px; flex: 1;">Min Item Level:</label>
+                                    <input type="number" id="min-level-filter" min="1" max="999" value="1" style="width: 80px; padding: 4px 8px; background: rgba(30, 41, 59, 0.9); color: #e2e8f0; border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; font-family: 'Rajdhani', sans-serif; font-size: 12px;">
+                                </div>
+                                <div style="font-size: 9px; color: #64748b; text-align: center; font-style: italic;">
+                                    Items below this level will auto-sell
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+ <div id="pets-tab" class="tab-panel">
+    <div class="section-title">Pet Collection</div>
+    
+    <!-- Pet Collection Grid -->
+    <div id="pet-collection-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;"></div>
+</div>
+
+ <div id="stats-tab" class="tab-panel">
+    <div class="section-title">Current Run</div>
+    <div style="background: rgba(15, 23, 42, 0.5); padding: 15px; border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.2); margin-bottom: 15px;">
+        <div style="margin-bottom: 10px;">
+            <span style="color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Dungeon:</span>
+            <span id="current-dungeon-display" style="color: #f59e0b; float: right; font-weight: 600;">None</span>
+        </div>
+        <div>
+            <span style="color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Floor:</span>
+            <span id="current-floor-display" style="color: #f59e0b; float: right; font-weight: 600;">1</span>
+        </div>
+    </div>
+    
+    <div class="section-title">Dungeon Progress</div>
+    <div style="background: rgba(15, 23, 42, 0.5); padding: 15px; border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.2); margin-bottom: 15px;">
+        <div style="font-size: 11px; color: #cbd5e1; margin-bottom: 12px; padding: 8px; background: rgba(99, 102, 241, 0.05); border-radius: 6px; border-left: 3px solid #6366f1; line-height: 1.4;">
+    <strong>🎯 Floor Selection:</strong> Choose any starting floor from 1-200 for each dungeon. Pick your preferred challenge level and jump right into the action! Your best floor reached is tracked for each dungeon.
+</div><div style="margin-bottom: 10px;">
+            <span style="color: #10b981; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Everfall:</span>
+            <span id="everfall-progress-display" style="color: #10b981; float: right; font-weight: 600;">Start: 1 | Best: 1</span>
+        </div>
+        <div style="margin-bottom: 10px;">
+            <span style="color: #ef4444; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Stoneforge:</span>
+            <span id="stoneforge-progress-display" style="color: #ef4444; float: right; font-weight: 600;">Start: 1 | Best: 1</span>
+        </div>
+        <div>
+            <span style="color: #a855f7; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Umbral:</span>
+            <span id="umbral-progress-display" style="color: #a855f7; float: right; font-weight: 600;">Start: 1 | Best: 1</span>
+        </div>
+    </div>
+    
+    <div class="section-title">Stats</div>
+    <div style="background: rgba(15, 23, 42, 0.5); padding: 15px; border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.2);">
+        <div style="margin-bottom: 10px;">
+            <span style="color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Farthest Floor:</span>
+            <span id="farthest-floor-display" style="color: #52525b; float: right; font-weight: 600;">1</span>
+        </div>
+        <div style="margin-bottom: 10px;">
+            <span style="color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Fastest Floor:</span>
+            <span id="fastest-floor-display" style="color: #10b981; float: right; font-weight: 600;">--</span>
+        </div>
+        <div style="margin-bottom: 10px;">
+            <span style="color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Legendaries Found:</span>
+            <span id="legendaries-display" style="color: #f59e0b; float: right; font-weight: 600;">0</span>
+        </div>
+        <div style="margin-bottom: 10px;">
+            <span style="color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Chests Found:</span>
+            <span id="chests-display" style="color: #a1a1aa; float: right; font-weight: 600;">0</span>
+        </div>
+        <div style="margin-bottom: 10px;">
+            <span style="color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Floors Cleared:</span>
+            <span id="floors-cleared-display" style="color: #3b82f6; float: right; font-weight: 600;">0</span>
+        </div>
+        <div style="margin-bottom: 10px;">
+            <span style="color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Total Gold:</span>
+            <span id="total-gold-display" style="color: #f59e0b; float: right; font-weight: 600;">0g</span>
+        </div>
+        <div>
+            <span style="color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Deaths:</span>
+            <span id="deaths-display" style="color: #ef4444; float: right; font-weight: 600;">0</span>
+        </div>
+    </div>
+</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="bottom-ui">
+            <div id="resize-handle"></div>
+            <div id="mirror-toggle-container">
+                <input type="checkbox" id="mirror-toggle" checked>
+                <label for="mirror-toggle">Mirror</label>
+            </div>
+            <div id="party-container"></div>
+        </div>
+    </div>
+
+    <div class="equipment-tooltip" id="equipment-tooltip"></div>
+    <div class="loot-tooltip" id="loot-tooltip"></div>
+    <div class="enemy-tooltip" id="enemy-tooltip"></div>
+    <div class="stat-tooltip" id="stat-tooltip"></div>
+    <div class="gear-context-menu" id="gear-context-menu"></div>
+
+    <div id="summary-overlay">
+        <div id="summary-panel">
+            <div class="summary-title" id="summary-title">VICTORY</div>
+            <div class="summary-stats">
+                <div class="summary-stat-row">
+                    <span class="summary-stat-label">Floor Completed:</span>
+                    <span class="summary-stat-value" id="summary-floor">1</span>
+                </div>
+                <div class="summary-stat-row">
+                    <span class="summary-stat-label">Time Taken:</span>
+                    <span class="summary-stat-value" id="summary-time">0:00</span>
+                </div>
+                <div class="summary-stat-row">
+                    <span class="summary-stat-label">Total Damage Dealt:</span>
+                    <span class="summary-stat-value" id="summary-damage">0</span>
+                </div>
+                <div class="summary-stat-row">
+                    <span class="summary-stat-label">Enemies Defeated:</span>
+                    <span class="summary-stat-value" id="summary-kills">0</span>
+                </div>
+                <div class="summary-stat-row">
+                    <span class="summary-stat-label">Gold Earned:</span>
+                    <span class="summary-stat-value" id="summary-gold">0g</span>
+                </div>
+                <div class="summary-stat-row">
+                    <span class="summary-stat-label">Loot Obtained:</span>
+                    <span class="summary-stat-value" id="summary-loot">0 items</span>
+                </div>
+            </div>
+            <button class="summary-button" id="summary-continue">Continue</button>
+        </div>
+    </div>
+<!-- Skill Tree Overlay -->
+    <div id="skill-tree-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 3000; background: linear-gradient(135deg, #0a0e27 0%, #151935 100%);">
+        <div id="skill-tree-container" style="width: 100%; height: 100%; display: flex; flex-direction: column;">
+            <!-- Skill tree UI here -->
+        </div>
+    </div>
+    <script src="src/core/preloader.js"></script>
+    <script src="src/core/configs.js"></script>
+    <script src="src/world/dungeon_layout.js"></script>
+    <script src="src/world/character_sprite.js"></script>
+    <script src="src/world/dungeon_room.js"></script>
+    <script src="src/entities/character.js"></script>
+    <script src="src/entities/character_classes.js"></script>
+    <script src="src/entities/enemy.js"></script>
+    <script src="src/entities/boss.js"></script>
+    <script src="src/entities/pet.js"></script>
+    <script src="src/entities/item.js"></script>
+    <script src="src/entities/keystone_item.js"></script>
+    <script src="src/entities/rune_item.js"></script>
+    <script src="src/core/managers.js"></script>
+    <script src="src/core/save_constants.js"></script>
+    <script src="src/game/game.js"></script>
+    <script src="src/game/post_game.js"></script>
+    <script src="src/boot.js"></script>
 </body>
 </html>

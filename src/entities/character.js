@@ -1,0 +1,530 @@
+class Character {
+            constructor(name, className, level, maxHp, maxMana, attack, defense, attackSpeed) {
+    this.name = name;
+    this.className = className;
+    this.level = level;
+    this.maxHp = maxHp;
+    this.hp = maxHp;
+    this.maxMana = maxMana;
+this.mana = maxMana;
+this._baseMana = maxMana; // Store base for recalculation
+    this.attack = attack;
+    this.defense = defense;
+    this.attackSpeed = attackSpeed;
+    
+    // New combat stats
+    this.critChance = 5; // Base 5%
+    this.critDamage = 150; // Base 150% (1.5x multiplier)
+    this.dodgeChance = 0; // Base 0%
+    this.lifesteal = 0; // Base 0%
+    this.hpRegen = 0; // Base 0% - % of max HP restored between rooms
+    this.manaRegen = 0; // Base 0% - % of max Mana restored per second
+    this.cdr = 0; // Cooldown reduction %
+    
+    // Skill tree bonuses (initialized to 0)
+    this.skillTreeAttack = 0;
+    this.skillTreeDefense = 0;
+    this.skillTreeHP = 0;
+    this.skillTreeMana = 0;
+    this.skillTreeAttackSpeed = 0;
+    this.skillTreeCritChance = 0;
+    this.skillTreeCritDamage = 0;
+    this.skillTreeDodge = 0;
+    this.skillTreeLifesteal = 0;
+    this.skillTreeHPRegen = 0;
+    this.skillTreeManaRegen = 0;
+    this.skillTreeCDR = 0;
+                
+                this.xp = 0;
+                this.maxXp = 100;
+                this.skillPoints = 1; // Start with 1 skill point
+                this.allocatedSkillNodes = new Set([0]); // Start node always allocated
+                this.skillTreeData = {
+                    allocatedNodes: new Set([0]),
+                    usedPoints: 0
+                };
+                this.equipment = {
+                    weapon: null,
+                    chest: null,
+                    helmet: null,
+                    gloves: null,
+                    boots: null,
+                    amulet: null,
+                    belt: null,
+                    ring1: null,
+                    ring2: null
+                };
+                this.cooldown = 0;
+                this.sprite = null;
+                this.isAlive = true;
+            }
+
+takeDamage(damage) {
+    // God mode cheat - party members take no damage
+    if (window.game && window.game.godModeEnabled && window.game.party.includes(this)) {
+        return 0;
+    }
+    
+    // Prevent damage to already dead units
+    if (!this.isAlive || this.hp <= 0) {
+        this.hp = 0;
+        this.isAlive = false;
+        
+        // Pet drop from boss only (1 in 100, or 1 in 10 for first pet)
+        if (window.game && this.isBoss && !this._petDropped) {
+            this._petDropped = true;
+            
+            // Check if player has any pets yet
+            const hasPets = window.game.pets.length > 0 || 
+                           Object.values(window.game.equippedPets).some(pet => pet !== null);
+            
+            // Drop rate: 1 in 10 for first pet, 1 in 100 after that
+            const dropRate = hasPets ? 0.01 : 0.1;
+            
+            if (Math.random() < dropRate) {
+                const rarity = window.game.rollPetRarity();
+                const petLevel = 1; // Always drop at level 1
+                const dungeonType = window.game.currentDungeon || 'everfall';
+                const pet = new Pet(rarity, petLevel, dungeonType);
+                window.game.pets.push(pet);
+                window.game.addLog(`Found pet: ${pet.getDisplayName()}!`, 'loot');
+                
+                // Show popup for rare+ pets
+                if (['rare', 'epic', 'legendary'].includes(rarity)) {
+                    lootPopupManager.showItemPopup({
+                        rarity: rarity,
+                        name: pet.name,
+                        slot: 'Pet',
+                        level: petLevel,
+                        emoji: pet.emoji
+                    });
+                }
+            }
+        }
+        
+        return 0;
+    }
+    
+    // Check for dodge
+    if (Math.random() * 100 < this.getTotalDodgeChance()) {
+        return 'DODGE';
+    }
+    
+    // Check for invulnerability (Warden's Aegis)
+    if (this.invulnerable) {
+        return 0;
+    }
+    
+    // Calculate damage reduction from defense (diminishing returns)
+    const defense = this.getTotalDefense();
+    const damageReduction = defense / (defense + 100); // Returns 0-1 (0% to 100%)
+    let actualDamage = Math.max(1, Math.floor(damage * (1 - damageReduction)));
+    
+    // Shield absorbs damage first
+    if (this.shieldAmount && this.shieldAmount > 0) {
+        if (actualDamage <= this.shieldAmount) {
+            // Shield absorbs all damage
+            this.shieldAmount -= actualDamage;
+            return actualDamage;
+        } else {
+            // Shield breaks, remaining damage goes to HP
+            const remainingDamage = actualDamage - this.shieldAmount;
+            this.shieldAmount = 0;
+            this.hp = Math.max(0, this.hp - remainingDamage);
+            actualDamage = remainingDamage;
+        }
+    } else {
+        // No shield, damage goes directly to HP
+        this.hp = Math.max(0, this.hp - actualDamage);
+    }
+    
+    // Force HP to exactly 0 and mark as dead if HP is at or below 0
+    if (this.hp <= 0) {
+        this.hp = 0;
+        this.isAlive = false;
+        // Mark that positions changed for re-sorting
+        if (window.game) window.game._unitPositionsChanged = true;
+    }
+    
+    return actualDamage;
+}
+
+heal(amount) {
+    const totalMaxHp = this.getTotalMaxHp();
+    const healed = Math.min(amount, totalMaxHp - this.hp);
+    this.hp += healed;
+    return Math.round(healed * 100) / 100;  // Round to 2 decimal places
+}
+
+getTotalAttack() {
+    let total = this.attack + this.skillTreeAttack;
+    if (this.equipment.weapon) total += this.equipment.weapon.attack || 0;
+    if (this.equipment.gloves) total += this.equipment.gloves.attack || 0;
+    if (this.equipment.amulet) total += this.equipment.amulet.attack || 0;
+    if (this.equipment.ring1) total += this.equipment.ring1.attack || 0;
+    if (this.equipment.ring2) total += this.equipment.ring2.attack || 0;
+    
+    // Apply rune percentage bonuses
+    if (this.runePercentBonuses && this.runePercentBonuses.attack) {
+        total = total * (1 + this.runePercentBonuses.attack / 100);
+    }
+    
+    // Apply attack debuffs (Earthshaker's Resolve)
+    if (this.attackDebuff && this.attackDebuff > 0 && this.attackDebuff < 1) {
+        total = total * this.attackDebuff; // attackDebuff is a multiplier (0.6 = 40% reduction)
+    }
+    
+    return parseFloat(total.toFixed(2));
+}
+
+getTotalDefense() {
+    let total = this.defense + this.skillTreeDefense;
+    if (this.equipment.weapon) total += this.equipment.weapon.defense || 0;
+    if (this.equipment.chest) total += this.equipment.chest.defense || 0;
+    if (this.equipment.helmet) total += this.equipment.helmet.defense || 0;
+    if (this.equipment.gloves) total += this.equipment.gloves.defense || 0;
+    if (this.equipment.boots) total += this.equipment.boots.defense || 0;
+    if (this.equipment.belt) total += this.equipment.belt.defense || 0;
+    if (this.equipment.amulet) total += this.equipment.amulet.defense || 0;
+    if (this.equipment.ring1) total += this.equipment.ring1.defense || 0;
+    if (this.equipment.ring2) total += this.equipment.ring2.defense || 0;
+    
+    // Tank's taunt buff: +10 flat + percentage of defense for 5 seconds
+    if (this.className === 'Tank' && this.tauntActive) {
+        total += this.tauntDefenseBonus || 10;
+    }
+    
+    // Apply rune percentage bonuses
+    if (this.runePercentBonuses && this.runePercentBonuses.defense) {
+        total = total * (1 + this.runePercentBonuses.defense / 100);
+    }
+    
+    // Sacred Barrier: +30% defense
+    if (this.sacredBarrierDefense) {
+        total = total * (1 + this.sacredBarrierDefense);
+    }
+    
+    // Apply defense debuffs (Assassin's Mark, Earthshaker's Resolve, etc.)
+    if (this.defenseDebuff && this.defenseDebuff > 0) {
+        total = Math.max(0, total - this.defenseDebuff);
+    }
+    
+    // Cap at 999 defense
+    total = Math.min(total, 999);
+    
+    return parseFloat(total.toFixed(2));
+}
+
+getTotalAttackSpeed() {
+    let total = this.attackSpeed + (this.skillTreeAttackSpeed / 100);
+    if (this.equipment.weapon) total += this.equipment.weapon.attackSpeed || 0;
+    if (this.equipment.gloves) total += this.equipment.gloves.attackSpeed || 0;
+    if (this.equipment.boots) total += this.equipment.boots.attackSpeed || 0;
+    if (this.equipment.amulet) total += this.equipment.amulet.attackSpeed || 0;
+    if (this.equipment.ring1) total += this.equipment.ring1.attackSpeed || 0;
+    if (this.equipment.ring2) total += this.equipment.ring2.attackSpeed || 0;
+    
+    // Apply rune percentage bonuses
+    if (this.runePercentBonuses && this.runePercentBonuses.attackspeed) {
+        total = total * (1 + this.runePercentBonuses.attackspeed / 100);
+    }
+    
+    // Berserker's Pact: +100% attack speed
+    if (this.berserkerActive) {
+        total = total * 2.0;
+    }
+    
+    // Righteous Fury: +35% attack speed
+    if (this.righteousFuryAS) {
+        total = total * (1 + this.righteousFuryAS);
+    }
+    
+    // Cap at 5.0 attack speed
+    total = Math.min(total, 5.0);
+    
+    return parseFloat(total.toFixed(2));
+}
+
+getTotalCritChance() {
+    let total = this.critChance + this.skillTreeCritChance;
+    if (this.equipment.weapon) total += this.equipment.weapon.critChance || 0;
+    if (this.equipment.gloves) total += this.equipment.gloves.critChance || 0;
+    if (this.equipment.amulet) total += this.equipment.amulet.critChance || 0;
+    if (this.equipment.ring1) total += this.equipment.ring1.critChance || 0;
+    if (this.equipment.ring2) total += this.equipment.ring2.critChance || 0;
+    
+    // Apply rune percentage bonuses
+    if (this.runePercentBonuses && this.runePercentBonuses.crit) {
+        total = total + this.runePercentBonuses.crit;
+    }
+    
+    // Cap at 100% crit chance
+    total = Math.min(total, 100);
+    
+    return parseFloat(total.toFixed(2));
+}
+
+getTotalCritDamage() {
+    let total = this.critDamage + this.skillTreeCritDamage;
+    if (this.equipment.weapon) total += this.equipment.weapon.critDamage || 0;
+    if (this.equipment.amulet) total += this.equipment.amulet.critDamage || 0;
+    if (this.equipment.ring1) total += this.equipment.ring1.critDamage || 0;
+    if (this.equipment.ring2) total += this.equipment.ring2.critDamage || 0;
+    
+    // Apply rune percentage bonuses
+    if (this.runePercentBonuses && this.runePercentBonuses.critDamage) {
+        total = total + this.runePercentBonuses.critDamage;
+    }
+    
+    return parseFloat(total.toFixed(2));
+}
+
+getTotalDodgeChance() {
+    let total = this.dodgeChance + this.skillTreeDodge;
+    if (this.equipment.chest) total += this.equipment.chest.dodgeChance || 0;
+    if (this.equipment.boots) total += this.equipment.boots.dodgeChance || 0;
+    if (this.equipment.amulet) total += this.equipment.amulet.dodgeChance || 0;
+    if (this.equipment.ring1) total += this.equipment.ring1.dodgeChance || 0;
+    if (this.equipment.ring2) total += this.equipment.ring2.dodgeChance || 0;
+    
+    // Apply rune percentage bonuses
+    if (this.runePercentBonuses && this.runePercentBonuses.dodge) {
+        total = total + this.runePercentBonuses.dodge;
+    }
+    
+    // Cap at 60% dodge
+    total = Math.min(total, 60);
+    
+    return parseFloat(total.toFixed(2));
+}
+
+getTotalLifesteal() {
+    let total = this.lifesteal + this.skillTreeLifesteal;
+    if (this.equipment.weapon) total += this.equipment.weapon.lifesteal || 0;
+    if (this.equipment.belt) total += this.equipment.belt.lifesteal || 0;
+    if (this.equipment.amulet) total += this.equipment.amulet.lifesteal || 0;
+    if (this.equipment.ring1) total += this.equipment.ring1.lifesteal || 0;
+    if (this.equipment.ring2) total += this.equipment.ring2.lifesteal || 0;
+    
+    // Apply rune percentage bonuses
+    if (this.runePercentBonuses && this.runePercentBonuses.lifesteal) {
+        total = total + this.runePercentBonuses.lifesteal;
+    }
+    
+    // Berserker's Pact: +50% lifesteal
+    if (this.berserkerActive) {
+        total = total + 50;
+    }
+    
+    // Cap at 100% lifesteal (increased cap due to berserker)
+    total = Math.min(total, 100);
+    
+    return parseFloat(total.toFixed(2));
+}
+
+getTotalHpRegen() {
+    let total = this.hpRegen + this.skillTreeHPRegen;
+    if (this.equipment.chest) total += this.equipment.chest.hpRegen || 0;
+    if (this.equipment.belt) total += this.equipment.belt.hpRegen || 0;
+    if (this.equipment.amulet) total += this.equipment.amulet.hpRegen || 0;
+    if (this.equipment.ring1) total += this.equipment.ring1.hpRegen || 0;
+    if (this.equipment.ring2) total += this.equipment.ring2.hpRegen || 0;
+    
+    // Apply rune percentage bonuses
+    if (this.runePercentBonuses && this.runePercentBonuses.health) {
+        // Note: health runes affect HP, not HP regen - kept separate
+    }
+    
+    return parseFloat(total.toFixed(2));
+}
+
+getTotalManaRegen() {
+    let total = this.manaRegen + this.skillTreeManaRegen;
+    if (this.equipment.helmet) total += this.equipment.helmet.manaRegen || 0;
+    if (this.equipment.weapon) total += this.equipment.weapon.manaRegen || 0;
+    if (this.equipment.amulet) total += this.equipment.amulet.manaRegen || 0;
+    if (this.equipment.ring1) total += this.equipment.ring1.manaRegen || 0;
+    if (this.equipment.ring2) total += this.equipment.ring2.manaRegen || 0;
+    
+    // Apply rune percentage bonuses
+    if (this.runePercentBonuses && this.runePercentBonuses.mana) {
+        // Note: mana runes affect max mana, not mana regen - kept separate
+    }
+    
+    return parseFloat(total.toFixed(2));
+}
+
+getTotalCDR() {
+    let total = this.cdr + this.skillTreeCDR;
+    if (this.equipment.helmet) total += this.equipment.helmet.cdr || 0;
+    if (this.equipment.weapon && this.equipment.weapon.weaponType === 'wand') {
+        total += this.equipment.weapon.cdr || 0;
+    }
+    if (this.equipment.weapon && this.equipment.weapon.weaponType === 'staff') {
+        total += this.equipment.weapon.cdr || 0;
+    }
+    
+    // Apply rune percentage bonuses (time runes give CDR)
+    if (this.runePercentBonuses && this.runePercentBonuses.cdr) {
+        total = total + this.runePercentBonuses.cdr;
+    }
+    
+    // Cap at 80% CDR
+    total = Math.min(total, 80);
+    
+    return parseFloat(total.toFixed(2));
+}
+
+getTotalMaxHp() {
+    let total = this.maxHp + this.getMaxHpBonus();
+    
+    // Apply rune percentage bonuses
+    if (this.runePercentBonuses && this.runePercentBonuses.health) {
+        total = Math.floor(total * (1 + this.runePercentBonuses.health / 100));
+    }
+    
+    return parseFloat(total.toFixed(2));
+}
+
+getTotalMaxMana() {
+    let total = this.maxMana + this.getMaxManaBonus();
+    
+    // Apply rune percentage bonuses
+    if (this.runePercentBonuses && this.runePercentBonuses.mana) {
+        total = Math.floor(total * (1 + this.runePercentBonuses.mana / 100));
+    }
+    
+    return parseFloat(total.toFixed(2));
+}
+
+getMaxHpBonus() {
+    let bonus = this.skillTreeHP;
+    if (this.equipment.weapon) bonus += this.equipment.weapon.hp || 0;
+    if (this.equipment.helmet) bonus += this.equipment.helmet.hp || 0;
+    if (this.equipment.gloves) bonus += this.equipment.gloves.hp || 0;
+    if (this.equipment.chest) bonus += this.equipment.chest.hp || 0;
+    if (this.equipment.boots) bonus += this.equipment.boots.hp || 0;
+    if (this.equipment.belt) bonus += this.equipment.belt.hp || 0;
+    if (this.equipment.amulet) bonus += this.equipment.amulet.hp || 0;
+    if (this.equipment.ring1) bonus += this.equipment.ring1.hp || 0;
+    if (this.equipment.ring2) bonus += this.equipment.ring2.hp || 0;
+    return bonus;
+}
+
+getMaxManaBonus() {
+    let bonus = this.skillTreeMana;
+    if (this.equipment.weapon) bonus += this.equipment.weapon.mana || 0;
+    if (this.equipment.helmet) bonus += this.equipment.helmet.mana || 0;
+    if (this.equipment.chest) bonus += this.equipment.chest.mana || 0;
+    if (this.equipment.amulet) bonus += this.equipment.amulet.mana || 0;
+    if (this.equipment.ring1) bonus += this.equipment.ring1.mana || 0;
+    if (this.equipment.ring2) bonus += this.equipment.ring2.mana || 0;
+    return bonus;
+}
+
+            gainXP(amount) {
+                // 🎉 DOUBLE XP EVENT - 1.5x XP boost!
+                const xpMultiplier = 1.5;
+                const boostedAmount = Math.floor(amount * xpMultiplier);
+                this.xp += boostedAmount;
+                while (this.xp >= this.maxXp) {
+                    this.xp -= this.maxXp;
+                    this.levelUp();
+                }
+            }
+
+            levelUp() {
+    if (this.level >= 100) return; // Level cap at 100
+    
+    this.level++;
+    
+    // STEAM: Check for max level achievement
+    if (this.level >= 100 && window.trackStat) {
+        window.trackStat('maxLevelReached', this.level);
+    }
+    
+    // Base increases for all classes
+    this.attack += 1;
+    this.maxHp += 10;
+    
+    // Class-specific bonuses on level up
+    switch(this.className) {
+        case 'Tank':
+            this.defense += 3;  // Tank gets extra defense
+            this.maxHp += 2;    // Plus extra HP
+            break;
+            
+        case 'Paladin':
+            this.maxHp += 1;    // Paladin gets 1 HP
+            this.maxMana += 1;  // 1 Mana
+            this.defense += 1;  // 1 Defense (well-rounded)
+            break;
+            
+        case 'Healer':
+            this.maxMana += 3;  // Healer gets extra mana
+            this.hpRegen += 0.5; // Plus HP regen for sustain
+            break;
+            
+        case 'Rogue':
+            this.critDamage += 0.5; // Rogue gets crit damage (multiplicative!)
+            break;
+            
+        case 'Archer':
+            this.attack += 1;      // Archer gets extra attack
+            this.critChance += 0.2; // Plus crit chance
+            break;
+            
+        case 'Mage':
+            this.attack += 1;    // Mage gets extra attack
+            this.maxMana += 1;   // Plus mana for spells
+            break;
+    }
+    
+    // Standard defense increase for non-tanks (0.5)
+    if (this.className !== 'Tank' && this.className !== 'Paladin') {
+        this.defense += 0.5;
+    }
+    
+    // Heal to full HP/Mana
+    this.hp = this.getTotalMaxHp();
+    this.mana = this.getTotalMaxMana();
+    
+    // Grant skill point
+    this.skillPoints++;
+    
+    // Update skill cost based on new level (scales +5 every 5 levels)
+    if (this.updateSkillCost) {
+        this.updateSkillCost();
+    }
+    
+    // Exponential XP curve - slows down significantly at level 40
+    let multiplier;
+    if (this.level < 21) {
+        multiplier = 1.27;   // Levels 1-20: UNCHANGED
+    } else if (this.level < 46) {
+        multiplier = 1.121;  // Levels 21-45
+    } else if (this.level < 71) {
+        multiplier = 1.101;  // Levels 46-70
+    } else if (this.level < 91) {
+        multiplier = 1.074;  // Levels 71-90
+    } else {
+        multiplier = 1.05;   // Levels 91-100: Slower grind to max level
+    }
+    this.maxXp = Math.floor(this.maxXp * multiplier);
+    
+    // Log level up with class-specific bonus info
+    let bonusText = '';
+    switch(this.className) {
+        case 'Tank': bonusText = ' (+3 Def, +2 HP bonus)'; break;
+        case 'Paladin': bonusText = ' (+1 HP, +1 Mana, +1 Def)'; break;
+        case 'Healer': bonusText = ' (+3 Mana, +0.5 HP Regen)'; break;
+        case 'Rogue': bonusText = ' (+0.5% Crit Damage)'; break;
+        case 'Archer': bonusText = ' (+1 Atk, +0.2% Crit Chance)'; break;
+        case 'Mage': bonusText = ' (+1 Atk, +1 Mana)'; break;
+    }
+    
+    if (window.game) {
+        window.game.addLog(`${this.name} reached level ${this.level}!${bonusText} (+1 skill point)`, 'heal');
+    }
+}
+        }
