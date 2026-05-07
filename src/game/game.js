@@ -15577,14 +15577,7 @@ this.party.forEach((member, index) => {
                         <div class="view-content">
     <div class="member-stats-view ${currentView === 'stats' ? 'active' : ''}">
                                 <div class="member-stats">
-    <div class="stat" title="Damage Per Second - Your total damage output per second (ATK × ATK SPD)">
-        <span class="stat-label" data-stat="dps">DPS:</span>
-        <span class="stat-value" style="color: #f59e0b;">${Math.round(member.getTotalAttack() * (member.getTotalAttackSpeed ? member.getTotalAttackSpeed() : member.attackSpeed) * 100) / 100}</span>
-    </div>
-    <div class="stat" title="Attack - Base damage dealt per hit before defense reduction">
-        <span class="stat-label" data-stat="attack">ATK:</span>
-        <span class="stat-value attack">${member.getTotalAttack()}</span>
-    </div>
+    <!-- GDD §4.1 core 6-stat axis: HP/MP shown in the bars above; the rest here. -->
     <div class="stat" title="Physical Attack — scales physical abilities (GDD §4.1)">
         <span class="stat-label" data-stat="patk" style="color:#fda4af;">P.ATK:</span>
         <span class="stat-value" style="color:#fda4af;">${member.getTotalPAtk ? member.getTotalPAtk() : (member.pAtk ?? 0)}</span>
@@ -15601,31 +15594,30 @@ this.party.forEach((member, index) => {
         <span class="stat-label" data-stat="mdef" style="color:#a5b4fc;">M.DEF:</span>
         <span class="stat-value" style="color:#a5b4fc;">${member.getTotalMDef ? member.getTotalMDef() : (member.mDef ?? 0)}</span>
     </div>
+    <!-- Effect-stats below remain functional but aren't core; GDD §4.5 moves
+         crit/dodge to passives in Phase 10. ATK SPD is kept for the active
+         build because abilities still tick on attack-speed timers. -->
     <div class="stat" title="Attack Speed - Number of attacks per second (higher = faster attacks)">
         <span class="stat-label" data-stat="attackspeed">ATK SPD:</span>
         <span class="stat-value speed">${(member.getTotalAttackSpeed ? member.getTotalAttackSpeed() : member.attackSpeed).toFixed(2)}/s</span>
     </div>
-    <div class="stat" title="Defense - Reduces incoming damage. Formula: Damage Taken = Attack × (100 / (100 + Defense))">
-        <span class="stat-label" data-stat="defense">DEF:</span>
-        <span class="stat-value defense">${member.getTotalDefense()}</span>
-    </div>
-    <div class="stat" title="Critical Hit Chance - Percentage chance for attacks to deal critical damage">
+    <div class="stat" title="Critical Hit Chance — passive-granted in GDD §4.5; functional pre-Phase 10">
         <span class="stat-label" data-stat="crit">CRIT:</span>
         <span class="stat-value" style="color: #f59e0b;">${member.getTotalCritChance().toFixed(2)}%</span>
     </div>
-    <div class="stat" title="Critical Hit Damage - Damage multiplier when landing a critical hit (e.g., 200% = 2× damage)">
+    <div class="stat" title="Critical Hit Damage — multiplier when crit lands">
         <span class="stat-label" data-stat="critdmg">CRIT DMG:</span>
         <span class="stat-value" style="color: #ef4444;">${member.getTotalCritDamage().toFixed(2)}%</span>
     </div>
-    <div class="stat" title="Dodge Chance - Percentage chance to completely avoid incoming attacks">
+    <div class="stat" title="Dodge Chance — passive-granted in GDD §4.5; functional pre-Phase 10">
         <span class="stat-label" data-stat="dodge">DODGE:</span>
         <span class="stat-value" style="color: #10b981;">${member.getTotalDodgeChance().toFixed(2)}%</span>
     </div>
-    <div class="stat" title="Lifesteal - Percentage of damage dealt that is restored as HP (e.g., 10% lifesteal on 100 damage = 10 HP healed)">
+    <div class="stat" title="Lifesteal - Percentage of damage dealt that is restored as HP">
         <span class="stat-label" data-stat="lifesteal">LIFESTEAL:</span>
         <span class="stat-value" style="color: #a1a1aa;">${member.getTotalLifesteal()}%</span>
     </div>
-    <div class="stat" title="Cooldown Reduction - Reduces ability cooldowns (e.g., 20% CDR makes 10s cooldown → 8s)">
+    <div class="stat" title="Cooldown Reduction - Reduces ability cooldowns">
         <span class="stat-label" data-stat="cdr">CDR:</span>
         <span class="stat-value" style="color: #52525b;">${member.getTotalCDR().toFixed(2)}%</span>
     </div>
