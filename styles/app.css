@@ -441,6 +441,10 @@ button:disabled:hover { background: var(--bg-panel-hi); color: var(--ink); }
 .ach-row.locked .ach-mark { color: var(--ink-muted); }
 .ach-row .ach-row-name { font-family: var(--display); font-size: 13px; letter-spacing: 1.5px; }
 .ach-row .ach-row-desc { font-family: var(--mono); font-size: 11px; color: var(--ink-muted); margin-top: 2px; }
+.ach-row .ach-progress { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; margin-top: 6px; }
+.ach-row .ach-progress .bar { height: 6px; background: var(--bg-deep); border: 1px solid #2a2c4a; }
+.ach-row .ach-progress .bar .fill { height: 100%; background: linear-gradient(90deg, var(--brass), var(--brass-hot)); }
+.ach-row .ach-progress .counts { font-family: var(--mono); font-size: 9.5px; color: var(--brass-hot); }
 
 /* ============ BATTLE ============ */
 .battle {

@@ -52,24 +52,44 @@ export const FLOOR_UNLOCKS = [
 // current game state; once it returns true, the achievement locks in. Authors
 // can grow this list — checkAchievements walks every entry on each event.
 export const ACHIEVEMENTS = [
-  { id: 'first_steps',     name: 'First Steps',     desc: 'Clear floor 1.',                    check: (s) => maxFloor(s) >= 1 },
-  { id: 'diving_deeper',   name: 'Diving Deeper',   desc: 'Clear floor 10.',                   check: (s) => maxFloor(s) >= 10 },
-  { id: 'veteran',         name: 'Veteran',         desc: 'Clear floor 25.',                   check: (s) => maxFloor(s) >= 25 },
-  { id: 'master_of_iron',  name: 'Master of Iron',  desc: 'Clear floor 50.',                   check: (s) => maxFloor(s) >= 50 },
-  { id: 'centurion',       name: 'Centurion',       desc: 'Clear floor 100.',                  check: (s) => maxFloor(s) >= 100 },
+  { id: 'first_steps',     name: 'First Steps',     desc: 'Clear floor 1.',                    check: (s) => maxFloor(s) >= 1,
+    progress: (s) => ({ current: Math.min(1, maxFloor(s)), target: 1 }) },
+  { id: 'diving_deeper',   name: 'Diving Deeper',   desc: 'Clear floor 10.',                   check: (s) => maxFloor(s) >= 10,
+    progress: (s) => ({ current: Math.min(10, maxFloor(s)), target: 10 }) },
+  { id: 'veteran',         name: 'Veteran',         desc: 'Clear floor 25.',                   check: (s) => maxFloor(s) >= 25,
+    progress: (s) => ({ current: Math.min(25, maxFloor(s)), target: 25 }) },
+  { id: 'master_of_iron',  name: 'Master of Iron',  desc: 'Clear floor 50.',                   check: (s) => maxFloor(s) >= 50,
+    progress: (s) => ({ current: Math.min(50, maxFloor(s)), target: 50 }) },
+  { id: 'centurion',       name: 'Centurion',       desc: 'Clear floor 100.',                  check: (s) => maxFloor(s) >= 100,
+    progress: (s) => ({ current: Math.min(100, maxFloor(s)), target: 100 }) },
   { id: 'first_radiant',   name: 'Star Aligned',    desc: 'Drop your first Radiant item.',     check: (s) => s._eventCounters?.radiantDrops >= 1 },
-  { id: 'treasure_hoard',  name: 'Treasure Hoard',  desc: 'Accumulate 100 dust.',              check: (s) => (s.currencies?.dust ?? 0) >= 100 },
-  { id: 'tinkerer',        name: 'Tinkerer',        desc: 'Reroll a stat 5 times.',            check: (s) => (s._eventCounters?.rerolls ?? 0) >= 5 },
-  { id: 'polymath',        name: 'Polymath',        desc: 'Unlock 12 classes.',                check: (s) => (s.unlockedClasses?.length ?? 0) >= 12 },
-  { id: 'specialist',      name: 'Specialist',      desc: 'Allocate 20 tree nodes on a single class.', check: (s) => Object.values(s.roster ?? {}).some(u => (u.allocatedNodes?.length ?? 0) >= 21) },
+  { id: 'treasure_hoard',  name: 'Treasure Hoard',  desc: 'Accumulate 100 dust.',              check: (s) => (s.currencies?.dust ?? 0) >= 100,
+    progress: (s) => ({ current: Math.min(100, s.currencies?.dust ?? 0), target: 100 }) },
+  { id: 'tinkerer',        name: 'Tinkerer',        desc: 'Reroll a stat 5 times.',            check: (s) => (s._eventCounters?.rerolls ?? 0) >= 5,
+    progress: (s) => ({ current: Math.min(5, s._eventCounters?.rerolls ?? 0), target: 5 }) },
+  { id: 'polymath',        name: 'Polymath',        desc: 'Unlock 12 classes.',                check: (s) => (s.unlockedClasses?.length ?? 0) >= 12,
+    progress: (s) => ({ current: Math.min(12, s.unlockedClasses?.length ?? 0), target: 12 }) },
+  { id: 'specialist',      name: 'Specialist',      desc: 'Allocate 20 tree nodes on a single class.', check: (s) => Object.values(s.roster ?? {}).some(u => (u.allocatedNodes?.length ?? 0) >= 21),
+    progress: (s) => {
+      let m = 0; for (const u of Object.values(s.roster ?? {})) m = Math.max(m, (u.allocatedNodes?.length ?? 1) - 1);
+      return { current: Math.min(20, m), target: 20 };
+    } },
   { id: 'cornerstone',     name: 'Cornerstone',     desc: 'Reach a Keystone on any class.',    check: (s, data) => Object.values(s.roster ?? {}).some(u => (u.allocatedNodes ?? []).some(id => data.treeNodesById?.[id]?.kind === 'keystone')) },
-  { id: 'dust_to_dust',    name: 'Dust to Dust',    desc: 'Salvage 25 items.',                 check: (s) => (s._eventCounters?.salvages ?? 0) >= 25 },
+  { id: 'dust_to_dust',    name: 'Dust to Dust',    desc: 'Salvage 25 items.',                 check: (s) => (s._eventCounters?.salvages ?? 0) >= 25,
+    progress: (s) => ({ current: Math.min(25, s._eventCounters?.salvages ?? 0), target: 25 }) },
 
   // endgame
-  { id: 'deep_diver',      name: 'Deep Diver',      desc: 'Clear floor 200.',                  check: (s) => maxFloor(s) >= 200 },
-  { id: 'wealthy',         name: 'Wealthy',         desc: 'Accumulate 1000 dust.',             check: (s) => (s.currencies?.dust ?? 0) >= 1000 },
-  { id: 'spendthrift',     name: 'Spendthrift',     desc: 'Reroll 50 stats.',                  check: (s) => (s._eventCounters?.rerolls ?? 0) >= 50 },
-  { id: 'tree_walker',     name: 'Tree Walker',     desc: 'Allocate 50 tree nodes on a single class.', check: (s) => Object.values(s.roster ?? {}).some(u => (u.allocatedNodes?.length ?? 0) >= 51) },
+  { id: 'deep_diver',      name: 'Deep Diver',      desc: 'Clear floor 200.',                  check: (s) => maxFloor(s) >= 200,
+    progress: (s) => ({ current: Math.min(200, maxFloor(s)), target: 200 }) },
+  { id: 'wealthy',         name: 'Wealthy',         desc: 'Accumulate 1000 dust.',             check: (s) => (s.currencies?.dust ?? 0) >= 1000,
+    progress: (s) => ({ current: Math.min(1000, s.currencies?.dust ?? 0), target: 1000 }) },
+  { id: 'spendthrift',     name: 'Spendthrift',     desc: 'Reroll 50 stats.',                  check: (s) => (s._eventCounters?.rerolls ?? 0) >= 50,
+    progress: (s) => ({ current: Math.min(50, s._eventCounters?.rerolls ?? 0), target: 50 }) },
+  { id: 'tree_walker',     name: 'Tree Walker',     desc: 'Allocate 50 tree nodes on a single class.', check: (s) => Object.values(s.roster ?? {}).some(u => (u.allocatedNodes?.length ?? 0) >= 51),
+    progress: (s) => {
+      let m = 0; for (const u of Object.values(s.roster ?? {})) m = Math.max(m, (u.allocatedNodes?.length ?? 1) - 1);
+      return { current: Math.min(50, m), target: 50 };
+    } },
   { id: 'octopath',        name: 'Octopath',        desc: 'Reach a notable in every arm across your roster.',
     check: (s, data) => {
       if (!data?.treeNodesById) return false;
@@ -85,17 +105,20 @@ export const ACHIEVEMENTS = [
       return families.every(f => reached.has(f));
     }
   },
-  { id: 'crystallized',    name: 'Crystallized',    desc: 'Drop 5 Radiant items.',             check: (s) => (s._eventCounters?.radiantDrops ?? 0) >= 5 },
+  { id: 'crystallized',    name: 'Crystallized',    desc: 'Drop 5 Radiant items.',             check: (s) => (s._eventCounters?.radiantDrops ?? 0) >= 5,
+    progress: (s) => ({ current: Math.min(5, s._eventCounters?.radiantDrops ?? 0), target: 5 }) },
 
   // exploration / cumulative
   { id: 'four_corners',    name: 'Four Corners',    desc: 'Clear floor 1 in every dungeon.',
     check: (s) => Object.values(s.dungeons ?? {}).filter(d => (d.highestFloor ?? 0) >= 1).length >= 4 },
   { id: 'campaigner',      name: 'Campaigner',      desc: 'Clear 100 floors total across all dungeons.',
-    check: (s) => Object.values(s.dungeons ?? {}).reduce((a, d) => a + (d.highestFloor ?? 0), 0) >= 100 },
+    check: (s) => Object.values(s.dungeons ?? {}).reduce((a, d) => a + (d.highestFloor ?? 0), 0) >= 100,
+    progress: (s) => ({ current: Math.min(100, Object.values(s.dungeons ?? {}).reduce((a, d) => a + (d.highestFloor ?? 0), 0)), target: 100 }) },
   { id: 'first_blood',     name: 'First Blood',     desc: 'Land your first kill.',
     check: (s) => (s._eventCounters?.kills ?? 0) >= 1 },
   { id: 'butcher',         name: 'Butcher',         desc: 'Land 500 kills.',
-    check: (s) => (s._eventCounters?.kills ?? 0) >= 500 },
+    check: (s) => (s._eventCounters?.kills ?? 0) >= 500,
+    progress: (s) => ({ current: Math.min(500, s._eventCounters?.kills ?? 0), target: 500 }) },
   { id: 'enlightened',     name: 'Enlightened',     desc: 'Reach all 8 Keystones across the roster.',
     check: (s, data) => {
       if (!data?.treeNodesById) return false;
@@ -106,6 +129,17 @@ export const ACHIEVEMENTS = [
         }
       }
       return seen.size >= 8;
+    },
+    progress: (s, data) => {
+      const seen = new Set();
+      if (data?.treeNodesById) {
+        for (const u of Object.values(s.roster ?? {})) {
+          for (const id of u.allocatedNodes ?? []) {
+            if (data.treeNodesById[id]?.kind === 'keystone') seen.add(id);
+          }
+        }
+      }
+      return { current: seen.size, target: 8 };
     }
   }
 ];

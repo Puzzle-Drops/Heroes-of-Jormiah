@@ -205,6 +205,19 @@ const OUTER_NOTABLES = {
   mystic_farlands: { name: 'Spirit Bender',  effects: [{ type:'stat', stat:'matk', amount: 5 }, { type:'stat', stat:'patk', amount: 5 }] },
   farlands_tank:   { name: 'Untouchable',    effects: [{ type:'stat', stat:'hp',   amountPct: 5 }, { type:'stat', stat:'pdef', amountPct: 5 }] }
 };
+// Secondary notables sit at index 2 of each 4-node segment (so order is:
+// stat → notable → notable → stat). They take a different angle than the
+// primary so the ring reads as two adjacent named clusters per segment.
+const OUTER_NOTABLES_2 = {
+  tank_fighter:    { name: 'Brutal Bulwark',     effects: [{ type:'stat', stat:'hp', amountPct: 5 }, { type:'stat', stat:'critDamagePct', amountPct: 5 }] },
+  fighter_rogue:   { name: 'Bloodthirsty Strike',effects: [{ type:'stat', stat:'patk', amount: 5 }, { type:'stat', stat:'lifestealPct', amountPct: 3 }] },
+  rogue_marksman:  { name: 'Precise Edge',       effects: [{ type:'stat', stat:'critDamagePct', amountPct: 5 }, { type:'stat', stat:'attackSpeedPct', amountPct: 3 }] },
+  marksman_magician:{name: 'Elemental Bow',      effects: [{ type:'stat', stat:'attackSpeedPct', amountPct: 5 }, { type:'stat', stat:'matk', amountPct: 5 }] },
+  magician_healer: { name: 'Wellspring',         effects: [{ type:'stat', stat:'mp', amount: 30 }, { type:'stat', stat:'matk', amountPct: 5 }] },
+  healer_mystic:   { name: "Sage's Grace",       effects: [{ type:'stat', stat:'mdef', amount: 20 }, { type:'stat', stat:'matk', amountPct: 5 }] },
+  mystic_farlands: { name: 'Outsider',           effects: [{ type:'stat', stat:'mp', amount: 10 }, { type:'stat', stat:'matk', amount: 10 }] },
+  farlands_tank:   { name: "Wanderer's Wall",    effects: [{ type:'stat', stat:'hp', amount: 20 }, { type:'stat', stat:'pdef', amount: 10 }] }
+};
 const OUTER_STAT_AMOUNTS = { hp: 12, patk: 6, matk: 6, pdef: 6, mdef: 6, mp: 8 };
 const OUTER_STAT_BY_PAIR = {
   tank_fighter:    ['hp', 'patk'],
@@ -223,19 +236,20 @@ for (let i = 0; i < ARMS.length; i++) {
   const b = ARMS[(i + 1) % ARMS.length];
   const pairKey = `${a.family}_${b.family}`;
   const noteSpec = OUTER_NOTABLES[pairKey];
+  const noteSpec2 = OUTER_NOTABLES_2[pairKey];
   const statKeys = OUTER_STAT_BY_PAIR[pairKey] || ['hp', 'patk'];
-  // angles
   let aAng = a.angleDeg;
   let bAng = b.angleDeg;
-  // ensure b > a in degrees so midpoints land between them
   if (bAng <= aAng) bAng += 360;
+  // 4 nodes per segment: stat (.20), notable (.40), notable (.60), stat (.80)
   const angles = [
-    aAng + (bAng - aAng) * 0.30,
-    aAng + (bAng - aAng) * 0.50,
-    aAng + (bAng - aAng) * 0.70
+    aAng + (bAng - aAng) * 0.20,
+    aAng + (bAng - aAng) * 0.40,
+    aAng + (bAng - aAng) * 0.60,
+    aAng + (bAng - aAng) * 0.80
   ];
   const ids = [];
-  for (let k = 0; k < 3; k++) {
+  for (let k = 0; k < 4; k++) {
     const rad = angles[k] * Math.PI / 180;
     const x = Math.round(ROOT_POS[0] + Math.cos(rad) * OUTER_RADIUS);
     const y = Math.round(ROOT_POS[1] + Math.sin(rad) * OUTER_RADIUS);
@@ -243,9 +257,9 @@ for (let i = 0; i < ARMS.length; i++) {
     let name;
     let effects;
     if (k === 1) {
-      kind = 'notable';
-      name = noteSpec.name;
-      effects = noteSpec.effects;
+      kind = 'notable'; name = noteSpec.name;  effects = noteSpec.effects;
+    } else if (k === 2) {
+      kind = 'notable'; name = noteSpec2.name; effects = noteSpec2.effects;
     } else {
       const stat = statKeys[k === 0 ? 0 : 1];
       effects = [{ type: 'stat', stat, amount: OUTER_STAT_AMOUNTS[stat] ?? 6 }];
@@ -255,11 +269,10 @@ for (let i = 0; i < ARMS.length; i++) {
     ids.push(id);
   }
   // chain the segment internally
-  addEdge(ids[0], ids[1]);
-  addEdge(ids[1], ids[2]);
+  for (let k = 0; k < ids.length - 1; k++) addEdge(ids[k], ids[k + 1]);
   // connect endpoints to the two adjacent keystones (arm index 9)
   addEdge(`${a.family}_9`, ids[0]);
-  addEdge(`${b.family}_9`, ids[2]);
+  addEdge(`${b.family}_9`, ids[3]);
 }
 
 const out = {

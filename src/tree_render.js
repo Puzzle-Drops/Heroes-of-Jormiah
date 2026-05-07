@@ -43,6 +43,53 @@ export function createTreeView(canvas, classId, opts = {}) {
     return false;
   }
 
+  // BFS from the class's start node to find the shortest path to the nearest
+  // unallocated matching node. Returns a Set of edge keys ("a|b" with a<b)
+  // forming the suggested route, plus the destination node id.
+  function computeSearchPath() {
+    if (!searchTerm) return { edges: null, dest: null };
+    const tree = getTree();
+    if (!tree) return { edges: null, dest: null };
+    const idx = nodesById();
+    const start = startNodeFor(classId);
+    if (!start) return { edges: null, dest: null };
+    const allocated = getAllocated(classId);
+    const prev = new Map();
+    prev.set(start, null);
+    const queue = [start];
+    while (queue.length) {
+      const cur = queue.shift();
+      const node = idx[cur];
+      if (!node) continue;
+      for (const e of node.edges) {
+        if (prev.has(e)) continue;
+        prev.set(e, cur);
+        queue.push(e);
+      }
+    }
+    let bestDest = null, bestDist = Infinity;
+    for (const node of tree.nodes) {
+      if (!nodeMatchesSearch(node)) continue;
+      if (allocated.has(node.id)) continue;
+      if (!prev.has(node.id)) continue;
+      let d = 0; let cur = node.id;
+      while (cur != null) { d++; cur = prev.get(cur); }
+      if (d < bestDist) { bestDist = d; bestDest = node.id; }
+    }
+    if (!bestDest) return { edges: null, dest: null };
+    const edges = new Set();
+    let cur = bestDest;
+    while (cur != null) {
+      const p = prev.get(cur);
+      if (p != null) {
+        const k = cur < p ? `${cur}|${p}` : `${p}|${cur}`;
+        edges.add(k);
+      }
+      cur = p;
+    }
+    return { edges, dest: bestDest };
+  }
+
   function resize() {
     const rect = canvas.getBoundingClientRect();
     w = rect.width; h = rect.height;
@@ -86,6 +133,7 @@ export function createTreeView(canvas, classId, opts = {}) {
     const tree = getTree();
     if (!tree) return;
     const allocated = getAllocated(classId);
+    const search = computeSearchPath();
 
     // edges first
     ctx.lineWidth = Math.max(0.6, 1.4 * scale);
@@ -98,7 +146,15 @@ export function createTreeView(canvas, classId, opts = {}) {
         if (!other) continue;
         const [bx, by] = treeToScreen(other.pos[0], other.pos[1]);
         const bothAlloc = allocated.has(node.id) && allocated.has(other.id);
-        ctx.strokeStyle = bothAlloc ? COLORS.edgeAlloc : COLORS.edge;
+        const k = node.id < e ? `${node.id}|${e}` : `${e}|${node.id}`;
+        const onPath = search.edges?.has?.(k);
+        if (onPath) {
+          ctx.strokeStyle = '#e3b878';
+          ctx.lineWidth = Math.max(1.6, 2.4 * scale);
+        } else {
+          ctx.strokeStyle = bothAlloc ? COLORS.edgeAlloc : COLORS.edge;
+          ctx.lineWidth = Math.max(0.6, 1.4 * scale);
+        }
         ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
       }
     }

@@ -735,12 +735,27 @@ export function showAchievements(returnTo = 'hub') {
           <div class="ach-grid">
             ${ACHIEVEMENTS.map(a => {
               const unlocked = !!ach[a.id]?.unlocked;
+              let progress = '';
+              if (!unlocked && typeof a.progress === 'function') {
+                try {
+                  const p = a.progress(state, getData());
+                  if (p && p.target > 0) {
+                    const pct = Math.min(100, (p.current / p.target) * 100);
+                    progress = `
+                      <div class="ach-progress">
+                        <div class="bar"><div class="fill" style="width: ${pct.toFixed(1)}%"></div></div>
+                        <div class="counts">${Math.floor(p.current)} / ${p.target}</div>
+                      </div>`;
+                  }
+                } catch {}
+              }
               return `
                 <div class="ach-row ${unlocked ? 'unlocked' : 'locked'}">
                   <div class="ach-mark">${unlocked ? '★' : '○'}</div>
                   <div class="ach-body">
                     <div class="ach-row-name">${a.name}</div>
                     <div class="ach-row-desc">${a.desc}</div>
+                    ${progress}
                   </div>
                 </div>
               `;
