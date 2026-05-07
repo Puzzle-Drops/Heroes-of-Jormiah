@@ -181,18 +181,20 @@ export function recordEvent(key, delta = 1) {
 }
 
 function defaultSave(data) {
+  const allIds = data.classes.classes.map(c => c.id);
   const starters = data.starter_classes.verticalSlice_M1.classIds;
   const roster = {};
-  for (const id of starters) {
+  for (const id of allIds) {
     const cls = data.classesById[id];
     if (cls) roster[id] = makeFreshUnit(cls);
   }
   return {
-    saveVersion: 6,
+    saveVersion: 7,
     currencies: { gold: 0, dust: 0, spirit: 0 },
     roster,
     sharedStash: [],
-    unlockedClasses: starters.slice(),
+    // v0.21: every class unlocked from the start so players can build any party.
+    unlockedClasses: allIds.slice(),
     party: starters.slice(0, 6),
     dungeons: {
       iron_vaults:       { highestFloor: 0, currentRunFloor: null },
@@ -201,14 +203,16 @@ function defaultSave(data) {
       shattered_spire:   { highestFloor: 0, currentRunFloor: null }
     },
     achievements: {},
-    _eventCounters: { radiantDrops: 0, rerolls: 0, salvages: 0 },
+    _eventCounters: { radiantDrops: 0, rerolls: 0, salvages: 0, kills: 0 },
     settings: { speed: 1, autoCast: true, autoProgress: false, muted: false, selectedDungeon: 'iron_vaults' }
   };
 }
 
 function ensureRosterCovers(state, data) {
+  const allIds = data.classes.classes.map(c => c.id);
   const starters = data.starter_classes.verticalSlice_M1.classIds;
-  for (const id of starters) {
+  // Every GDD class gets a roster entry up-front in v0.21.
+  for (const id of allIds) {
     if (!state.roster[id]) state.roster[id] = makeFreshUnit(data.classesById[id]);
   }
   if (!state.party || state.party.length === 0) state.party = starters.slice(0, 6);
@@ -223,7 +227,7 @@ function ensureRosterCovers(state, data) {
     delete u.inventory;
   }
   // v0.2 -> v0.3 migration
-  if (!Array.isArray(state.unlockedClasses)) state.unlockedClasses = Object.keys(state.roster);
+  if (!Array.isArray(state.unlockedClasses)) state.unlockedClasses = [];
   // v0.3 -> v0.4 migration: shattered_spire dungeon + selectedDungeon
   if (!state.dungeons.shattered_spire) state.dungeons.shattered_spire = { highestFloor: 0, currentRunFloor: null };
   if (!state.settings.selectedDungeon) state.settings.selectedDungeon = 'iron_vaults';
@@ -243,7 +247,11 @@ function ensureRosterCovers(state, data) {
   // v0.5 -> v0.6 / v0.6 -> v0.7 migration: achievements + counters
   if (!state.achievements) state.achievements = {};
   if (!state._eventCounters) state._eventCounters = { radiantDrops: 0, rerolls: 0, salvages: 0 };
-  state.saveVersion = 6;
+  // v0.6/0.7 -> v0.21 (saveVersion 7): unlock every class.
+  for (const id of allIds) {
+    if (!state.unlockedClasses.includes(id)) state.unlockedClasses.push(id);
+  }
+  state.saveVersion = 7;
 }
 
 function makeFreshUnit(cls) {
@@ -436,24 +444,12 @@ export function unlockClass(classId) {
   return true;
 }
 
-// Process unlocks earned by clearing a floor. Returns the list of newly
-// unlocked class ids.
-export function processFloorUnlocks(floor) {
-  const newly = [];
-  for (const u of FLOOR_UNLOCKS) {
-    if (u.floor === floor && !_state.unlockedClasses.includes(u.classId)) {
-      if (unlockClass(u.classId)) newly.push(u.classId);
-    }
-  }
-  return newly;
-}
-
-export function getNextUnlock(currentMaxFloor) {
-  for (const u of FLOOR_UNLOCKS) {
-    if (u.floor > currentMaxFloor && !_state.unlockedClasses.includes(u.classId)) return u;
-  }
-  return null;
-}
+// As of v0.21, every class is unlocked from the start. These hooks are kept
+// for back-compat with callers (ui.js floor-clear flow, hub hint render) and
+// for the `[OPEN]` GDD §11.1 question about alternative unlock paths — they
+// just return empty results in the all-unlocked design.
+export function processFloorUnlocks(_floor) { return []; }
+export function getNextUnlock(_currentMaxFloor) { return null; }
 
 export function addToParty(classId) {
   if (!isUnlocked(classId) || isInParty(classId)) return false;

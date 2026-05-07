@@ -177,11 +177,12 @@ if (statLabel) {
   if (!/Health/.test(text) || !/Base/.test(text)) throw new Error(`expected stat tooltip, got: ${text.slice(0,200)}`);
 }
 
-// Hub: verify next-unlock hint shows
+// Hub: verify roster shows all 48 classes (v0.21 unlocked-from-start design)
 await page.click('#back-btn');
-await page.waitForSelector('.next-unlock', { timeout: 2000 }).catch(() => null);
-const nextUnlock = await page.$eval('.next-unlock b', el => el.textContent).catch(() => null);
-console.log(`next unlock: ${nextUnlock ?? 'none'}`);
+await page.waitForSelector('.roster-grid', { timeout: 3000 });
+const rosterCardCount = await page.$$eval('.roster-card', els => els.length);
+console.log(`roster cards visible: ${rosterCardCount}`);
+if (rosterCardCount < 48) throw new Error(`expected 48 unlocked, got ${rosterCardCount}`);
 await page.screenshot({ path: 'scripts/smoke_hub.png' });
 
 // Achievements panel: should at least have First Steps unlocked after a cleared floor.

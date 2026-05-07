@@ -35,16 +35,19 @@ export function showHub() {
   stopBattle();
   const data = getData();
   const state = getState();
-  const dungeon = data.dungeonsById.iron_vaults;
-  const highest = state.dungeons.iron_vaults?.highestFloor ?? 0;
-  const nextUnlock = getNextUnlock(highest);
   const partySet = new Set(state.party);
+  const familyOrder = data.families.families.map(f => f.id);
+  // Sort: party members first (in their slot order), then by family group, then alphabetic.
   const rosterIds = state.unlockedClasses.slice().sort((a, b) => {
     const ai = state.party.indexOf(a), bi = state.party.indexOf(b);
     if (ai !== -1 && bi !== -1) return ai - bi;
     if (ai !== -1) return -1;
     if (bi !== -1) return 1;
-    return 0;
+    const fa = data.classesById[a]?.family;
+    const fb = data.classesById[b]?.family;
+    const fi = familyOrder.indexOf(fa) - familyOrder.indexOf(fb);
+    if (fi !== 0) return fi;
+    return a.localeCompare(b);
   });
 
   root().innerHTML = `
@@ -54,18 +57,11 @@ export function showHub() {
         <div class="panel">
           <div class="roster-head">
             <h2>Roster</h2>
-            <div class="roster-meta">${state.unlockedClasses.length} unlocked / ${data.classes.classes.length} total</div>
+            <div class="roster-meta">${state.unlockedClasses.length} / ${data.classes.classes.length} classes</div>
           </div>
           <div class="roster-grid">
             ${rosterIds.map(id => renderRosterCard(id, partySet.has(id))).join('')}
           </div>
-          ${nextUnlock ? `
-            <div class="next-unlock">
-              <span class="lbl">Next unlock:</span>
-              <b>${data.classesById[nextUnlock.classId]?.displayName ?? nextUnlock.classId}</b>
-              <span class="lbl">at floor ${nextUnlock.floor}</span>
-            </div>
-          ` : ''}
         </div>
         <div class="panel">
           <h2>Party Formation</h2>
