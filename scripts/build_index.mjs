@@ -118,6 +118,7 @@ const scripts = [
   'src/entities/passive_tree.js',
   'src/entities/character_classes.js',
   'src/entities/item.js',
+  'src/entities/effects.js',
   'src/entities/class_registry.js',
   'src/entities/enemy.js',
   'src/entities/boss.js',

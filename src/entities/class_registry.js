@@ -466,10 +466,10 @@ function defineClass(entry) {
       const inc = Math.floor(this.level / 5) * 5;
       this.skillCost = this.baseManaSkillCost + inc;
     }
-    // Generic spell1 — fires a single damage ability per the entry's
-    // gddAbilities.spell1 metadata. Bespoke implementations (Tank's
-    // Provoke, Mage's Fireball AoE, Healer's Heal) live in the existing
-    // hand-written subclasses and override this.
+    // Phase 7.x: data-driven spell1. Reads ability.effects from the
+    // class's gddAbilities and dispatches each tag through the
+    // EFFECTS engine. Falls back to a single-target damage hit if no
+    // recognised effect tags are present.
     useSkill(target) {
       this.updateSkillCost();
       if (this.cooldown !== 0 || this.mana < this.skillCost) return 0;
@@ -480,15 +480,33 @@ function defineClass(entry) {
       const school = sp.school || this.damageType || 'physical';
       const baseAtk = this.getEffectiveAtk ? this.getEffectiveAtk(school) : this.attack;
       const stoneFactor = this._stoneFactor ? this._stoneFactor('spell1') : 0;
-      const power = (sp.power || 1.0) * (0.5 + 0.5 * stoneFactor);
-      const damage = baseAtk * power;
+      const power = baseAtk * (sp.power || 1.0) * (0.5 + 0.5 * stoneFactor);
       this._lastAttackSchool = school;
-      // If a target is provided, deal damage directly. Otherwise return
-      // the computed damage so the combat tick can route it.
-      if (target && target.takeDamage) {
-        return target.takeDamage(damage, school, window.game?.dungeonFloor || 0);
+
+      const game = window.game || {};
+      // Build the effect context so handlers see the right scope.
+      const ctx = {
+        caster: this,
+        target: Array.isArray(target) ? null : target,
+        targets: Array.isArray(target) ? target : (target ? [target] : []),
+        party: (game.party || []).filter(m => m && m.isAlive),
+        enemies: (game.enemies || []).filter(e => e && e.isAlive),
+        school,
+        floor: game.dungeonFloor || 0,
+        power,
+        notes: [],
+        note(kind, who, n) { this.notes.push({ kind, who, n }); },
+      };
+
+      const E = window.EFFECTS;
+      if (E && typeof E.apply === 'function') {
+        return E.apply(sp.effects, ctx) | 0;
       }
-      return Math.floor(damage);
+      // Fallback if the engine isn't loaded for some reason.
+      if (ctx.target && ctx.target.takeDamage) {
+        return ctx.target.takeDamage(power, school, ctx.floor);
+      }
+      return Math.floor(power);
     }
   };
 }
