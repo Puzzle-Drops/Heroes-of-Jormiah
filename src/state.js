@@ -26,16 +26,81 @@ export function resetSave() {
 // Class unlocks earned by clearing a floor. Order matters for "next unlock"
 // hints. Keep additions to this list intentional — designers will tune.
 export const FLOOR_UNLOCKS = [
-  { floor: 3,  classId: 'bard' },
-  { floor: 6,  classId: 'engineer' },
-  { floor: 10, classId: 'druid' },
-  { floor: 15, classId: 'sniper' },
-  { floor: 20, classId: 'necromancer' },
-  { floor: 25, classId: 'crusader' },
-  { floor: 30, classId: 'samurai' },
-  { floor: 40, classId: 'shadowdancer' },
-  { floor: 50, classId: 'paladin' }
+  { floor: 3,   classId: 'bard' },
+  { floor: 6,   classId: 'engineer' },
+  { floor: 10,  classId: 'druid' },
+  { floor: 15,  classId: 'sniper' },
+  { floor: 20,  classId: 'necromancer' },
+  { floor: 25,  classId: 'crusader' },
+  { floor: 30,  classId: 'samurai' },
+  { floor: 40,  classId: 'shadowdancer' },
+  { floor: 50,  classId: 'paladin' },
+  { floor: 60,  classId: 'sentinel' },
+  { floor: 70,  classId: 'cryomancer' },
+  { floor: 80,  classId: 'bloodpriest' },
+  { floor: 90,  classId: 'hunter' },
+  { floor: 100, classId: 'reaper' },
+  { floor: 115, classId: 'stormcaller' },
+  { floor: 130, classId: 'inquisitor' },
+  { floor: 145, classId: 'alchemist' },
+  { floor: 160, classId: 'spellblade' },
+  { floor: 175, classId: 'witch' },
+  { floor: 200, classId: 'geomancer' }
 ];
+
+// Achievement definitions. Each has a check(state, data) that runs against the
+// current game state; once it returns true, the achievement locks in. Authors
+// can grow this list — checkAchievements walks every entry on each event.
+export const ACHIEVEMENTS = [
+  { id: 'first_steps',     name: 'First Steps',     desc: 'Clear floor 1.',                    check: (s) => maxFloor(s) >= 1 },
+  { id: 'diving_deeper',   name: 'Diving Deeper',   desc: 'Clear floor 10.',                   check: (s) => maxFloor(s) >= 10 },
+  { id: 'veteran',         name: 'Veteran',         desc: 'Clear floor 25.',                   check: (s) => maxFloor(s) >= 25 },
+  { id: 'master_of_iron',  name: 'Master of Iron',  desc: 'Clear floor 50.',                   check: (s) => maxFloor(s) >= 50 },
+  { id: 'centurion',       name: 'Centurion',       desc: 'Clear floor 100.',                  check: (s) => maxFloor(s) >= 100 },
+  { id: 'first_radiant',   name: 'Star Aligned',    desc: 'Drop your first Radiant item.',     check: (s) => s._eventCounters?.radiantDrops >= 1 },
+  { id: 'treasure_hoard',  name: 'Treasure Hoard',  desc: 'Accumulate 100 dust.',              check: (s) => (s.currencies?.dust ?? 0) >= 100 },
+  { id: 'tinkerer',        name: 'Tinkerer',        desc: 'Reroll a stat 5 times.',            check: (s) => (s._eventCounters?.rerolls ?? 0) >= 5 },
+  { id: 'polymath',        name: 'Polymath',        desc: 'Unlock 12 classes.',                check: (s) => (s.unlockedClasses?.length ?? 0) >= 12 },
+  { id: 'specialist',      name: 'Specialist',      desc: 'Allocate 20 tree nodes on a single class.', check: (s) => Object.values(s.roster ?? {}).some(u => (u.allocatedNodes?.length ?? 0) >= 21) },
+  { id: 'cornerstone',     name: 'Cornerstone',     desc: 'Reach a Keystone on any class.',    check: (s, data) => Object.values(s.roster ?? {}).some(u => (u.allocatedNodes ?? []).some(id => data.treeNodesById?.[id]?.kind === 'keystone')) },
+  { id: 'dust_to_dust',    name: 'Dust to Dust',    desc: 'Salvage 25 items.',                 check: (s) => (s._eventCounters?.salvages ?? 0) >= 25 }
+];
+
+function maxFloor(state) {
+  let m = 0;
+  for (const d of Object.values(state.dungeons ?? {})) {
+    if ((d.highestFloor ?? 0) > m) m = d.highestFloor;
+  }
+  return m;
+}
+
+// Walks the achievements list, marks any newly-met as unlocked, returns the
+// list of newly-unlocked entries so the UI can toast them.
+export function checkAchievements() {
+  const state = _state;
+  if (!state.achievements) state.achievements = {};
+  const newly = [];
+  for (const a of ACHIEVEMENTS) {
+    if (state.achievements[a.id]?.unlocked) continue;
+    let met = false;
+    try { met = !!a.check(state, _data); } catch { met = false; }
+    if (met) {
+      state.achievements[a.id] = { unlocked: true, ts: Date.now() };
+      newly.push(a);
+    }
+  }
+  if (newly.length) persist();
+  return newly;
+}
+
+// Convenience: bump a named counter and re-run the achievement check.
+export function recordEvent(key, delta = 1) {
+  if (!_state._eventCounters) _state._eventCounters = {};
+  _state._eventCounters[key] = (_state._eventCounters[key] ?? 0) + delta;
+  const newly = checkAchievements();
+  persist();
+  return newly;
+}
 
 function defaultSave(data) {
   const starters = data.starter_classes.verticalSlice_M1.classIds;
@@ -45,7 +110,7 @@ function defaultSave(data) {
     if (cls) roster[id] = makeFreshUnit(cls);
   }
   return {
-    saveVersion: 5,
+    saveVersion: 6,
     currencies: { gold: 0, dust: 0, spirit: 0 },
     roster,
     sharedStash: [],
@@ -57,6 +122,8 @@ function defaultSave(data) {
       hollowed_wilds:    { highestFloor: 0, currentRunFloor: null },
       shattered_spire:   { highestFloor: 0, currentRunFloor: null }
     },
+    achievements: {},
+    _eventCounters: { radiantDrops: 0, rerolls: 0, salvages: 0 },
     settings: { speed: 1, autoCast: true, autoProgress: false, selectedDungeon: 'iron_vaults' }
   };
 }
@@ -94,6 +161,9 @@ function ensureRosterCovers(state, data) {
     if (!Array.isArray(u.allocatedNodes)) u.allocatedNodes = startId ? [startId] : [];
     else if (startId && !u.allocatedNodes.includes(startId)) u.allocatedNodes.unshift(startId);
   }
+  // v0.5 -> v0.6 / v0.6 -> v0.7 migration: achievements + counters
+  if (!state.achievements) state.achievements = {};
+  if (!state._eventCounters) state._eventCounters = { radiantDrops: 0, rerolls: 0, salvages: 0 };
   state.saveVersion = 6;
 }
 
@@ -222,7 +292,7 @@ export function salvageItem(itemId) {
   const dust = salvageValue(item);
   _state.sharedStash.splice(idx, 1);
   _state.currencies.dust += dust;
-  persist();
+  recordEvent('salvages');
   return dust;
 }
 
@@ -252,7 +322,7 @@ export function rerollItemStat(classId, slotId, stat) {
   item.rarity = computeRarity(item.qualityScore);
 
   _state.currencies.dust -= cost;
-  persist();
+  recordEvent('rerolls');
   return { oldValue, newValue, cost, newRarity: item.rarity, newQuality: item.qualityScore };
 }
 

@@ -184,6 +184,20 @@ const nextUnlock = await page.$eval('.next-unlock b', el => el.textContent).catc
 console.log(`next unlock: ${nextUnlock ?? 'none'}`);
 await page.screenshot({ path: 'scripts/smoke_hub.png' });
 
+// Achievements panel: should at least have First Steps unlocked after a cleared floor.
+const achBtn = await page.$('#ach-btn');
+if (achBtn) {
+  await achBtn.click();
+  await page.waitForSelector('.ach-grid', { timeout: 3000 });
+  await new Promise(r => setTimeout(r, 250));
+  const unlockedRows = await page.$$eval('.ach-row.unlocked', els => els.length);
+  console.log(`achievements unlocked: ${unlockedRows}`);
+  if (unlockedRows < 1) console.error('expected at least First Steps unlocked');
+  await page.screenshot({ path: 'scripts/smoke_ach.png' });
+  await page.click('#ach-back');
+  await page.waitForSelector('.roster-card', { timeout: 3000 });
+}
+
 // ---- Shattered Spire: pick the dungeon, fight, expect a stone to eventually drop.
 const shatteredBtn = await page.$('.dungeon-btn[data-dungeon="shattered_spire"]');
 if (shatteredBtn) {

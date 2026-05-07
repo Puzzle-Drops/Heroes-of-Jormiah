@@ -5,7 +5,8 @@ import {
   salvageItem, salvageValue, bulkSalvage,
   rerollCost, rerollItemStat,
   isInParty, addToParty, removeFromParty, swapPartyAt, getNextUnlock,
-  processFloorUnlocks, FLOOR_UNLOCKS
+  processFloorUnlocks, FLOOR_UNLOCKS,
+  ACHIEVEMENTS, checkAchievements, recordEvent
 } from './state.js';
 import { createBattle, tickBattle, reviveSurvivors } from './combat/engine.js';
 import { generateItemForDungeon } from './combat/loot.js';
@@ -105,6 +106,7 @@ function renderDungeonBtn(dungeonId, state, dropLabel) {
 function renderTopbar() {
   const state = getState();
   const stashCount = state.sharedStash?.length ?? 0;
+  const achUnlocked = ACHIEVEMENTS.filter(a => state.achievements?.[a.id]?.unlocked).length;
   return `
     <div class="topbar">
       <div class="title">CRUCIBLE</div>
@@ -114,7 +116,8 @@ function renderTopbar() {
         <div class="cur">Spirit <b>${state.currencies.spirit}</b></div>
         <div class="cur">Stash <b>${stashCount}</b></div>
       </div>
-      <button id="reset-btn" style="margin-left: 16px; font-size: 10px; padding: 6px 10px;">Reset Save</button>
+      <button id="ach-btn" style="margin-left: 16px; font-size: 10px; padding: 6px 10px;" title="Achievements">★ ${achUnlocked}/${ACHIEVEMENTS.length}</button>
+      <button id="reset-btn" style="margin-left: 6px; font-size: 10px; padding: 6px 10px;">Reset Save</button>
     </div>
   `;
 }
@@ -158,6 +161,8 @@ function bindHub() {
       showHub();
     }
   });
+  const achBtn = document.getElementById('ach-btn');
+  if (achBtn) achBtn.addEventListener('click', () => showAchievements());
   for (const card of document.querySelectorAll('.roster-card[data-class]')) {
     const id = card.dataset.class;
     card.addEventListener('click', () => showUnitDetail(id));
@@ -627,6 +632,58 @@ function flash(msg) {
   el.textContent = msg;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 1500);
+}
+
+function toastAchievement(a) {
+  const el = document.createElement('div');
+  el.className = 'toast achievement';
+  el.innerHTML = `<div class="ach-eyebrow">ACHIEVEMENT UNLOCKED</div><div class="ach-name">${a.name}</div><div class="ach-desc">${a.desc}</div>`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ============================================================================
+// ACHIEVEMENTS PANEL
+// ============================================================================
+export function showAchievements(returnTo = 'hub') {
+  hideTooltip();
+  stopBattle();
+  const state = getState();
+  const ach = state.achievements ?? {};
+  const unlockedCount = ACHIEVEMENTS.filter(a => ach[a.id]?.unlocked).length;
+  root().innerHTML = `
+    <div class="hub">
+      ${renderTopbar()}
+      <div class="hub-main detail">
+        <div class="panel" style="grid-column: span 2;">
+          <div class="detail-head">
+            <button id="ach-back" class="back">← Back</button>
+            <div class="detail-title">
+              <div class="display">Achievements</div>
+              <div class="sub">${unlockedCount} / ${ACHIEVEMENTS.length} unlocked</div>
+            </div>
+          </div>
+          <div class="ach-grid">
+            ${ACHIEVEMENTS.map(a => {
+              const unlocked = !!ach[a.id]?.unlocked;
+              return `
+                <div class="ach-row ${unlocked ? 'unlocked' : 'locked'}">
+                  <div class="ach-mark">${unlocked ? '★' : '○'}</div>
+                  <div class="ach-body">
+                    <div class="ach-row-name">${a.name}</div>
+                    <div class="ach-row-desc">${a.desc}</div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="dungeon-bar"><button id="ach-back-2">Return to Hub</button></div>
+    </div>
+  `;
+  document.getElementById('ach-back').addEventListener('click', showHub);
+  document.getElementById('ach-back-2').addEventListener('click', showHub);
 }
 
 // ============================================================================
@@ -1144,6 +1201,7 @@ function onFloorCleared() {
   // generate loot — drops to the party's shared stash per GDD §12.1
   const loot = generateItemForDungeon(battle.dungeonId, battle.floor);
   dropItemToStash(loot);
+  if (loot.rarity === 'radiant') recordEvent('radiantDrops');
 
   // class-unlock milestones
   const newlyUnlocked = processFloorUnlocks(battle.floor);
@@ -1153,6 +1211,10 @@ function onFloorCleared() {
 
   ds.currentRunFloor = battle.floor + 1;
   persist();
+
+  // Check for newly-unlocked achievements (floor / dust / unlock count milestones)
+  const earned = checkAchievements();
+  for (const a of earned) toastAchievement(a);
   showLootCard(loot, () => {
     if (newlyUnlocked.length) {
       showClassUnlockCard(newlyUnlocked, () => advanceFloor());

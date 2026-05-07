@@ -233,6 +233,12 @@ function castAbility(caster, slot, battle) {
   const cdParam = slot.ability.scaling?.cooldown;
   slot.cooldown = cdParam ? F.scaleParam(slot.ability.scaling, 'cooldown', slot.stoneLevel) : 1;
 
+  // From Beyond keystone: 20% chance to refund the cooldown of the cast.
+  if (caster.keystones?.has?.('from_beyond') && Math.random() < 0.20) {
+    slot.cooldown = 0;
+    battle.fx?.push({ type: 'absorb', target: caster, amount: 0, t: battle.now });
+  }
+
   if (slot.ability.type === 'spell') {
     battle.log.push({ type: 'cast', text: `${caster.displayName} cast ${prettyName(slot.id)}.`, t: battle.now });
   }
