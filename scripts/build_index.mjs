@@ -18,6 +18,41 @@ const REPLACEMENTS = [
   ['font-weight: 600;">Everfall:</span>', 'font-weight: 600;">Hollowed Wilds:</span>'],
   ['font-weight: 600;">Stoneforge:</span>', 'font-weight: 600;">Iron Vaults:</span>'],
   ['font-weight: 600;">Umbral:</span>', 'font-weight: 600;">Whispering Spires:</span>'],
+  // Phase 3: 4-party → 6-party with 2x3 formation per GDD §5.1.
+  // Old slot 2/3 ("Back") become new slot 3/4; new slot 2 (Front) and 5 (Back) added.
+  [
+    `<div class="party-slot" data-slot="2">
+                <div class="slot-number">Slot 3 - Back</div>
+                <div class="slot-icon">?</div>
+                <div class="slot-name">Empty</div>
+            </div>
+            <div class="party-slot" data-slot="3">
+                <div class="slot-number">Slot 4 - Back</div>
+                <div class="slot-icon">?</div>
+                <div class="slot-name">Empty</div>
+            </div>`,
+    `<div class="party-slot" data-slot="2">
+                <div class="slot-number">Slot 3 - Front</div>
+                <div class="slot-icon">?</div>
+                <div class="slot-name">Empty</div>
+            </div>
+            <div class="party-slot" data-slot="3">
+                <div class="slot-number">Slot 4 - Back</div>
+                <div class="slot-icon">?</div>
+                <div class="slot-name">Empty</div>
+            </div>
+            <div class="party-slot" data-slot="4">
+                <div class="slot-number">Slot 5 - Back</div>
+                <div class="slot-icon">?</div>
+                <div class="slot-name">Empty</div>
+            </div>
+            <div class="party-slot" data-slot="5">
+                <div class="slot-number">Slot 6 - Back</div>
+                <div class="slot-icon">?</div>
+                <div class="slot-name">Empty</div>
+            </div>`,
+  ],
+  ['SELECT 4 HEROES', 'SELECT 6 HEROES'],
 ];
 for (const [from, to] of REPLACEMENTS) {
   if (!bodyMarkup.includes(from)) {

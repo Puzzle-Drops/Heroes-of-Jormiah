@@ -39,7 +39,7 @@ await new Promise(r => setTimeout(r, 1000));
 await page.screenshot({ path: join(OUT, '1_select.png') });
 
 // Pick party
-for (const cls of ['tank', 'healer', 'mage', 'rogue']) {
+for (const cls of ['tank', 'paladin', 'rogue', 'healer', 'mage', 'archer']) {
   await page.click(`[data-char-class="${cls}"]`);
   await new Promise(r => setTimeout(r, 80));
 }

@@ -1,7 +1,7 @@
         // ========================================
-        // CHARACTER SELECT SYSTEM - 4 CHARACTER PARTY
+        // CHARACTER SELECT SYSTEM - 6 CHARACTER PARTY (3 front, 3 back per GDD §5.1)
         // ========================================
-        let selectedParty = [null, null, null, null]; // Array of 4 character classes
+        let selectedParty = [null, null, null, null, null, null]; // Array of 6 character classes
         
         // Character icon mapping
         const charIcons = {
@@ -360,19 +360,33 @@ console.log('✅ Steam achievement tracking loaded');
         if (savedParty) {
             try {
                 selectedParty = JSON.parse(savedParty);
-                // Validate that we have 4 characters
-                if (selectedParty.length === 4 && selectedParty.every(c => c !== null)) {
+                // Phase 3 migration: 4-party saves [F, F, B, B] become 6-party
+                // [F, F, null, B, B, null] so the front/back placement is preserved
+                // and the user can fill the two new slots themselves.
+                if (selectedParty.length === 4) {
+                    selectedParty = [
+                        selectedParty[0],
+                        selectedParty[1],
+                        null,
+                        selectedParty[2],
+                        selectedParty[3],
+                        null,
+                    ];
+                    localStorage.setItem(LS_KEYS.SELECTED_PARTY, JSON.stringify(selectedParty));
+                }
+                // Validate that we have 6 characters
+                if (selectedParty.length === 6 && selectedParty.every(c => c !== null)) {
                     // Hide character select and show game
                     document.getElementById('character-select-overlay').classList.add('hidden');
                     // Initialize game - Steam Cloud load will happen in main startup
                     window.game = new Game();
                 } else {
-                    // Invalid save, start fresh
-                    selectedParty = [null, null, null, null];
+                    // Invalid or partially-migrated save: keep filled slots, prompt for the rest
+                    if (selectedParty.length !== 6) selectedParty = [null, null, null, null, null, null];
                     setupCharacterSelect();
                 }
             } catch (e) {
-                selectedParty = [null, null, null, null];
+                selectedParty = [null, null, null, null, null, null];
                 setupCharacterSelect();
             }
         } else {
@@ -410,12 +424,14 @@ console.log('✅ Steam achievement tracking loaded');
             // Update start button
             const startBtn = document.getElementById('start-adventure-btn');
             const filledCount = selectedParty.filter(c => c !== null).length;
-            if (filledCount === 4) {
+            const PARTY_SIZE = 6;
+            if (filledCount === PARTY_SIZE) {
                 startBtn.disabled = false;
                 startBtn.textContent = `START ADVENTURE`;
             } else {
+                const left = PARTY_SIZE - filledCount;
                 startBtn.disabled = true;
-                startBtn.textContent = `SELECT ${4 - filledCount} MORE HERO${4 - filledCount === 1 ? '' : 'ES'}`;
+                startBtn.textContent = `SELECT ${left} MORE HERO${left === 1 ? '' : 'ES'}`;
             }
         }
         
@@ -454,7 +470,7 @@ console.log('✅ Steam achievement tracking loaded');
             });
             
             startBtn.addEventListener('click', function() {
-                // Check if all 4 slots are filled
+                // Check if all 6 slots are filled
                 if (selectedParty.every(c => c !== null)) {
                     // Save selection
                     localStorage.setItem(LS_KEYS.SELECTED_PARTY, JSON.stringify(selectedParty));
@@ -975,6 +991,12 @@ Click OK to start fresh, or Cancel to try manually recovering.`;
             // Party
             try {
                 if (data.party && Array.isArray(data.party)) {
+                    // Phase 3 migration: 4-party saves [a,b,c,d] become [a,b,null,c,d,null]
+                    // so the saved members keep their front/back placement when the
+                    // selectedParty array is migrated by the same rule.
+                    if (data.party.length === 4) {
+                        data.party = [data.party[0], data.party[1], null, data.party[2], data.party[3], null];
+                    }
                     data.party.forEach((saved, i) => {
                         try {
                             const member = window.game.party[i];

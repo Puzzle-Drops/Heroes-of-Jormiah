@@ -57,8 +57,8 @@ const stage1 = await page.evaluate(() => ({
 }));
 console.log('STAGE 1 - load:', JSON.stringify(stage1, null, 2));
 
-// Pick a 4-hero party: tank, healer, mage, rogue
-const picks = ['tank', 'healer', 'mage', 'rogue'];
+// Pick a 6-hero party per GDD §5.1: 3 front + 3 back
+const picks = ['tank', 'paladin', 'rogue', 'healer', 'mage', 'archer'];
 for (const cls of picks) {
   await page.click(`[data-char-class="${cls}"]`);
   await new Promise(r => setTimeout(r, 100));

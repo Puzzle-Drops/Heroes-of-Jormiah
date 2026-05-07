@@ -258,13 +258,13 @@ this._lastMinimapUpdate = 0;
             }
 
             init() {
-                // Get selected party (4 characters)
-                let selectedParty = ['tank', 'healer', 'mage', 'rogue']; // Default party (4 only)
+                // Get selected party (6 characters per GDD §5.1: 3 front + 3 back)
+                let selectedParty = ['tank', 'healer', 'mage', 'rogue', 'archer', 'paladin'];
                 const savedParty = localStorage.getItem(LS_KEYS.SELECTED_PARTY);
                 if (savedParty) {
                     try {
                         const parsed = JSON.parse(savedParty);
-                        if (parsed.length === 4 && parsed.every(c => c !== null)) {
+                        if (parsed.length === 6 && parsed.every(c => c !== null)) {
                             selectedParty = parsed;
                         }
                     } catch (e) {
@@ -357,12 +357,14 @@ this.playerChests.push({
                     'Paladin': '⚔️'
                 };
                 
-                // Set up initial formation positions - bottom center of room
+                // Initial formation - GDD §5.1 two rows of three (front 0-2, back 3-5)
                 const formations = {
-                    0: {x: 5, y: 7}, // Position 0 - front line center bottom
-                    1: {x: 3, y: 7}, // Position 1 - back line left
-                    2: {x: 4, y: 8}, // Position 2 - back line center
-                    3: {x: 6, y: 8}  // Position 3 - back line right
+                    0: {x: 3, y: 7}, // Front left
+                    1: {x: 5, y: 7}, // Front center
+                    2: {x: 7, y: 7}, // Front right
+                    3: {x: 3, y: 8}, // Back left
+                    4: {x: 5, y: 8}, // Back center
+                    5: {x: 7, y: 8}, // Back right
                 };
                 
                 this.party.forEach((member, i) => {
@@ -5219,12 +5221,14 @@ this.party.forEach(member => {
     this.setDungeonBackground('runetrial', 'https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/runetrial.png');
     
     
-    // Position party in a circle around the pillar (15, 15)
+    // Position party in a hex around the pillar (15, 15) — 6 slots per GDD §5.1
     const formations = {
-        0: {x: 15, y: 13},  // Tank - north of pillar
-        1: {x: 13, y: 15},  // Healer - west of pillar
-        2: {x: 17, y: 15},  // Mage - east of pillar
-        3: {x: 15, y: 17}   // Rogue - south of pillar
+        0: {x: 14, y: 13},  // Front left
+        1: {x: 16, y: 13},  // Front right
+        2: {x: 13, y: 15},  // Mid west
+        3: {x: 17, y: 15},  // Mid east
+        4: {x: 14, y: 17},  // Back left
+        5: {x: 16, y: 17},  // Back right
     };
     
     this.party.forEach((member, i) => {
@@ -5424,10 +5428,12 @@ this.setDungeonBackground('vault', 'https://raw.githubusercontent.com/Graphic37/
 
     
     const formations = {
-        0: {x: 15, y: 20},  // Tank front center
-        1: {x: 13, y: 21},  // Healer back left
-        2: {x: 14, y: 22},  // Mage back center
-        3: {x: 16, y: 22}   // Rogue back right
+        0: {x: 13, y: 20}, // Front left
+        1: {x: 15, y: 20}, // Front center
+        2: {x: 17, y: 20}, // Front right
+        3: {x: 13, y: 22}, // Back left
+        4: {x: 15, y: 22}, // Back center
+        5: {x: 17, y: 22}, // Back right
     };
     
     this.party.forEach((member, i) => {
@@ -5538,10 +5544,12 @@ if (this.enemies.length > 0 && this.enemies[0].isAlive) {
                 document.getElementById('room-label').textContent = `🔑 Keystone Vault - Level ${this.vaultLevel}`;
                 
                 const formations = {
-                    0: {x: 10, y: 14},
-                    1: {x: 8, y: 14},
-                    2: {x: 9, y: 15},
-                    3: {x: 11, y: 15}
+                    0: {x: 8, y: 14},
+                    1: {x: 10, y: 14},
+                    2: {x: 12, y: 14},
+                    3: {x: 8, y: 16},
+                    4: {x: 10, y: 16},
+                    5: {x: 12, y: 16},
                 };
                 
                 this.party.forEach((member, i) => {
@@ -6029,13 +6037,15 @@ this.party.forEach((member, i) => {
     if (member.tauntActive) member.tauntActive = false;
     if (member.tauntTimer) member.tauntTimer = 0;
     
-    // Reset party positions to starting formation
+    // Reset party positions to starting formation (GDD §5.1: 3 front + 3 back)
     if (member.sprite) {
         const formations = {
-            0: {x: 5, y: 7}, // Tank
-            1: {x: 3, y: 7}, // Healer
-            2: {x: 4, y: 8}, // Mage
-            3: {x: 6, y: 8}  // Rogue
+            0: {x: 3, y: 7}, // Front left
+            1: {x: 5, y: 7}, // Front center
+            2: {x: 7, y: 7}, // Front right
+            3: {x: 3, y: 8}, // Back left
+            4: {x: 5, y: 8}, // Back center
+            5: {x: 7, y: 8}, // Back right
         };
         const pos = formations[i];
         member.sprite.moveTo(pos.x, pos.y, true); // instant move
@@ -6240,12 +6250,14 @@ enterRoom(roomData) {
                     });
                 }
                 
-                // Reset party positions to formation - bottom center of room
+                // Reset party positions (GDD §5.1: 3 front + 3 back)
                 const formations = {
-                    0: {x: 5, y: 7}, // Tank - front line center bottom
-                    1: {x: 3, y: 7}, // Healer - back line left
-                    2: {x: 4, y: 8}, // Mage - back line center
-                    3: {x: 6, y: 8}  // Rogue - back line right
+                    0: {x: 3, y: 7}, // Front left
+                    1: {x: 5, y: 7}, // Front center
+                    2: {x: 7, y: 7}, // Front right
+                    3: {x: 3, y: 8}, // Back left
+                    4: {x: 5, y: 8}, // Back center
+                    5: {x: 7, y: 8}, // Back right
                 };
                 
                 this.party.forEach((member, i) => {
@@ -7260,10 +7272,12 @@ enterPinnacle() {
     this.setDungeonBackground('pinnacle', 'https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/vault%20room.png');
     
     const formations = {
-        0: {x: 15, y: 20},  // Tank front center
-        1: {x: 13, y: 21},  // Healer back left
-        2: {x: 14, y: 22},  // Mage back center
-        3: {x: 16, y: 22}   // Rogue back right
+        0: {x: 13, y: 20}, // Front left
+        1: {x: 15, y: 20}, // Front center
+        2: {x: 17, y: 20}, // Front right
+        3: {x: 13, y: 22}, // Back left
+        4: {x: 15, y: 22}, // Back center
+        5: {x: 17, y: 22}, // Back right
     };
     
     this.party.forEach((member, i) => {
