@@ -61,7 +61,15 @@ this._baseMana = maxMana; // Store base for recalculation
                     amulet: null,
                     belt: null,
                     ring1: null,
-                    ring2: null
+                    ring2: null,
+                    // GDD §7.1 four stone slots — each drives an ability slot.
+                    // An empty slot = dead ability per §7.1; subclasses
+                    // auto-equip level-1 starter stones once they declare
+                    // their gddAbilities so abilities still fire on spawn.
+                    attackStone: null,
+                    spell1Stone: null,
+                    spell2Stone: null,
+                    passiveStone: null,
                 };
                 this.cooldown = 0;
                 this.sprite = null;
@@ -242,6 +250,36 @@ getTotalDefense() {
     total = Math.min(total, 999);
 
     return parseFloat(total.toFixed(2));
+}
+
+// GDD §7 — auto-equip level-1 starter stones for each ability slot the
+// class has declared. Called at the end of each subclass constructor so
+// that gddAbilities has been populated. Re-running is safe; existing
+// stones (e.g. loaded from a save) are not overwritten.
+_equipStarterStones() {
+    if (!this.gddAbilities || typeof Stone === 'undefined') return;
+    const SLOTS = ['attack', 'spell1', 'spell2', 'passive'];
+    const SLOT_KEY = { attack: 'attackStone', spell1: 'spell1Stone', spell2: 'spell2Stone', passive: 'passiveStone' };
+    const classKey = (this.className || '').toLowerCase();
+    for (const slot of SLOTS) {
+        const k = SLOT_KEY[slot];
+        if (this.equipment[k]) continue; // already populated
+        const ability = this.gddAbilities[slot];
+        if (!ability) continue;
+        const id = (ability.name || slot).toLowerCase().replace(/\s+/g, '_');
+        this.equipment[k] = new Stone(slot, 1, classKey, id, ability.name, ability.school);
+    }
+}
+
+// GDD §7.3 — interpolate a slot's effective scaling factor from its stone.
+// Returns 0..1 (L1 = 0, L100 = 1). If no stone is equipped, returns 0
+// (i.e. the slot is dead per §7.1). Combat call sites multiply this
+// against the slot's nominal numbers (cooldown, damage power, etc.).
+_stoneFactor(slot) {
+    const k = { attack: 'attackStone', spell1: 'spell1Stone', spell2: 'spell2Stone', passive: 'passiveStone' }[slot];
+    const s = this.equipment && this.equipment[k];
+    if (!s) return 0;
+    return Math.max(0, Math.min(1, ((s.stoneLevel || 1) - 1) / 99));
 }
 
 // GDD §4.1 core stats — sum base + skill tree + equipment + rune bonuses.

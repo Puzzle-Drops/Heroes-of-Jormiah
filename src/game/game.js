@@ -11637,16 +11637,31 @@ performPartyAttack(member, aliveEnemies) {
                 }
 
                 // Regular attack — Phase 7 routes through gddAbilities.attack.
-                // Falls back to the Phase-4 damageType axis if no ability slot
-                // is defined (e.g. enemies, summons), then to the legacy
-                // single-axis getter for fully pre-GDD callers.
+                // Phase 8 multiplies in the stone factor (GDD §7.3): an empty
+                // attack-stone slot means the basic attack is dead (§7.1) and
+                // produces 0 damage. With a stone, scaling interpolates 50%
+                // at L1 → 100% at L100 of the ability's nominal power.
+                // Enemies / summons / pre-GDD callers fall back to the
+                // Phase-4 damageType axis and the legacy single-axis getter.
 if (!performedAction) {
     const atkAbility = member.gddAbilities && member.gddAbilities.attack;
-    const school = atkAbility ? atkAbility.school : (member.damageType || 'physical');
-    const power  = atkAbility ? (atkAbility.power ?? 1.0) : 1.0;
-    const baseAtk = member.getEffectiveAtk ? member.getEffectiveAtk(school) : member.getTotalAttack();
-    damage = baseAtk * power;
-    member._lastAttackSchool = school;
+    if (atkAbility) {
+        const hasStone = !!(member.equipment && member.equipment.attackStone);
+        const stoneFactor = member._stoneFactor ? member._stoneFactor('attack') : 0;
+        if (!hasStone) {
+            damage = 0; // §7.1 — empty stone slot = dead ability
+        } else {
+            const school = atkAbility.school;
+            const baseAtk = member.getEffectiveAtk ? member.getEffectiveAtk(school) : member.getTotalAttack();
+            const power = (atkAbility.power ?? 1.0) * (0.5 + 0.5 * stoneFactor);
+            damage = baseAtk * power;
+            member._lastAttackSchool = school;
+        }
+    } else {
+        const school = member.damageType || 'physical';
+        damage = member.getEffectiveAtk ? member.getEffectiveAtk(school) : member.getTotalAttack();
+        member._lastAttackSchool = school;
+    }
 }
 
                 // Deal damage and handle movement

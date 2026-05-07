@@ -127,3 +127,89 @@
         }
 
         window.Item = Item;
+
+        // GDD §7 — Stones. A Stone is a special equipment item that drives
+        // a single ability slot (attack / spell1 / spell2 / passive). It
+        // rolls the 6 GDD stats just like other items (§7.4) but also
+        // carries a stoneLevel (1..100) that interpolates ability scaling
+        // per §7.3, and an abilityId pointing at the class ability it
+        // unlocks (§7.5 naming).
+        class Stone {
+            constructor(slot, level, classKey, abilityId, abilityName, school) {
+                this.kind = 'stone';
+                this.stoneSlot = slot;          // 'attack' | 'spell1' | 'spell2' | 'passive'
+                this.stoneLevel = Math.max(1, Math.min(100, level || 1));
+                this.statLevel = level || 1;    // §8.4 — uncapped for stat rolls
+                this.classKey = classKey;       // 'tank' | 'mage' | ... ; restricts who can equip
+                this.abilityId = abilityId;     // matches Character.gddAbilities[slot] id
+                this.abilityName = abilityName; // for tooltips
+                this.school = school;           // 'physical' | 'magical' | 'mixed' | undefined (passive)
+
+                // 6-stat roll per §8.2 using statLevel (uncapped beyond 100).
+                const lvl = this.statLevel;
+                const NAMESAKES = { attack: 'pAtk', spell1: 'mAtk', spell2: 'mAtk', passive: 'hp' };
+                this.namesake = NAMESAKES[slot] || 'hp';
+                const r = (max) => Math.floor(Math.random() * (max + 1));
+                this.hp   = r(this.namesake === 'hp'   ? 2*lvl : lvl);
+                this.mp   = r(this.namesake === 'mp'   ? 2*lvl : lvl);
+                this.pAtk = r(this.namesake === 'pAtk' ? 2*lvl : lvl);
+                this.mAtk = r(this.namesake === 'mAtk' ? 2*lvl : lvl);
+                this.pDef = r(this.namesake === 'pDef' ? 2*lvl : lvl);
+                this.mDef = r(this.namesake === 'mDef' ? 2*lvl : lvl);
+
+                // Quality + rarity per Phase 5 / GDD §9.
+                const pct = (v, m) => m <= 0 ? 0 : Math.min(1, v / m);
+                const rolls = [
+                    pct(this.hp,   this.namesake === 'hp'   ? 2*lvl : lvl),
+                    pct(this.mp,   this.namesake === 'mp'   ? 2*lvl : lvl),
+                    pct(this.pAtk, this.namesake === 'pAtk' ? 2*lvl : lvl),
+                    pct(this.mAtk, this.namesake === 'mAtk' ? 2*lvl : lvl),
+                    pct(this.pDef, this.namesake === 'pDef' ? 2*lvl : lvl),
+                    pct(this.mDef, this.namesake === 'mDef' ? 2*lvl : lvl),
+                ];
+                this.qualityScore = rolls.reduce((a,b) => a+b, 0) / rolls.length;
+                const TIERS = [
+                    { id:'rusted',    threshold:0.00, name:'Rusted'    },
+                    { id:'common',    threshold:0.20, name:'Common'    },
+                    { id:'rare',      threshold:0.40, name:'Rare'      },
+                    { id:'epic',      threshold:0.60, name:'Epic'      },
+                    { id:'mythic',    threshold:0.80, name:'Mythic'    },
+                    { id:'legendary', threshold:0.90, name:'Legendary' },
+                    { id:'radiant',   threshold:0.95, name:'Radiant'   },
+                ];
+                let tier = TIERS[0];
+                for (const t of TIERS) if (this.qualityScore >= t.threshold) tier = t;
+                this.rarity = tier.id;
+                this.rarityName = tier.name;
+
+                // §7.3 power interpolation. Each ability is parameterized so
+                // that L1 = minimum effect, L100 = maximum. We expose that as
+                // a 0..1 factor consumers (combat, tooltips) can multiply
+                // into the slot's nominal numbers.
+                this.scalingFactor = (this.stoneLevel - 1) / 99;
+
+                // Type tag for equipment routing.
+                this.type = `${slot}_stone`; // 'attack_stone' etc.
+                this.attack = 0;             // legacy field for combat UI tolerance
+                this.defense = 0;
+
+                // §7.5 name: "Lvl X <Tier> <NamesakePrefix> <AbilityName> Stone"
+                const PREFIX = { hp:'Vital', mp:'Spry', pAtk:'Brutal', mAtk:'Arcane', pDef:'Stalwart', mDef:'Warded' };
+                this.name = `Lvl ${this.stoneLevel} ${tier.name} ${PREFIX[this.namesake]} ${abilityName} Stone`;
+            }
+
+            getStatsDisplay() {
+                const phys = '#fda4af', mag = '#a5b4fc';
+                const parts = [
+                    `<span style="color:#fde68a">Lv ${this.stoneLevel} ${this.school || 'passive'} stone</span>`,
+                ];
+                if (this.hp)   parts.push(`HP +${this.hp}`);
+                if (this.mp)   parts.push(`<span style="color:#3b82f6">MP +${this.mp}</span>`);
+                if (this.pAtk) parts.push(`<span style="color:${phys}">P.ATK +${this.pAtk}</span>`);
+                if (this.mAtk) parts.push(`<span style="color:${mag}">M.ATK +${this.mAtk}</span>`);
+                if (this.pDef) parts.push(`<span style="color:${phys}">P.DEF +${this.pDef}</span>`);
+                if (this.mDef) parts.push(`<span style="color:${mag}">M.DEF +${this.mDef}</span>`);
+                return parts.join(', ');
+            }
+        }
+        window.Stone = Stone;
