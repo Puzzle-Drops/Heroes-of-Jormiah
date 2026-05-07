@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 325 600" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#064e3b"/>
+      <stop offset="0.5" stop-color="#10b981"/>
+      <stop offset="1" stop-color="#022c22"/>
+    </linearGradient>
+    <radialGradient id="vignette" cx="0.5" cy="0.5" r="0.7">
+      <stop offset="0.6" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.55"/>
+    </radialGradient>
+  </defs>
+  <rect width="325" height="600" fill="url(#g)"/>
+  <rect width="325" height="600" fill="url(#vignette)"/>
+  <rect x="6" y="6" width="313" height="588" fill="none" stroke="#022c22" stroke-width="3"/>
+  <rect x="12" y="12" width="301" height="576" fill="none" stroke="#a7f3d0" stroke-width="1" stroke-opacity="0.4"/>
+  <!-- stylized tree -->
+  <g transform="translate(162.5,260)" fill="#a7f3d0" stroke="#022c22" stroke-width="2">
+    <ellipse cx="0" cy="-30" rx="55" ry="42"/>
+    <ellipse cx="-32" cy="-10" rx="38" ry="32"/>
+    <ellipse cx="32" cy="-10" rx="38" ry="32"/>
+    <ellipse cx="0" cy="20" rx="45" ry="32"/>
+  </g>
+  <rect x="155" y="280" width="15" height="60" fill="#3f2410" stroke="#1c0f06" stroke-width="2"/>
+  <!-- creeper vines along sides -->
+  <g stroke="#86efac" stroke-width="2" fill="none" opacity="0.6">
+    <path d="M 30 50 Q 50 120 30 180 Q 10 240 30 300 Q 50 360 30 420 Q 10 480 30 540"/>
+    <path d="M 295 50 Q 275 120 295 180 Q 315 240 295 300 Q 275 360 295 420 Q 315 480 295 540"/>
+  </g>
+  <text x="162.5" y="450" text-anchor="middle" fill="#ecfdf5" font-family="Cinzel,Georgia,serif" font-size="22" font-weight="800" letter-spacing="2" stroke="#022c22" stroke-width="0.6">THE HOLLOWED</text>
+  <text x="162.5" y="490" text-anchor="middle" fill="#ecfdf5" font-family="Cinzel,Georgia,serif" font-size="28" font-weight="800" letter-spacing="3" stroke="#022c22" stroke-width="0.6">WILDS</text>
+  <text x="162.5" y="540" text-anchor="middle" fill="#a7f3d0" font-family="Georgia,serif" font-size="13" font-style="italic" opacity="0.85">overgrown ruin · swarms</text>
+</svg>

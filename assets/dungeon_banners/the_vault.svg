@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 325 600" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#451a03"/>
+      <stop offset="0.5" stop-color="#d97706"/>
+      <stop offset="1" stop-color="#1c0a02"/>
+    </linearGradient>
+    <radialGradient id="vignette" cx="0.5" cy="0.5" r="0.7">
+      <stop offset="0.55" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.65"/>
+    </radialGradient>
+  </defs>
+  <rect width="325" height="600" fill="url(#g)"/>
+  <rect width="325" height="600" fill="url(#vignette)"/>
+  <rect x="6" y="6" width="313" height="588" fill="none" stroke="#1c0a02" stroke-width="3"/>
+  <rect x="12" y="12" width="301" height="576" fill="none" stroke="#fde68a" stroke-width="1" stroke-opacity="0.4"/>
+  <!-- ornate key -->
+  <g transform="translate(162.5,265) rotate(-15)" fill="#fbbf24" stroke="#451a03" stroke-width="2.5">
+    <!-- bow (head) -->
+    <circle cx="0" cy="-70" r="45"/>
+    <circle cx="0" cy="-70" r="22" fill="#451a03"/>
+    <!-- shaft -->
+    <rect x="-7" y="-25" width="14" height="120"/>
+    <!-- teeth -->
+    <rect x="7" y="50" width="22" height="10"/>
+    <rect x="7" y="70" width="14" height="10"/>
+    <rect x="7" y="85" width="22" height="10"/>
+  </g>
+  <!-- coin pile decoration at bottom -->
+  <g fill="#fbbf24" stroke="#451a03" stroke-width="1" opacity="0.85">
+    <circle cx="80" cy="540" r="10"/>
+    <circle cx="100" cy="555" r="9"/>
+    <circle cx="55" cy="555" r="11"/>
+    <circle cx="225" cy="540" r="10"/>
+    <circle cx="245" cy="555" r="9"/>
+    <circle cx="205" cy="555" r="11"/>
+  </g>
+  <text x="162.5" y="450" text-anchor="middle" fill="#fef3c7" font-family="Cinzel,Georgia,serif" font-size="22" font-weight="800" letter-spacing="2" stroke="#1c0a02" stroke-width="0.6">THE</text>
+  <text x="162.5" y="490" text-anchor="middle" fill="#fef3c7" font-family="Cinzel,Georgia,serif" font-size="32" font-weight="800" letter-spacing="3" stroke="#1c0a02" stroke-width="0.6">VAULT</text>
+</svg>
