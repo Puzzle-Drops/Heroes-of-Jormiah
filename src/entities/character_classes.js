@@ -9,10 +9,15 @@ class Tank extends Character {
         // still flow through the legacy useSkill() below; this block exposes
         // metadata for tooltips, the upcoming stone system (Phase 8), and
         // routing the basic-attack school through the GDD damage path.
+        // Phase 8.x: explicit GDD §7.3 endpoint values for Provoke per
+        // the spec example (cooldown 18→8, +pDef 15%→60%, taunt 3s→6s,
+        // mana fixed at 30). Stone level interpolates linearly.
         this.gddAbilities = {
             attack:  { name: 'Shield Bash',     school: 'physical', power: 1.0, manaCost: 0,  baseCooldown: 0 },
-            spell1:  { name: 'Provoke',         school: 'physical', power: 0.0, manaCost: 15, baseCooldown: 14, effects: ['taunt','buff_pdef'] },
-            spell2:  { name: 'Shield Wall',     school: 'physical', power: 0.0, manaCost: 25, baseCooldown: 30, effects: ['damage_reduction'] },
+            spell1:  { name: 'Provoke',         school: 'physical', power: 0.0, manaCost: 30, baseCooldown: 18, effects: ['taunt','buff_pdef'],
+                       endpoints: { cooldown:[18,8], manaCost:[30,30], pDefBuffPct:[15,60], tauntDuration:[3,6] } },
+            spell2:  { name: 'Shield Wall',     school: 'physical', power: 0.0, manaCost: 25, baseCooldown: 30, effects: ['damage_reduction'],
+                       endpoints: { cooldown:[30,15], reductionPct:[40,80] } },
             passive: { name: 'Vigilant Guard',  description: '+P.DEF; regen 1% HP when struck.' },
         };
         this.family = 'tank';

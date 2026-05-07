@@ -330,6 +330,35 @@ _stoneFactor(slot) {
     return Math.max(0, Math.min(1, ((s.stoneLevel || 1) - 1) / 99));
 }
 
+// GDD §7.3 — interpolate a per-ability parameter from its endpoints.
+// Each ability may declare `endpoints: { paramName: [min, max], ... }`.
+// At stone L1 we return min, at L100 we return max, with linear in
+// between. If no endpoint is declared for `key`, fall back to the
+// scalar `ability[key]` (this means "doesn't scale with stone level"
+// which matches the GDD example where Provoke's mana cost stays 30).
+//
+// For abilities without ANY endpoints, two implicit defaults apply:
+//   cooldown:    multiplier 2.25 (L1) → 1.0 (L100), so the same spell
+//                takes 2.25× longer to come back at L1 stones.
+//   manaCost:    no implicit scale (constant per GDD example).
+// Concrete implicit-cooldown scaling lets stones feel meaningful even
+// before per-ability endpoints are tuned.
+_abilityParam(slot, key, fallback) {
+    const ability = this.gddAbilities && this.gddAbilities[slot];
+    if (!ability) return fallback;
+    const f = this._stoneFactor(slot);
+    if (ability.endpoints && ability.endpoints[key]) {
+        const [lo, hi] = ability.endpoints[key];
+        return lo + (hi - lo) * f;
+    }
+    if (key === 'cooldown' && ability.baseCooldown != null) {
+        const cdMult = 2.25 - 1.25 * f; // 2.25 at L1 → 1.0 at L100
+        return ability.baseCooldown * cdMult;
+    }
+    if (key === 'manaCost') return ability.manaCost ?? fallback;
+    return fallback ?? ability[key];
+}
+
 // GDD §4.1 core stats — sum base + skill tree + equipment + rune bonuses.
 // Phase 5 items roll pAtk/mAtk/pDef/mDef natively. Legacy items only carry
 // the old single-axis attack/defense fields; we fall those over to pAtk/pDef

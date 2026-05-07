@@ -34,8 +34,12 @@ const CLASS_REGISTRY = [
     tagline:'plate, sword & board', desc:'Classic protector. Taunts on hit, regens through guard.',
     abilities:{
       attack:{name:'Shield Bash',school:'physical',power:1.0,manaCost:0,baseCooldown:0},
-      spell1:{name:'Provoke',school:'physical',power:0,manaCost:30,baseCooldown:18,effects:['taunt','buff_pdef']},
-      spell2:{name:'Shield Wall',school:'physical',power:0,manaCost:30,baseCooldown:30,effects:['damage_reduction_60_4s']},
+      // GDD §7.3 example endpoints. Provoke shrinks 18s→8s, the self
+      // P.DEF buff grows 15%→60%, taunt duration 3s→6s, mana stays 30.
+      spell1:{name:'Provoke',school:'physical',power:0,manaCost:30,baseCooldown:18,effects:['taunt','buff_pdef'],
+        endpoints:{ cooldown:[18,8], pDefBuffPct:[15,60], tauntDuration:[3,6] }},
+      spell2:{name:'Shield Wall',school:'physical',power:0,manaCost:30,baseCooldown:30,effects:['damage_reduction_60_4s'],
+        endpoints:{ cooldown:[30,15], reductionPct:[40,80] }},
       passive:{name:'Vigilant Guard',description:'+P.DEF; regen 1% HP whenever struck.'},
     }},
   { id:'crusader',  name:'Crusader',  family:'tank', sprite:'Crusader.png',
@@ -470,13 +474,22 @@ function defineClass(entry) {
     // class's gddAbilities and dispatches each tag through the
     // EFFECTS engine. Falls back to a single-target damage hit if no
     // recognised effect tags are present.
+    // Phase 8.x: cooldown and mana cost interpolated from ability
+    // endpoints via _abilityParam (linear L1 → L100), so equipping a
+    // higher-level stone shortens cooldown and (where declared) lowers
+    // mana cost.
     useSkill(target) {
-      this.updateSkillCost();
-      if (this.cooldown !== 0 || this.mana < this.skillCost) return 0;
-      this.mana -= this.skillCost;
-      this.cooldown = this.maxCooldown;
       const sp = this.gddAbilities && this.gddAbilities.spell1;
       if (!sp) return 0;
+      // Interpolated mana cost (defaults to base if no endpoint declared).
+      const liveManaCost = Math.round(this._abilityParam('spell1', 'manaCost', sp.manaCost ?? 25));
+      this.skillCost = liveManaCost;
+      if (this.cooldown !== 0 || this.mana < this.skillCost) return 0;
+      this.mana -= this.skillCost;
+      // Interpolated cooldown (implicit 2.25× longer at L1 if no
+      // explicit endpoints — so stone level matters).
+      this.cooldown = this._abilityParam('spell1', 'cooldown', sp.baseCooldown ?? 14);
+      this.maxCooldown = this.cooldown;
       const school = sp.school || this.damageType || 'physical';
       const baseAtk = this.getEffectiveAtk ? this.getEffectiveAtk(school) : this.attack;
       const stoneFactor = this._stoneFactor ? this._stoneFactor('spell1') : 0;
