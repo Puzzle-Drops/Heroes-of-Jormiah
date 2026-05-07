@@ -436,60 +436,90 @@ console.log('✅ Steam achievement tracking loaded');
         }
         
         function setupCharacterSelect() {
-            // Phase 9: append the 42 non-starter classes from the registry
-            // before wiring click handlers, so all 48 cards become clickable.
-            // Existing hardcoded starter cards in index.html stay as-is for
-            // visual continuity; new cards inherit the same .char-select-card
-            // class and get the same handlers.
-            (function appendRosterFromRegistry() {
+            // Phase 9.x: re-layout the character-select grid by family with
+            // section headers. The existing hardcoded starter cards from
+            // index.html (tank/rogue/mage/healer/archer/paladin) are kept;
+            // their registry counterparts (knight/assassin/arcanist/cleric)
+            // alias to the same constructor so we don't double-render.
+            (function relayoutByFamily() {
                 const grid = document.querySelector('.character-select-grid');
                 if (!grid || !window.CLASS_REGISTRY) return;
-                const existing = new Set(
-                    [...grid.querySelectorAll('[data-char-class]')].map(el => el.dataset.charClass)
-                );
-                // The hand-written starter cards use legacy ids (tank/rogue/
-                // mage/healer); their GDD-spec equivalents in the registry
-                // are knight/assassin/arcanist/cleric. Treat them as the
-                // same so we don't render duplicates.
-                const ALIAS = { tank:'knight', rogue:'assassin', mage:'arcanist', healer:'cleric' };
-                for (const [legacy, gdd] of Object.entries(ALIAS)) {
-                    if (existing.has(legacy)) existing.add(gdd);
-                    if (existing.has(gdd)) existing.add(legacy);
-                }
+
                 const FAMILY_LABEL = {
-                    tank:'Tank', fighter:'Fighter', healer:'Healer',
-                    marksman:'Marksman', rogue:'Rogue', magician:'Magician',
-                    mystic:'Mystic', farland:'Far Lands',
+                    tank:'Tanks', fighter:'Fighters', healer:'Healers',
+                    marksman:'Marksmen', rogue:'Rogues', magician:'Magicians',
+                    mystic:'Mystics', farland:'Far Lands',
                 };
-                for (const entry of window.CLASS_REGISTRY) {
-                    if (existing.has(entry.id)) continue;
-                    if (existing.has(entry.id.toLowerCase())) continue;
-                    // Create a card matching the existing markup shape so the
-                    // CSS in main.css picks it up automatically.
-                    const card = document.createElement('div');
-                    card.className = 'char-select-card';
-                    card.dataset.charClass = entry.id;
-                    card.innerHTML = `
-                        <div class="char-select-portrait">
-                            <!-- Sprite sheets are 8-frame horizontal strips
-                                 at 200×220 px (manifest.json). Render frame 0
-                                 only by sizing the bg-image to 8x its frame
-                                 footprint (400×55) so the first 50×55 slice
-                                 is visible. -->
-                            <div class="char-select-icon" style="width:50px;height:55px;background-image:url('assets/sprites/sheets/${entry.sprite}');background-size:400px 55px;background-position:0 0;background-repeat:no-repeat;image-rendering:pixelated;border-radius:6px;"></div>
-                            <div class="char-select-info">
-                                <div class="char-select-name">${entry.name}</div>
-                                <div class="char-select-role">${FAMILY_LABEL[entry.family] || entry.family} • ${entry.tagline}</div>
-                            </div>
-                        </div>
-                        <div class="char-select-desc">${entry.desc || ''}</div>
-                        <div class="char-select-stats" style="font-size:11px;color:#cbd5e1;">
-                            <div><span style="color:#fda4af">P.ATK</span> ${entry.abilities.attack.school === 'physical' ? 'main' : entry.abilities.attack.school === 'mixed' ? 'split' : '—'}
-                                 <span style="color:#a5b4fc;margin-left:8px">M.ATK</span> ${entry.abilities.attack.school === 'magical' ? 'main' : entry.abilities.attack.school === 'mixed' ? 'split' : '—'}</div>
-                            <div style="font-size:10px;color:#94a3b8;margin-top:2px">${entry.abilities.attack.name} · ${entry.abilities.spell1.name} · ${entry.abilities.spell2.name} · ${entry.abilities.passive.name}</div>
-                        </div>
+                const FAMILY_DESC = {
+                    tank:'Frontline absorbers — every Tank has Taunt somewhere in its kit',
+                    fighter:'Melee DPS — about half carry brief Taunts',
+                    healer:'Keep the party alive — vary heal volume vs. utility',
+                    marksman:'Ranged physical DPS',
+                    rogue:'Single-target burst, mobility, status effects',
+                    magician:'Pure magical DPS / control',
+                    mystic:'Hybrid utility — buffs, debuffs, totems, anti-magic',
+                    farland:'Exotic mechanics — pets, traps, RNG, risk/reward',
+                };
+                const FAMILY_ORDER = ['tank','fighter','healer','marksman','rogue','magician','mystic','farland'];
+
+                // Inventory existing cards (starter 6 hardcoded in index.html)
+                // by classId so we can place them under the right family
+                // header rather than render duplicates.
+                const ALIAS = { tank:'knight', rogue:'assassin', mage:'arcanist', healer:'cleric',
+                                archer:'archer', paladin:'paladin' };
+                const existingCards = new Map();
+                for (const el of grid.querySelectorAll('[data-char-class]')) {
+                    const id = el.dataset.charClass;
+                    const canonical = ALIAS[id] || id;
+                    existingCards.set(canonical, el);
+                }
+
+                // Pull all cards out, then re-insert grouped by family.
+                while (grid.firstChild) grid.removeChild(grid.firstChild);
+
+                for (const fam of FAMILY_ORDER) {
+                    const header = document.createElement('div');
+                    header.className = 'char-select-family-header';
+                    header.style.cssText = 'grid-column: 1 / -1; padding: 12px 16px 6px; border-top: 1px solid rgba(168, 85, 247, 0.25); margin-top: 8px;';
+                    header.innerHTML = `
+                        <div style="font-family: 'Orbitron', sans-serif; font-size: 14px; font-weight: 800; color: #a855f7; letter-spacing: 2px;">${FAMILY_LABEL[fam].toUpperCase()}</div>
+                        <div style="font-size: 11px; color: #94a3b8; margin-top: 2px; font-style: italic;">${FAMILY_DESC[fam]}</div>
                     `;
-                    grid.appendChild(card);
+                    grid.appendChild(header);
+
+                    const famEntries = window.CLASS_REGISTRY.filter(e => e.family === fam);
+                    for (const entry of famEntries) {
+                        const existing = existingCards.get(entry.id);
+                        if (existing) {
+                            grid.appendChild(existing);
+                            continue;
+                        }
+                        // Build a fresh card for this entry.
+                        const card = document.createElement('div');
+                        card.className = 'char-select-card';
+                        card.dataset.charClass = entry.id;
+                        card.innerHTML = `
+                            <div class="char-select-portrait">
+                                <!-- Sprite sheets are 8-frame horizontal strips
+                                     at 200×220 px (manifest.json). Render frame 0
+                                     only by sizing the bg-image to 8x its frame
+                                     footprint (400×55) so the first 50×55 slice
+                                     is visible. -->
+                                <div class="char-select-icon" style="width:50px;height:55px;background-image:url('assets/sprites/sheets/${entry.sprite}');background-size:400px 55px;background-position:0 0;background-repeat:no-repeat;image-rendering:pixelated;border-radius:6px;"></div>
+                                <div class="char-select-info">
+                                    <div class="char-select-name">${entry.name}</div>
+                                    <div class="char-select-role">${FAMILY_LABEL[entry.family]} • ${entry.tagline}</div>
+                                </div>
+                            </div>
+                            <div class="char-select-desc">${entry.desc || ''}</div>
+                            <div class="char-select-stats" style="font-size:11px;color:#cbd5e1;">
+                                <div><span style="color:#fda4af">P.ATK</span> ${entry.abilities.attack.school === 'physical' ? 'main' : entry.abilities.attack.school === 'mixed' ? 'split' : '—'}
+                                     <span style="color:#a5b4fc;margin-left:8px">M.ATK</span> ${entry.abilities.attack.school === 'magical' ? 'main' : entry.abilities.attack.school === 'mixed' ? 'split' : '—'}</div>
+                                <div style="font-size:10px;color:#94a3b8;margin-top:2px">${entry.abilities.attack.name} · ${entry.abilities.spell1.name} · ${entry.abilities.spell2.name} · ${entry.abilities.passive.name}</div>
+                            </div>
+                        `;
+                        grid.appendChild(card);
+                    }
                 }
             })();
 
