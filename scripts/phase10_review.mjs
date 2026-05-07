@@ -39,13 +39,14 @@ const probe = await page.evaluate(() => {
     }
   }
 
-  // Each family has a start node and 4 connected stat-spine nodes + 1 notable.
+  // Each family arm has 5 spine nodes (4 stat + 1 notable) + 1 keystone = 6 total.
   const familyStats = {};
   for (const fam of ['tank','fighter','healer','marksman','rogue','magician','mystic','farland']) {
     const start = PT.getStartNodeForFamily(fam);
     const armNodes = PT.nodes.filter(n => n.family === fam);
     const notables = armNodes.filter(n => n.kind === 'notable');
-    familyStats[fam] = { start, armSize: armNodes.length, notables: notables.length };
+    const keystones = armNodes.filter(n => n.kind === 'keystone');
+    familyStats[fam] = { start, armSize: armNodes.length, notables: notables.length, keystones: keystones.length };
   }
 
   // Construct a Tank, allocate the next node from its start, verify
@@ -96,9 +97,9 @@ console.log(`Tree: ${probe.nodeCount} nodes, ${probe.edgeCount} edges, ${probe.r
 console.log('Family arms:');
 let famFails = 0;
 for (const [fam, s] of Object.entries(probe.familyStats)) {
-  const ok = s.armSize === 5 && s.notables === 1 && s.start > 0;
+  const ok = s.armSize === 6 && s.notables === 1 && s.keystones === 1 && s.start > 0;
   if (!ok) famFails++;
-  console.log(`  ${fam.padEnd(10)} start=${s.start} arm=${s.armSize} notables=${s.notables} ${ok ? '' : 'FAIL'}`);
+  console.log(`  ${fam.padEnd(10)} start=${s.start} arm=${s.armSize} notables=${s.notables} keystones=${s.keystones} ${ok ? '' : 'FAIL'}`);
 }
 
 console.log('\nAllocation:');
@@ -112,7 +113,8 @@ console.log(`  before refund: SP=${probe.refund.beforeRefund.sp} allocSize=${pro
 console.log(`  after refund:  SP=${probe.refund.afterRefund.sp} allocSize=${probe.refund.afterRefund.allocSize}`);
 
 let fails = famFails;
-if (probe.reachableFromRoot !== 41) fails++;
+// Phase 10.x: 1 root + 8×6 spine+keystone + 8 bridges = 57 nodes.
+if (probe.reachableFromRoot !== 57) fails++;
 if (!probe.alloc.ok) fails++;
 if (probe.alloc.beforeAlloc.sp - probe.alloc.afterAlloc.sp !== 1) fails++;
 if (probe.alloc.afterAlloc.allocSize - probe.alloc.beforeAlloc.allocSize !== 1) fails++;

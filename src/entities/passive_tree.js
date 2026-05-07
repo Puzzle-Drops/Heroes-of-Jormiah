@@ -31,38 +31,51 @@ const TREE_NODES = [
 const TREE_EDGES = []; // [a, b] pairs — undirected.
 
 // Per-family node bonus presets. Stat nodes give small bumps in the
-// family's primary axis; the notable gives a themed bigger bump.
+// family's primary axis; the notable gives a themed bigger bump;
+// the keystone gives a build-defining tradeoff.
 const FAMILY_PROFILE = {
-  tank:     { stat: { pDef: 4, hp_pct: 5 },     notable: { name: 'Iron Bones',     bonuses: { hp_pct: 25, pDef: 10 } } },
-  fighter:  { stat: { pAtk: 3, hp_pct: 3 },     notable: { name: 'Reaving Edge',   bonuses: { pAtk: 12, hp_pct: 10 } } },
-  healer:   { stat: { mAtk: 3, mp_pct: 5 },     notable: { name: 'Devout Channel', bonuses: { mAtk: 10, mp_pct: 20 } } },
-  marksman: { stat: { pAtk: 4, mDef: 2 },       notable: { name: 'Eagle Eye',      bonuses: { pAtk: 12, attackSpeed_pct: 10 } } },
-  rogue:    { stat: { pAtk: 4, attackSpeed_pct: 3 }, notable: { name: 'Liquid Movement', bonuses: { pAtk: 10, attackSpeed_pct: 15 } } },
-  magician: { stat: { mAtk: 4, mp_pct: 4 },     notable: { name: 'Arcane Mind',    bonuses: { mAtk: 14, mp_pct: 15 } } },
-  mystic:   { stat: { mAtk: 3, mDef: 3 },       notable: { name: 'Spirit Link',    bonuses: { mAtk: 10, mDef: 8 } } },
-  farland:  { stat: { pAtk: 2, mAtk: 2 },       notable: { name: 'Wildcard',       bonuses: { pAtk: 7, mAtk: 7 } } },
+  tank:     { stat: { pDef: 4, hp_pct: 5 },     notable: { name: 'Iron Bones',     bonuses: { hp_pct: 25, pDef: 10 } },
+              keystone: { name: 'Living Wall',     bonuses: { pDef: 25, mDef: 15, hp_pct: 30 }, description: 'Below 30% HP, party damage redirects to you; you take 50% less damage.' } },
+  fighter:  { stat: { pAtk: 3, hp_pct: 3 },     notable: { name: 'Reaving Edge',   bonuses: { pAtk: 12, hp_pct: 10 } },
+              keystone: { name: 'Resolute Technique', bonuses: { pAtk: 25 }, description: 'Your hits cannot crit; +25% damage.' } },
+  healer:   { stat: { mAtk: 3, mp_pct: 5 },     notable: { name: 'Devout Channel', bonuses: { mAtk: 10, mp_pct: 20 } },
+              keystone: { name: 'Mind Over Matter', bonuses: { mp_pct: 30 }, description: '30% damage taken hits MP first.' } },
+  marksman: { stat: { pAtk: 4, mDef: 2 },       notable: { name: 'Eagle Eye',      bonuses: { pAtk: 12, attackSpeed_pct: 10 } },
+              keystone: { name: 'Hunter\'s Mark',   bonuses: { pAtk: 18, attackSpeed_pct: 15 }, description: 'First hit on a target deals +50% damage.' } },
+  rogue:    { stat: { pAtk: 4, attackSpeed_pct: 3 }, notable: { name: 'Liquid Movement', bonuses: { pAtk: 10, attackSpeed_pct: 15 } },
+              keystone: { name: 'Ghost Step',     bonuses: { attackSpeed_pct: 25 }, description: 'Each successful dodge resets all cooldowns.' } },
+  magician: { stat: { mAtk: 4, mp_pct: 4 },     notable: { name: 'Arcane Mind',    bonuses: { mAtk: 14, mp_pct: 15 } },
+              keystone: { name: 'Spell Echo',     bonuses: { mAtk: 20, mp_pct: 25 }, description: 'Spells cast twice; mana cost +50%.' } },
+  mystic:   { stat: { mAtk: 3, mDef: 3 },       notable: { name: 'Spirit Link',    bonuses: { mAtk: 10, mDef: 8 } },
+              keystone: { name: 'Totemic Will',   bonuses: { mDef: 15, mAtk: 12 }, description: 'Your buffs and debuffs last 50% longer.' } },
+  farland:  { stat: { pAtk: 2, mAtk: 2 },       notable: { name: 'Wildcard',       bonuses: { pAtk: 7, mAtk: 7 } },
+              keystone: { name: 'From Beyond',    bonuses: { pAtk: 12, mAtk: 12 }, description: 'Each kill grants a random buff for 4s.' } },
 };
 
-// Build 8 arms. Each arm has a spine of 5 nodes:
-//   [start] — stat — stat — Notable — stat — stat
-// node ids 1..40, with start nodes at ids 1, 7, 13, 19, 25, 31, 37, 43.
+// Build 8 arms. Each arm has a spine of 5 stat/notable nodes plus a
+// keystone at the tip:
+//   [start-stat] — stat — Notable — stat — stat — Keystone
+// Resulting in 6 nodes per arm × 8 arms = 48 spine nodes (ids 1..48).
+const ARM_LENGTH = 5;
+const ARM_STRIDE = ARM_LENGTH + 1; // 5 spine + 1 keystone
 let nextId = 1;
 const FAMILY_START_NODE = {};
-const ARM_LENGTH = 5;
+const FAMILY_KEYSTONE_NODE = {};
+const FAMILY_NOTABLE_NODE = {};
 for (let i = 0; i < FAMILIES.length; i++) {
   const fam = FAMILIES[i];
   const profile = FAMILY_PROFILE[fam];
   const angle = (i / FAMILIES.length) * Math.PI * 2;
-  const startId = nextId;
-  FAMILY_START_NODE[fam] = startId;
+  FAMILY_START_NODE[fam] = nextId;
   let prev = 0; // root
   for (let k = 0; k < ARM_LENGTH; k++) {
-    const r = 100 + k * 80;
+    const r = 100 + k * 70;
     const id = nextId++;
     const isNotable = (k === 2);
+    if (isNotable) FAMILY_NOTABLE_NODE[fam] = id;
     TREE_NODES.push({
       id,
-      kind: isNotable ? 'notable' : (k === 0 ? 'stat' : 'stat'),
+      kind: isNotable ? 'notable' : 'stat',
       family: fam,
       name: isNotable ? profile.notable.name : `${fam[0].toUpperCase() + fam.slice(1)} ${k+1}`,
       x: Math.round(Math.cos(angle) * r),
@@ -72,6 +85,44 @@ for (let i = 0; i < FAMILIES.length; i++) {
     TREE_EDGES.push([prev, id]);
     prev = id;
   }
+  // Keystone at the tip — id sits one slot after the last spine node.
+  const ksId = nextId++;
+  FAMILY_KEYSTONE_NODE[fam] = ksId;
+  const r = 100 + ARM_LENGTH * 70;
+  TREE_NODES.push({
+    id: ksId,
+    kind: 'keystone',
+    family: fam,
+    name: profile.keystone.name,
+    description: profile.keystone.description,
+    x: Math.round(Math.cos(angle) * r),
+    y: Math.round(Math.sin(angle) * r),
+    bonuses: profile.keystone.bonuses,
+  });
+  TREE_EDGES.push([prev, ksId]);
+}
+
+// Cross-arm bridges per GDD §13.1 ("cross-connections at two radii so
+// a class can dip into a neighbouring arm without committing to its
+// full path"). Bridges sit between consecutive arms at the notable
+// radius — a small bonus + an edge to BOTH adjacent arms' notables.
+for (let i = 0; i < FAMILIES.length; i++) {
+  const famA = FAMILIES[i];
+  const famB = FAMILIES[(i + 1) % FAMILIES.length];
+  const angle = ((i + 0.5) / FAMILIES.length) * Math.PI * 2;
+  const r = 100 + 2 * 70;
+  const id = nextId++;
+  TREE_NODES.push({
+    id,
+    kind: 'bridge',
+    bridgeBetween: [famA, famB],
+    name: `${famA[0].toUpperCase()+famA.slice(1)}/${famB[0].toUpperCase()+famB.slice(1)} Bridge`,
+    x: Math.round(Math.cos(angle) * r),
+    y: Math.round(Math.sin(angle) * r),
+    bonuses: { hp_pct: 3, mp_pct: 3 },
+  });
+  TREE_EDGES.push([FAMILY_NOTABLE_NODE[famA], id]);
+  TREE_EDGES.push([id, FAMILY_NOTABLE_NODE[famB]]);
 }
 
 // Public helpers.
@@ -129,6 +180,8 @@ window.PASSIVE_TREE = {
   nodes: TREE_NODES,
   edges: TREE_EDGES,
   familyStart: FAMILY_START_NODE,
+  familyKeystone: FAMILY_KEYSTONE_NODE,
+  familyNotable: FAMILY_NOTABLE_NODE,
   getStartNodeForFamily,
   getNodeById,
   getNodesAdjacentTo,

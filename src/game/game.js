@@ -15686,7 +15686,10 @@ this.party.forEach((member, index) => {
         };
         return `
         <div style="padding:8px;background:rgba(15,23,42,0.6);border-radius:8px;border:1px solid rgba(99,102,241,0.15);margin-bottom:10px;">
-            <div style="font-size:10px;color:#71717a;letter-spacing:1px;margin-bottom:6px;">GDD §6.2 ABILITY SLOTS</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <div style="font-size:10px;color:#71717a;letter-spacing:1px;">GDD §6.2 ABILITY SLOTS</div>
+                <button onclick="window.openPassiveTreeOverlay(window.game?.party?.[${this.party.indexOf(member)}])" style="font-size:9px;padding:3px 8px;background:rgba(168,85,247,0.2);border:1px solid #a855f7;border-radius:4px;color:#e9d5ff;font-family:'Orbitron',sans-serif;font-weight:700;letter-spacing:1px;cursor:pointer;">PASSIVE TREE</button>
+            </div>
             ${slot('ATTACK',  a.attack,  '#fda4af')}
             ${slot('SPELL I', a.spell1,  '#a855f7')}
             ${slot('SPELL II',a.spell2,  '#a855f7')}

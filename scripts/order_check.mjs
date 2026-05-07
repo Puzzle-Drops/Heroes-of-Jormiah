@@ -18,6 +18,7 @@ const FILES = [
   'src/entities/item.js',
   'src/entities/effects.js',
   'src/entities/class_registry.js',
+  'src/ui/tree_view.js',
   'src/entities/enemy.js',
   'src/entities/boss.js',
   'src/entities/pet.js',
