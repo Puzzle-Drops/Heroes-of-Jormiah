@@ -11,6 +11,15 @@ this._baseMana = maxMana; // Store base for recalculation
     this.attack = attack;
     this.defense = defense;
     this.attackSpeed = attackSpeed;
+
+    // GDD §4.1 core 6-stat axis. Single attack/defense above are kept as
+    // backward-compatible aggregates; combat resolves through the p/m fields.
+    // Subclasses override these per their family lean (§6.3).
+    this.pAtk = attack;   // Physical Attack
+    this.mAtk = 0;        // Magical Attack
+    this.pDef = defense;  // Physical Defense
+    this.mDef = 0;        // Magical Defense
+    this.damageType = 'physical'; // basic-attack school: 'physical' | 'magical' | 'mixed'
     
     // New combat stats
     this.critChance = 5; // Base 5%
@@ -59,12 +68,25 @@ this._baseMana = maxMana; // Store base for recalculation
                 this.isAlive = true;
             }
 
-takeDamage(damage) {
+takeDamage(damage, damageType, floorLevel) {
     // God mode cheat - party members take no damage
     if (window.game && window.game.godModeEnabled && window.game.party.includes(this)) {
         return 0;
     }
-    
+
+    // GDD §4.3 mitigation: defenderDef / (defenderDef + 100 + 5×floor).
+    // The floor-scaling term keeps defense relevant on deep floors but never
+    // a wall. damageType selects pDef vs mDef; an undefined damageType keeps
+    // the legacy single-axis behavior so old call sites are unaffected.
+    if (damageType !== undefined) {
+        const def = this.getEffectiveDef(damageType);
+        const floor = (floorLevel ?? (window.game && window.game.dungeonFloor) ?? 0);
+        const mitigation = def / (def + 100 + 5 * floor);
+        damage = Math.max(1, damage * (1 - mitigation));
+        // Skip the legacy reduction below since we already mitigated.
+        this._gddMitigated = true;
+    }
+
     // Prevent damage to already dead units
     if (!this.isAlive || this.hp <= 0) {
         this.hp = 0;
@@ -115,10 +137,17 @@ takeDamage(damage) {
         return 0;
     }
     
-    // Calculate damage reduction from defense (diminishing returns)
-    const defense = this.getTotalDefense();
-    const damageReduction = defense / (defense + 100); // Returns 0-1 (0% to 100%)
-    let actualDamage = Math.max(1, Math.floor(damage * (1 - damageReduction)));
+    // Calculate damage reduction from defense (diminishing returns).
+    // Skipped if takeDamage was called with a damageType (already GDD-mitigated).
+    let actualDamage;
+    if (this._gddMitigated) {
+        this._gddMitigated = false;
+        actualDamage = Math.max(1, Math.floor(damage));
+    } else {
+        const defense = this.getTotalDefense();
+        const damageReduction = defense / (defense + 100); // Returns 0-1 (0% to 100%)
+        actualDamage = Math.max(1, Math.floor(damage * (1 - damageReduction)));
+    }
     
     // Shield absorbs damage first
     if (this.shieldAmount && this.shieldAmount > 0) {
@@ -211,8 +240,53 @@ getTotalDefense() {
     
     // Cap at 999 defense
     total = Math.min(total, 999);
-    
+
     return parseFloat(total.toFixed(2));
+}
+
+// GDD §4.1 core stats — these route the new physical/magical split.
+// Each falls back through the legacy single-axis getters so existing
+// equipment/runes/debuffs still apply until items roll p/m natively.
+getTotalPAtk() {
+    // Physical attack: pAtk base + everything getTotalAttack() already accumulates.
+    // Subclasses/items will diverge in Phase 5 when items roll p/m separately.
+    const legacy = this.getTotalAttack();
+    const physShare = this.pAtk / Math.max(1, this.attack || 1);
+    return parseFloat((legacy * physShare).toFixed(2));
+}
+getTotalMAtk() {
+    // Magical attack: mAtk base. Equipment doesn't carry mAtk yet (Phase 5).
+    let total = this.mAtk + (this.skillTreeMAtk || 0);
+    if (this.runePercentBonuses && this.runePercentBonuses.attack) {
+        total = total * (1 + this.runePercentBonuses.attack / 100);
+    }
+    return parseFloat(total.toFixed(2));
+}
+getTotalPDef() {
+    // Physical defense: pDef share of legacy total defense.
+    const legacy = this.getTotalDefense();
+    const physShare = this.pDef / Math.max(1, this.defense || 1);
+    return parseFloat((legacy * physShare).toFixed(2));
+}
+getTotalMDef() {
+    // Magical defense: mDef base. Equipment doesn't carry mDef yet (Phase 5).
+    let total = this.mDef + (this.skillTreeMDef || 0);
+    if (this.runePercentBonuses && this.runePercentBonuses.defense) {
+        total = total * (1 + this.runePercentBonuses.defense / 100);
+    }
+    return parseFloat(total.toFixed(2));
+}
+// Returns the attacker's effective ATK for the given damage type.
+getEffectiveAtk(damageType) {
+    if (damageType === 'magical') return this.getTotalMAtk();
+    if (damageType === 'mixed') return (this.getTotalPAtk() + this.getTotalMAtk()) / 2;
+    return this.getTotalPAtk();
+}
+// Returns the defender's effective DEF for the incoming damage type.
+getEffectiveDef(damageType) {
+    if (damageType === 'magical') return this.getTotalMDef();
+    if (damageType === 'mixed') return (this.getTotalPDef() + this.getTotalMDef()) / 2;
+    return this.getTotalPDef();
 }
 
 getTotalAttackSpeed() {

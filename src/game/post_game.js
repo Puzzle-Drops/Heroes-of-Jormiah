@@ -731,6 +731,13 @@ console.log('✅ Steam achievement tracking loaded');
                                 hpRegen: petBonusType === 'hpRegen' ? Math.max(0, (m.hpRegen || 0) - petBonus) : (m.hpRegen || 0),
                                 manaRegen: petBonusType === 'manaRegen' ? Math.max(0, (m.manaRegen || 0) - petBonus) : (m.manaRegen || 0),
                                 cdr: petBonusType === 'cdr' ? Math.max(0, (m.cdr || 0) - petBonus) : (m.cdr || 0),
+                                // Phase 4: serialize the GDD 6-stat axis directly so
+                                // saves don't have to be re-derived on every load.
+                                pAtk: m.pAtk ?? 0,
+                                mAtk: m.mAtk ?? 0,
+                                pDef: m.pDef ?? 0,
+                                mDef: m.mDef ?? 0,
+                                damageType: m.damageType || 'physical',
                                 isAlive: m.isAlive !== undefined ? m.isAlive : true,
                                 skillPoints: m.skillPoints || 0,
                                 skillTree: m.skillTree || {},
@@ -1012,6 +1019,36 @@ Click OK to start fresh, or Cancel to try manually recovering.`;
                             member.attack = saved.attack || member.attack;
                             member.defense = saved.defense || member.defense;
                             member.attackSpeed = saved.attackSpeed || member.attackSpeed;
+
+                            // Phase 4 migration: derive GDD 6-stat axis from legacy
+                            // attack/defense if the save predates them. The class
+                            // constructor seeded sane defaults; saves carry richer
+                            // values, so prefer saved when present and otherwise
+                            // keep the constructor's class-specific lean.
+                            if (saved.pAtk !== undefined) member.pAtk = saved.pAtk;
+                            else if (saved.attack !== undefined) {
+                                // Pre-Phase-4 save: route legacy attack to whichever
+                                // axis matches the class's damageType.
+                                if (member.damageType === 'magical') {
+                                    member.mAtk = saved.attack; member.pAtk = 0;
+                                } else if (member.damageType === 'mixed') {
+                                    member.pAtk = saved.attack / 2;
+                                    member.mAtk = saved.attack / 2;
+                                } else {
+                                    member.pAtk = saved.attack; member.mAtk = 0;
+                                }
+                            }
+                            if (saved.mAtk !== undefined) member.mAtk = saved.mAtk;
+                            if (saved.pDef !== undefined) member.pDef = saved.pDef;
+                            else if (saved.defense !== undefined) {
+                                // Default split: 70% physical, 30% magical for
+                                // physical/mixed leans; reversed for magical.
+                                const physShare = member.damageType === 'magical' ? 0.3 : 0.7;
+                                member.pDef = saved.defense * physShare;
+                                member.mDef = saved.defense * (1 - physShare);
+                            }
+                            if (saved.mDef !== undefined) member.mDef = saved.mDef;
+                            if (saved.damageType) member.damageType = saved.damageType;
                             member.critChance = saved.critChance || member.critChance;
                             member.critDamage = saved.critDamage || member.critDamage;
                             member.dodgeChance = saved.dodgeChance || 0;

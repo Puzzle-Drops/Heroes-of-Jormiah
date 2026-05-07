@@ -1,6 +1,10 @@
 class Tank extends Character {
     constructor() {
         super('Tank', 'Tank', 1, 100, 50, 5, 10, 0.8);
+        // GDD §6.3 Knight: HP/P.DEF focus, plate physical fighter.
+        this.pAtk = 5; this.mAtk = 0;
+        this.pDef = 10; this.mDef = 4;
+        this.damageType = 'physical';
         this.skillName = 'Taunt';
         this.baseManaSkillCost = 15;
         this.skillCost = 15;
@@ -73,6 +77,10 @@ class Tank extends Character {
 class Rogue extends Character {
     constructor() {
         super('Rogue', 'Rogue', 1, 80, 60, 8, 5, 1.5);
+        // GDD §6.3 Assassin/Rogue family: P.ATK focus, single-target burst.
+        this.pAtk = 8; this.mAtk = 0;
+        this.pDef = 5; this.mDef = 2;
+        this.damageType = 'physical';
         this.skillName = 'Double Strike';
         this.baseManaSkillCost = 15;
         this.skillCost = 15;
@@ -120,6 +128,10 @@ class Rogue extends Character {
 class Mage extends Character {
     constructor() {
                 super('Mage', 'Mage', 1, 70, 100, 10, 3, 0.9);
+                // GDD §6.3 Magician family (Pyromancer-aligned): pure caster, M.ATK focus.
+                this.pAtk = 0; this.mAtk = 10;
+                this.pDef = 3; this.mDef = 6;
+                this.damageType = 'magical';
                 this.skillName = 'Fireball';
                 this.baseManaSkillCost = 20;
                 this.skillCost = 20;
@@ -166,6 +178,10 @@ class Mage extends Character {
 class Healer extends Character {
     constructor() {
         super('Healer', 'Healer', 1, 75, 80, 4, 5, 1.0);
+        // GDD §6.3 Cleric: M.ATK / MP focus.
+        this.pAtk = 0; this.mAtk = 4;
+        this.pDef = 5; this.mDef = 6;
+        this.damageType = 'magical';
         this.skillName = 'Heal';
         this.baseManaSkillCost = 20;
         this.skillCost = 20;
@@ -222,6 +238,10 @@ class Healer extends Character {
 class Archer extends Character {
     constructor() {
         super('Archer', 'Archer', 1, 85, 70, 9, 4, 1.2);
+        // GDD §6.3 Marksman family (Archer): ranged P.ATK focus.
+        this.pAtk = 9; this.mAtk = 0;
+        this.pDef = 4; this.mDef = 3;
+        this.damageType = 'physical';
         this.skillName = 'Multi-Shot';
         this.baseManaSkillCost = 18;
         this.skillCost = 18;
@@ -271,6 +291,10 @@ class Archer extends Character {
 class Paladin extends Character {
     constructor() {
         super('Paladin', 'Paladin', 1, 90, 65, 6, 8, 0.95);
+        // GDD §6.3 Paladin: hybrid P.ATK + M.ATK, decent both defenses.
+        this.pAtk = 4; this.mAtk = 4;
+        this.pDef = 8; this.mDef = 6;
+        this.damageType = 'mixed';
         this.skillName = 'Divine Shield';
         this.baseManaSkillCost = 20;
         this.skillCost = 20;

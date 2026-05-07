@@ -11629,9 +11629,14 @@ performPartyAttack(member, aliveEnemies) {
                     }
                 }
 
-                // Regular attack if no skill
+                // Regular attack if no skill — Phase 4 routes through GDD's
+                // 6-stat axis: pAtk for physical attackers, mAtk for magical,
+                // averaged for mixed (Paladin). Falls back to legacy single-axis
+                // if a class hasn't declared a damageType.
 if (!performedAction) {
-    damage = member.getTotalAttack();
+    damage = member.getEffectiveAtk
+        ? member.getEffectiveAtk(member.damageType || 'physical')
+        : member.getTotalAttack();
 }
 
                 // Deal damage and handle movement
@@ -11822,8 +11827,15 @@ if (member.className === 'Healer') {
                         if (target.markedBy && target.markedDamageBonus) {
                             damage = Math.floor(damage * (1 + target.markedDamageBonus));
                         }
-                        
-                        const dealt = target.takeDamage(damage);
+
+                        // Phase 4: route through GDD §4.3 mitigation. Pass the
+                        // attacker's damageType so target uses pDef/mDef
+                        // appropriately, with floor scaling for late-content depth.
+                        const dealt = target.takeDamage(
+                            damage,
+                            member.damageType || 'physical',
+                            this.dungeonFloor
+                        );
                         
                         // Restore defense if it was modified
                         if (tempDefense !== null) {
@@ -12008,7 +12020,11 @@ performEnemyAttack(enemy, aliveParty) {
         
         // Deal damage after delay
         setTimeout(() => {
-            const dealt = target.takeDamage(damage);
+            const dealt = target.takeDamage(
+                damage,
+                enemy.damageType || 'physical',
+                this.dungeonFloor
+            );
             enemy.sprite.attacking = true;
             this.createFloatingText(target.sprite, `-${dealt}`, 'damage-text');
             
@@ -15568,6 +15584,22 @@ this.party.forEach((member, index) => {
     <div class="stat" title="Attack - Base damage dealt per hit before defense reduction">
         <span class="stat-label" data-stat="attack">ATK:</span>
         <span class="stat-value attack">${member.getTotalAttack()}</span>
+    </div>
+    <div class="stat" title="Physical Attack — scales physical abilities (GDD §4.1)">
+        <span class="stat-label" data-stat="patk" style="color:#fda4af;">P.ATK:</span>
+        <span class="stat-value" style="color:#fda4af;">${member.getTotalPAtk ? member.getTotalPAtk() : (member.pAtk ?? 0)}</span>
+    </div>
+    <div class="stat" title="Magical Attack — scales magical abilities (GDD §4.1)">
+        <span class="stat-label" data-stat="matk" style="color:#a5b4fc;">M.ATK:</span>
+        <span class="stat-value" style="color:#a5b4fc;">${member.getTotalMAtk ? member.getTotalMAtk() : (member.mAtk ?? 0)}</span>
+    </div>
+    <div class="stat" title="Physical Defense — reduces physical damage taken (GDD §4.3)">
+        <span class="stat-label" data-stat="pdef" style="color:#fda4af;">P.DEF:</span>
+        <span class="stat-value" style="color:#fda4af;">${member.getTotalPDef ? member.getTotalPDef() : (member.pDef ?? 0)}</span>
+    </div>
+    <div class="stat" title="Magical Defense — reduces magical damage taken (GDD §4.3)">
+        <span class="stat-label" data-stat="mdef" style="color:#a5b4fc;">M.DEF:</span>
+        <span class="stat-value" style="color:#a5b4fc;">${member.getTotalMDef ? member.getTotalMDef() : (member.mDef ?? 0)}</span>
     </div>
     <div class="stat" title="Attack Speed - Number of attacks per second (higher = faster attacks)">
         <span class="stat-label" data-stat="attackspeed">ATK SPD:</span>
