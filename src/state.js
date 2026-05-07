@@ -63,7 +63,29 @@ export const ACHIEVEMENTS = [
   { id: 'polymath',        name: 'Polymath',        desc: 'Unlock 12 classes.',                check: (s) => (s.unlockedClasses?.length ?? 0) >= 12 },
   { id: 'specialist',      name: 'Specialist',      desc: 'Allocate 20 tree nodes on a single class.', check: (s) => Object.values(s.roster ?? {}).some(u => (u.allocatedNodes?.length ?? 0) >= 21) },
   { id: 'cornerstone',     name: 'Cornerstone',     desc: 'Reach a Keystone on any class.',    check: (s, data) => Object.values(s.roster ?? {}).some(u => (u.allocatedNodes ?? []).some(id => data.treeNodesById?.[id]?.kind === 'keystone')) },
-  { id: 'dust_to_dust',    name: 'Dust to Dust',    desc: 'Salvage 25 items.',                 check: (s) => (s._eventCounters?.salvages ?? 0) >= 25 }
+  { id: 'dust_to_dust',    name: 'Dust to Dust',    desc: 'Salvage 25 items.',                 check: (s) => (s._eventCounters?.salvages ?? 0) >= 25 },
+
+  // endgame
+  { id: 'deep_diver',      name: 'Deep Diver',      desc: 'Clear floor 200.',                  check: (s) => maxFloor(s) >= 200 },
+  { id: 'wealthy',         name: 'Wealthy',         desc: 'Accumulate 1000 dust.',             check: (s) => (s.currencies?.dust ?? 0) >= 1000 },
+  { id: 'spendthrift',     name: 'Spendthrift',     desc: 'Reroll 50 stats.',                  check: (s) => (s._eventCounters?.rerolls ?? 0) >= 50 },
+  { id: 'tree_walker',     name: 'Tree Walker',     desc: 'Allocate 50 tree nodes on a single class.', check: (s) => Object.values(s.roster ?? {}).some(u => (u.allocatedNodes?.length ?? 0) >= 51) },
+  { id: 'octopath',        name: 'Octopath',        desc: 'Reach a notable in every arm across your roster.',
+    check: (s, data) => {
+      if (!data?.treeNodesById) return false;
+      const families = ['tank','fighter','rogue','marksman','magician','healer','mystic','farlands'];
+      const reached = new Set();
+      for (const u of Object.values(s.roster ?? {})) {
+        for (const id of u.allocatedNodes ?? []) {
+          const node = data.treeNodesById[id];
+          if (!node || node.kind !== 'notable') continue;
+          for (const fam of families) if (id.startsWith(`${fam}_`)) reached.add(fam);
+        }
+      }
+      return families.every(f => reached.has(f));
+    }
+  },
+  { id: 'crystallized',    name: 'Crystallized',    desc: 'Drop 5 Radiant items.',             check: (s) => (s._eventCounters?.radiantDrops ?? 0) >= 5 }
 ];
 
 function maxFloor(state) {

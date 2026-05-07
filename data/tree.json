@@ -225,7 +225,9 @@
         }
       ],
       "edges": [
-        "tank_8"
+        "tank_8",
+        "outer_tank_fighter_0",
+        "outer_farlands_tank_2"
       ]
     },
     {
@@ -416,7 +418,9 @@
         }
       ],
       "edges": [
-        "fighter_8"
+        "fighter_8",
+        "outer_tank_fighter_2",
+        "outer_fighter_rogue_0"
       ]
     },
     {
@@ -602,7 +606,9 @@
         }
       ],
       "edges": [
-        "rogue_8"
+        "rogue_8",
+        "outer_fighter_rogue_2",
+        "outer_rogue_marksman_0"
       ]
     },
     {
@@ -793,7 +799,9 @@
         }
       ],
       "edges": [
-        "marksman_8"
+        "marksman_8",
+        "outer_rogue_marksman_2",
+        "outer_marksman_magician_0"
       ]
     },
     {
@@ -984,7 +992,9 @@
         }
       ],
       "edges": [
-        "magician_8"
+        "magician_8",
+        "outer_marksman_magician_2",
+        "outer_magician_healer_0"
       ]
     },
     {
@@ -1180,7 +1190,9 @@
         }
       ],
       "edges": [
-        "healer_8"
+        "healer_8",
+        "outer_magician_healer_2",
+        "outer_healer_mystic_0"
       ]
     },
     {
@@ -1376,7 +1388,9 @@
         }
       ],
       "edges": [
-        "mystic_8"
+        "mystic_8",
+        "outer_healer_mystic_2",
+        "outer_mystic_farlands_0"
       ]
     },
     {
@@ -1582,7 +1596,513 @@
         }
       ],
       "edges": [
-        "farlands_8"
+        "farlands_8",
+        "outer_mystic_farlands_2",
+        "outer_farlands_tank_0"
+      ]
+    },
+    {
+      "id": "outer_tank_fighter_0",
+      "pos": [
+        1268,
+        -118
+      ],
+      "kind": "stat",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "hp",
+          "amount": 12
+        }
+      ],
+      "edges": [
+        "outer_tank_fighter_1",
+        "tank_9"
+      ]
+    },
+    {
+      "id": "outer_tank_fighter_1",
+      "pos": [
+        1440,
+        -62
+      ],
+      "kind": "notable",
+      "name": "Iron Surge",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "patk",
+          "amountPct": 5
+        },
+        {
+          "type": "stat",
+          "stat": "hp",
+          "amountPct": 5
+        }
+      ],
+      "edges": [
+        "outer_tank_fighter_0",
+        "outer_tank_fighter_2"
+      ]
+    },
+    {
+      "id": "outer_tank_fighter_2",
+      "pos": [
+        1601,
+        19
+      ],
+      "kind": "stat",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "patk",
+          "amount": 6
+        }
+      ],
+      "edges": [
+        "outer_tank_fighter_1",
+        "fighter_9"
+      ]
+    },
+    {
+      "id": "outer_fighter_rogue_0",
+      "pos": [
+        1981,
+        399
+      ],
+      "kind": "stat",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "patk",
+          "amount": 6
+        }
+      ],
+      "edges": [
+        "outer_fighter_rogue_1",
+        "fighter_9"
+      ]
+    },
+    {
+      "id": "outer_fighter_rogue_1",
+      "pos": [
+        2062,
+        560
+      ],
+      "kind": "notable",
+      "name": "Lethal Edge",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "critDamagePct",
+          "amountPct": 10
+        },
+        {
+          "type": "stat",
+          "stat": "patk",
+          "amountPct": 3
+        }
+      ],
+      "edges": [
+        "outer_fighter_rogue_0",
+        "outer_fighter_rogue_2"
+      ]
+    },
+    {
+      "id": "outer_fighter_rogue_2",
+      "pos": [
+        2118,
+        732
+      ],
+      "kind": "stat",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "patk",
+          "amount": 6
+        }
+      ],
+      "edges": [
+        "outer_fighter_rogue_1",
+        "rogue_9"
+      ]
+    },
+    {
+      "id": "outer_rogue_marksman_0",
+      "pos": [
+        2118,
+        1268
+      ],
+      "kind": "stat",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "patk",
+          "amount": 6
+        }
+      ],
+      "edges": [
+        "outer_rogue_marksman_1",
+        "rogue_9"
+      ]
+    },
+    {
+      "id": "outer_rogue_marksman_1",
+      "pos": [
+        2062,
+        1440
+      ],
+      "kind": "notable",
+      "name": "Sharpshooter",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "critChancePct",
+          "amountPct": 5
+        },
+        {
+          "type": "stat",
+          "stat": "attackSpeedPct",
+          "amountPct": 5
+        }
+      ],
+      "edges": [
+        "outer_rogue_marksman_0",
+        "outer_rogue_marksman_2"
+      ]
+    },
+    {
+      "id": "outer_rogue_marksman_2",
+      "pos": [
+        1981,
+        1601
+      ],
+      "kind": "stat",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "patk",
+          "amount": 6
+        }
+      ],
+      "edges": [
+        "outer_rogue_marksman_1",
+        "marksman_9"
+      ]
+    },
+    {
+      "id": "outer_marksman_magician_0",
+      "pos": [
+        1601,
+        1981
+      ],
+      "kind": "stat",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "patk",
+          "amount": 6
+        }
+      ],
+      "edges": [
+        "outer_marksman_magician_1",
+        "marksman_9"
+      ]
+    },
+    {
+      "id": "outer_marksman_magician_1",
+      "pos": [
+        1440,
+        2062
+      ],
+      "kind": "notable",
+      "name": "Spellsword",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "patk",
+          "amountPct": 5
+        },
+        {
+          "type": "stat",
+          "stat": "matk",
+          "amountPct": 5
+        }
+      ],
+      "edges": [
+        "outer_marksman_magician_0",
+        "outer_marksman_magician_2"
+      ]
+    },
+    {
+      "id": "outer_marksman_magician_2",
+      "pos": [
+        1268,
+        2118
+      ],
+      "kind": "stat",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "matk",
+          "amount": 6
+        }
+      ],
+      "edges": [
+        "outer_marksman_magician_1",
+        "magician_9"
+      ]
+    },
+    {
+      "id": "outer_magician_healer_0",
+      "pos": [
+        732,
+        2118
+      ],
+      "kind": "stat",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "matk",
+          "amount": 6
+        }
+      ],
+      "edges": [
+        "outer_magician_healer_1",
+        "magician_9"
+      ]
+    },
+    {
+      "id": "outer_magician_healer_1",
+      "pos": [
+        560,
+        2062
+      ],
+      "kind": "notable",
+      "name": "Channeler",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "matk",
+          "amountPct": 5
+        },
+        {
+          "type": "stat",
+          "stat": "mp",
+          "amountPct": 10
+        }
+      ],
+      "edges": [
+        "outer_magician_healer_0",
+        "outer_magician_healer_2"
+      ]
+    },
+    {
+      "id": "outer_magician_healer_2",
+      "pos": [
+        399,
+        1981
+      ],
+      "kind": "stat",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "mp",
+          "amount": 8
+        }
+      ],
+      "edges": [
+        "outer_magician_healer_1",
+        "healer_9"
+      ]
+    },
+    {
+      "id": "outer_healer_mystic_0",
+      "pos": [
+        19,
+        1601
+      ],
+      "kind": "stat",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "mp",
+          "amount": 8
+        }
+      ],
+      "edges": [
+        "outer_healer_mystic_1",
+        "healer_9"
+      ]
+    },
+    {
+      "id": "outer_healer_mystic_1",
+      "pos": [
+        -62,
+        1440
+      ],
+      "kind": "notable",
+      "name": "Devoted Mystic",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "matk",
+          "amountPct": 5
+        },
+        {
+          "type": "stat",
+          "stat": "mdef",
+          "amountPct": 5
+        }
+      ],
+      "edges": [
+        "outer_healer_mystic_0",
+        "outer_healer_mystic_2"
+      ]
+    },
+    {
+      "id": "outer_healer_mystic_2",
+      "pos": [
+        -118,
+        1268
+      ],
+      "kind": "stat",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "mdef",
+          "amount": 6
+        }
+      ],
+      "edges": [
+        "outer_healer_mystic_1",
+        "mystic_9"
+      ]
+    },
+    {
+      "id": "outer_mystic_farlands_0",
+      "pos": [
+        -118,
+        732
+      ],
+      "kind": "stat",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "mdef",
+          "amount": 6
+        }
+      ],
+      "edges": [
+        "outer_mystic_farlands_1",
+        "mystic_9"
+      ]
+    },
+    {
+      "id": "outer_mystic_farlands_1",
+      "pos": [
+        -62,
+        560
+      ],
+      "kind": "notable",
+      "name": "Spirit Bender",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "matk",
+          "amount": 5
+        },
+        {
+          "type": "stat",
+          "stat": "patk",
+          "amount": 5
+        }
+      ],
+      "edges": [
+        "outer_mystic_farlands_0",
+        "outer_mystic_farlands_2"
+      ]
+    },
+    {
+      "id": "outer_mystic_farlands_2",
+      "pos": [
+        19,
+        399
+      ],
+      "kind": "stat",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "matk",
+          "amount": 6
+        }
+      ],
+      "edges": [
+        "outer_mystic_farlands_1",
+        "farlands_9"
+      ]
+    },
+    {
+      "id": "outer_farlands_tank_0",
+      "pos": [
+        399,
+        19
+      ],
+      "kind": "stat",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "hp",
+          "amount": 12
+        }
+      ],
+      "edges": [
+        "outer_farlands_tank_1",
+        "farlands_9"
+      ]
+    },
+    {
+      "id": "outer_farlands_tank_1",
+      "pos": [
+        560,
+        -62
+      ],
+      "kind": "notable",
+      "name": "Untouchable",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "hp",
+          "amountPct": 5
+        },
+        {
+          "type": "stat",
+          "stat": "pdef",
+          "amountPct": 5
+        }
+      ],
+      "edges": [
+        "outer_farlands_tank_0",
+        "outer_farlands_tank_2"
+      ]
+    },
+    {
+      "id": "outer_farlands_tank_2",
+      "pos": [
+        732,
+        -118
+      ],
+      "kind": "stat",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "pdef",
+          "amount": 6
+        }
+      ],
+      "edges": [
+        "outer_farlands_tank_1",
+        "tank_9"
       ]
     }
   ]
