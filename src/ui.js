@@ -36,19 +36,43 @@ export function showHub() {
   const data = getData();
   const state = getState();
   const partySet = new Set(state.party);
-  const familyOrder = data.families.families.map(f => f.id);
-  // Sort: party members first (in their slot order), then by family group, then alphabetic.
-  const rosterIds = state.unlockedClasses.slice().sort((a, b) => {
-    const ai = state.party.indexOf(a), bi = state.party.indexOf(b);
-    if (ai !== -1 && bi !== -1) return ai - bi;
-    if (ai !== -1) return -1;
-    if (bi !== -1) return 1;
-    const fa = data.classesById[a]?.family;
-    const fb = data.classesById[b]?.family;
-    const fi = familyOrder.indexOf(fa) - familyOrder.indexOf(fb);
-    if (fi !== 0) return fi;
-    return a.localeCompare(b);
-  });
+  const families = data.families.families;
+  const benchIds = state.unlockedClasses
+    .filter(id => !partySet.has(id))
+    .sort((a, b) => a.localeCompare(b));
+  const benchByFamily = Object.fromEntries(families.map(f => [f.id, []]));
+  for (const id of benchIds) {
+    const fam = data.classesById[id]?.family;
+    if (benchByFamily[fam]) benchByFamily[fam].push(id);
+  }
+
+  const partySection = `
+    <div class="roster-section">
+      <div class="roster-section-head">
+        <span class="rs-name">In Party</span>
+        <span class="rs-count">${state.party.filter(Boolean).length} / 6</span>
+      </div>
+      <div class="roster-grid">
+        ${state.party.map(id => id ? renderRosterCard(id, true) : '').join('')}
+      </div>
+    </div>
+  `;
+  const familySections = families.map(f => {
+    const ids = benchByFamily[f.id];
+    if (!ids.length) return '';
+    return `
+      <div class="roster-section">
+        <div class="roster-section-head">
+          <span class="rs-name">${f.name}</span>
+          <span class="rs-count">${ids.length}</span>
+          <span class="rs-tag">${f.tag}</span>
+        </div>
+        <div class="roster-grid">
+          ${ids.map(id => renderRosterCard(id, false)).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
 
   root().innerHTML = `
     <div class="hub">
@@ -59,9 +83,8 @@ export function showHub() {
             <h2>Roster</h2>
             <div class="roster-meta">${state.unlockedClasses.length} / ${data.classes.classes.length} classes</div>
           </div>
-          <div class="roster-grid">
-            ${rosterIds.map(id => renderRosterCard(id, partySet.has(id))).join('')}
-          </div>
+          ${partySection}
+          ${familySections}
         </div>
         <div class="panel">
           <h2>Party Formation</h2>

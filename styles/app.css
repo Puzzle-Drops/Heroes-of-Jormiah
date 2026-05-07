@@ -187,6 +187,25 @@ button:disabled:hover { background: var(--bg-panel-hi); color: var(--ink); }
 .roster-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
 .roster-head h2 { margin: 0; }
 .roster-head .roster-meta { font-family: var(--mono); font-size: 11px; color: var(--ink-muted); }
+
+.roster-section { margin-bottom: 18px; }
+.roster-section-head {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 6px 4px; margin-bottom: 8px;
+  border-bottom: 1px solid #2a2c4a;
+}
+.roster-section-head .rs-name {
+  font-family: var(--display); font-size: 13px; letter-spacing: 3px;
+  text-transform: uppercase; color: var(--brass-hot);
+}
+.roster-section-head .rs-count {
+  font-family: var(--mono); font-size: 10px; color: var(--ink-muted);
+}
+.roster-section-head .rs-tag {
+  margin-left: auto;
+  font-family: var(--mono); font-size: 9.5px; color: var(--ink-muted);
+  letter-spacing: 1.5px; text-transform: uppercase;
+}
 .next-unlock {
   margin-top: 14px;
   padding: 10px 14px;

@@ -67,8 +67,6 @@ export const ACHIEVEMENTS = [
     progress: (s) => ({ current: Math.min(100, s.currencies?.dust ?? 0), target: 100 }) },
   { id: 'tinkerer',        name: 'Tinkerer',        desc: 'Reroll a stat 5 times.',            check: (s) => (s._eventCounters?.rerolls ?? 0) >= 5,
     progress: (s) => ({ current: Math.min(5, s._eventCounters?.rerolls ?? 0), target: 5 }) },
-  { id: 'polymath',        name: 'Polymath',        desc: 'Unlock 12 classes.',                check: (s) => (s.unlockedClasses?.length ?? 0) >= 12,
-    progress: (s) => ({ current: Math.min(12, s.unlockedClasses?.length ?? 0), target: 12 }) },
   { id: 'specialist',      name: 'Specialist',      desc: 'Allocate 20 tree nodes on a single class.', check: (s) => Object.values(s.roster ?? {}).some(u => (u.allocatedNodes?.length ?? 0) >= 21),
     progress: (s) => {
       let m = 0; for (const u of Object.values(s.roster ?? {})) m = Math.max(m, (u.allocatedNodes?.length ?? 1) - 1);
