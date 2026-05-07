@@ -6,9 +6,10 @@ import {
   rerollCost, rerollItemStat,
   isInParty, addToParty, removeFromParty, swapPartyAt, getNextUnlock,
   processFloorUnlocks, FLOOR_UNLOCKS,
-  ACHIEVEMENTS, checkAchievements, recordEvent
+  ACHIEVEMENTS, checkAchievements, recordEvent,
+  saveLoadout, loadLoadout, deleteLoadout, getLoadouts, LOADOUT_MAX
 } from './state.js';
-import { createBattle, tickBattle, reviveSurvivors } from './combat/engine.js';
+import { createBattle, tickBattle, reviveSurvivors, peekFloorBoss } from './combat/engine.js';
 import { generateItemForDungeon } from './combat/loot.js';
 import { renderBattle, placeUnits, preloadBattleSprites } from './render.js';
 import { preloadClassSprites } from './sprites.js';
@@ -96,10 +97,14 @@ function renderDungeonBtn(dungeonId, state, dropLabel) {
   const dungeon = getData().dungeonsById[dungeonId];
   const isActive = state.settings.selectedDungeon === dungeonId;
   const ds = state.dungeons[dungeonId] ?? { highestFloor: 0 };
+  const nextFloor = (ds.currentRunFloor && ds.currentRunFloor > 0) ? ds.currentRunFloor : 1;
+  const nextBoss = peekFloorBoss(dungeonId, nextFloor);
+  const specialLabel = nextBoss?.special ? ` · ${prettyKey(nextBoss.special)}` : '';
   return `
     <button class="dungeon-btn ${isActive ? 'active' : ''}" data-dungeon="${dungeonId}">
       <div class="name">${dungeon.name}</div>
-      <div class="meta">Highest floor: ${ds.highestFloor} · Drops: ${dropLabel}</div>
+      <div class="meta">Floor ${nextFloor} · Highest ${ds.highestFloor} · ${dropLabel}</div>
+      ${nextBoss ? `<div class="next-boss">Next: <b>${nextBoss.name}</b>${specialLabel}</div>` : ''}
     </button>
   `;
 }
@@ -240,6 +245,10 @@ export function showUnitDetail(classId) {
             ${renderPartyControls(classId, inParty, fullParty, party)}
             <button id="tree-btn" class="tree-btn-inline">Passive Tree (${pointsAvailable(classId)} pts)</button>
           </div>
+          <div class="loadouts-bar">
+            <div class="loadouts-label">Loadouts</div>
+            ${[0, 1, 2].map(i => renderLoadoutSlot(classId, i)).join('')}
+          </div>
           <div class="paper-doll">
             <div class="row">${SLOT_LAYOUT_TOP.map(s => renderEquipSlot(s, unit.equipment[s])).join('')}</div>
             <div class="row">${SLOT_LAYOUT_BOTTOM.map(s => renderEquipSlot(s, unit.equipment[s])).join('')}</div>
@@ -288,6 +297,22 @@ function renderPartyControls(classId, inParty, fullParty, party) {
     <div class="party-state out">On Bench · party full</div>
     <div class="swap-grid">
       ${party.map((id, i) => `<button class="swap-btn" data-slot="${i}">Replace #${i + 1}: ${getData().classesById[id]?.displayName ?? id}</button>`).join('')}
+    </div>
+  `;
+}
+
+function renderLoadoutSlot(classId, i) {
+  const loadout = getLoadouts(classId)[i];
+  if (!loadout) {
+    return `<div class="loadout-slot empty"><span class="lo-name">Slot ${i + 1}</span><button class="loadout-save" data-slot="${i}">Save current</button></div>`;
+  }
+  const filled = Object.values(loadout.slots).filter(Boolean).length;
+  return `
+    <div class="loadout-slot filled" data-slot="${i}">
+      <span class="lo-name" title="${loadout.name}">${loadout.name}</span>
+      <span class="lo-count">${filled} items</span>
+      <button class="loadout-load"  data-slot="${i}">Load</button>
+      <button class="loadout-delete" data-slot="${i}" title="Delete">✕</button>
     </div>
   `;
 }
@@ -385,6 +410,38 @@ function bindUnitDetail(classId) {
   }
   const treeBtn = document.getElementById('tree-btn');
   if (treeBtn) treeBtn.addEventListener('click', () => showTreeScreen(classId));
+
+  // loadouts
+  for (const btn of document.querySelectorAll('.loadout-save')) {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.dataset.slot);
+      const name = (prompt('Loadout name:', `Build ${idx + 1}`) || '').trim();
+      if (!name) return;
+      // Save into the specific slot index. saveLoadout always appends, so we
+      // splice the existing if present, then call save.
+      const u = getState().roster[classId];
+      while ((u.loadouts?.length ?? 0) > idx) u.loadouts.splice(idx, 1);
+      saveLoadout(classId, name);
+      showUnitDetail(classId);
+    });
+  }
+  for (const btn of document.querySelectorAll('.loadout-load')) {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.dataset.slot);
+      const r = loadLoadout(classId, idx);
+      showUnitDetail(classId);
+      if (r.missing && r.missing.length) flash(`Loadout loaded · ${r.missing.length} slot${r.missing.length > 1 ? 's' : ''} missing items.`);
+      else flash('Loadout applied.');
+    });
+  }
+  for (const btn of document.querySelectorAll('.loadout-delete')) {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.dataset.slot);
+      if (!confirm('Delete this loadout?')) return;
+      deleteLoadout(classId, idx);
+      showUnitDetail(classId);
+    });
+  }
 
   // stash rows
   const salvageRusted = document.getElementById('salvage-rusted-btn');

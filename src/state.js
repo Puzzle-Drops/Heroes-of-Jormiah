@@ -455,6 +455,72 @@ export function swapPartyAt(slotIdx, newClassId) {
   return true;
 }
 
+// ----- Equipment loadouts (up to 3 saved snapshots per class) -----
+export const LOADOUT_MAX = 3;
+
+export function getLoadouts(classId) {
+  const u = _state.roster[classId];
+  if (!u) return [];
+  if (!Array.isArray(u.loadouts)) u.loadouts = [];
+  return u.loadouts;
+}
+
+export function saveLoadout(classId, name) {
+  const unit = _state.roster[classId];
+  if (!unit) return false;
+  if (!Array.isArray(unit.loadouts)) unit.loadouts = [];
+  if (unit.loadouts.length >= LOADOUT_MAX) return false;
+  const slots = {};
+  for (const slotId in unit.equipment) {
+    const it = unit.equipment[slotId];
+    slots[slotId] = (it && !it.isStarter) ? it.id : null;
+  }
+  unit.loadouts.push({
+    name: (name || `Loadout ${unit.loadouts.length + 1}`).slice(0, 24),
+    slots,
+    savedAt: Date.now()
+  });
+  persist();
+  return true;
+}
+
+export function loadLoadout(classId, idx) {
+  const unit = _state.roster[classId];
+  if (!unit || !Array.isArray(unit.loadouts) || !unit.loadouts[idx]) return { ok: false, missing: [] };
+  const target = unit.loadouts[idx].slots;
+  // Unequip all current non-starter items to stash
+  for (const slotId of Object.keys(unit.equipment)) {
+    const it = unit.equipment[slotId];
+    if (it && !it.isStarter) {
+      unit.equipment[slotId] = null;
+      _state.sharedStash.push(it);
+    }
+  }
+  // Equip from snapshot if items are still findable + compatible
+  const missing = [];
+  for (const slotId in target) {
+    const id = target[slotId];
+    if (!id) continue;
+    const stashIdx = _state.sharedStash.findIndex(s => s.id === id);
+    if (stashIdx === -1) { missing.push(slotId); continue; }
+    const item = _state.sharedStash[stashIdx];
+    if (!canEquip(item, classId, slotId)) { missing.push(slotId); continue; }
+    _state.sharedStash.splice(stashIdx, 1);
+    unit.equipment[slotId] = item;
+  }
+  persist();
+  return { ok: true, missing };
+}
+
+export function deleteLoadout(classId, idx) {
+  const unit = _state.roster[classId];
+  if (!unit || !Array.isArray(unit.loadouts)) return false;
+  if (idx < 0 || idx >= unit.loadouts.length) return false;
+  unit.loadouts.splice(idx, 1);
+  persist();
+  return true;
+}
+
 function starterStone(abilityId) {
   return {
     id: `starter_${abilityId}`,

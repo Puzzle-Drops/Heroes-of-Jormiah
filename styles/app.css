@@ -159,6 +159,8 @@ button:disabled:hover { background: var(--bg-panel-hi); color: var(--ink); }
 .dungeon-btn:hover { border-color: var(--brass); }
 .dungeon-btn.active { border-color: var(--brass); background: #1f1d1a; }
 .dungeon-btn:disabled { cursor: not-allowed; opacity: 0.4; }
+.dungeon-btn .next-boss { font-family: var(--mono); font-size: 9.5px; color: var(--ember); margin-top: 3px; letter-spacing: 0.3px; text-transform: none; }
+.dungeon-btn .next-boss b { color: var(--ember); font-weight: 600; }
 
 .enter-btn { font-size: 14px; padding: 14px 28px; background: var(--brass); color: var(--bg-deep); border-color: var(--brass-hot); }
 .enter-btn:hover { background: var(--brass-hot); }
@@ -325,6 +327,41 @@ button:disabled:hover { background: var(--bg-panel-hi); color: var(--ink); }
   background: rgba(168,85,247,0.12); border-color: rgba(168,85,247,0.6); color: #c4b5fd;
 }
 .tree-btn-inline:hover { background: rgba(168,85,247,0.25); color: var(--ink); border-color: #a855f7; }
+
+/* ============ LOADOUTS ============ */
+.loadouts-bar {
+  display: grid;
+  grid-template-columns: auto repeat(3, 1fr);
+  gap: 8px;
+  align-items: center;
+  background: var(--bg-panel-hi);
+  padding: 8px 12px;
+  margin-bottom: 14px;
+  border: 1px solid #2a2c4a;
+}
+.loadouts-bar .loadouts-label {
+  font-family: var(--mono); font-size: 9px; color: var(--ink-muted);
+  letter-spacing: 1.5px; text-transform: uppercase;
+}
+.loadout-slot {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg-panel); border: 1px solid #2a2c4a;
+  padding: 6px 10px; min-height: 30px;
+  font-size: 11px;
+}
+.loadout-slot.empty .lo-name { color: var(--ink-muted); font-style: italic; flex: 1; }
+.loadout-slot.filled { border-color: var(--rune); }
+.loadout-slot.filled .lo-name {
+  font-family: var(--display); font-size: 12px; letter-spacing: 1px; color: var(--ink); flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.loadout-slot .lo-count { font-family: var(--mono); font-size: 9px; color: var(--ink-muted); }
+.loadout-slot button { padding: 3px 8px; font-size: 9px; }
+.loadout-slot .loadout-save { margin-left: auto; }
+.loadout-slot .loadout-delete {
+  background: transparent; border-color: #3a2424; color: var(--ink-muted); padding: 3px 6px;
+}
+.loadout-slot .loadout-delete:hover { color: var(--ember); border-color: var(--ember); background: rgba(214,59,59,0.1); }
 
 /* ============ TOOLTIPS ============ */
 .tooltip {

@@ -476,3 +476,12 @@ export function reviveSurvivors(playerUnits) {
 }
 
 export { buffMultiplier, effectiveStat };
+
+// Returns metadata for the boss the player would meet at `floor` of `dungeonId`.
+// Used by the hub for boss-preview hints (no spoilers past the boss list cycle).
+export function peekFloorBoss(dungeonId, floor) {
+  const set = ENEMIES[dungeonId];
+  if (!set || floor < 1) return null;
+  const tpl = set.bosses[floor % set.bosses.length];
+  return { name: tpl.name, special: tpl.special ?? null };
+}
