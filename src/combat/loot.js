@@ -1,4 +1,5 @@
-import { getData } from '../state.js';
+import { getData, getState } from '../state.js';
+import { prettyAbility } from '../humanize.js';
 
 const STATS = ['hp', 'mp', 'patk', 'matk', 'pdef', 'mdef'];
 let _idCounter = 1;
@@ -8,20 +9,17 @@ export function generateItemForDungeon(dungeonId, floor) {
   const data = getData();
   const dungeon = data.dungeonsById[dungeonId];
   const slotId = pickRandom(dungeon.drops);
+  if (slotId.startsWith('stone_')) return generateStone(slotId, floor);
   return generateItem(slotId, floor);
 }
 
 export function generateItem(slotId, itemLevel) {
   const slot = getData().slotsById[slotId];
   const namesake = pickNamesake(slot);
-  const stats = {};
-  for (const s of STATS) {
-    const max = (s === namesake) ? 2 * itemLevel : itemLevel;
-    stats[s] = Math.round(Math.random() * max);
-  }
+  const stats = rollStats(itemLevel, namesake);
   const qualityScore = computeQualityScore(stats, namesake, itemLevel);
   const rarity = computeRarity(qualityScore);
-  const item = {
+  return {
     id: newId(),
     slotId,
     kind: slot.category,
@@ -33,10 +31,50 @@ export function generateItem(slotId, itemLevel) {
     rarity,
     displayName: composeName(slot, namesake, itemLevel)
   };
-  if (slot.category === 'stone') {
-    item.abilityLevel = Math.min(100, itemLevel);
+}
+
+// Generates a stone bound to a random unlocked class's matching ability slot,
+// e.g. a stone_attack roll while Pyromancer is unlocked might bind to the
+// Firebolt ability and only fit Pyromancer's stone_attack slot.
+export function generateStone(slotId, itemLevel) {
+  const data = getData();
+  const state = getState();
+  const candidates = state.unlockedClasses;
+  const classId = pickRandom(candidates);
+  const cls = data.classesById[classId];
+  const slotKey = slotId.replace('stone_', '');
+  const abilityId = cls.abilities[slotKey];
+
+  const slot = data.slotsById[slotId];
+  const namesake = pickNamesake(slot);
+  const stats = rollStats(itemLevel, namesake);
+  const qualityScore = computeQualityScore(stats, namesake, itemLevel);
+  const rarity = computeRarity(qualityScore);
+
+  return {
+    id: newId(),
+    slotId,
+    kind: 'stone',
+    level: itemLevel,
+    statLevel: itemLevel,
+    abilityLevel: Math.min(100, itemLevel),
+    abilityId,
+    forClassId: classId,
+    namesake,
+    stats,
+    qualityScore,
+    rarity,
+    displayName: `Lvl ${itemLevel} ${prettyAbility(abilityId)} Stone`
+  };
+}
+
+function rollStats(itemLevel, namesake) {
+  const out = {};
+  for (const s of STATS) {
+    const max = (s === namesake) ? 2 * itemLevel : itemLevel;
+    out[s] = Math.round(Math.random() * max);
   }
-  return item;
+  return out;
 }
 
 function pickNamesake(slot) {

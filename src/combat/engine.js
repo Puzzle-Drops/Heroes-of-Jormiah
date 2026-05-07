@@ -9,14 +9,20 @@ const TICK_HZ = 30;
 const TICK_DT = 1 / TICK_HZ;
 const STAT_KEYS = ['hp', 'mp', 'patk', 'matk', 'pdef', 'mdef'];
 
-const ENEMY_ATTACK_TPL = {
+const ENEMY_PHYS_ATTACK_TPL = {
   type: 'attack', school: 'physical', manaCost: 0,
   scaling: { cooldown: { min: 2.5, max: 1.5 }, abilityPower: { min: 0.9, max: 0.9 } },
   effects: [{ type: 'damage', targets: 'single_enemy_front', stat: 'patk', powerScalar: 'abilityPower' }]
 };
+const ENEMY_MAG_ATTACK_TPL = {
+  type: 'attack', school: 'magical', manaCost: 0,
+  scaling: { cooldown: { min: 2.8, max: 1.8 }, abilityPower: { min: 0.85, max: 0.85 } },
+  effects: [{ type: 'damage', targets: 'single_enemy_front', stat: 'matk', powerScalar: 'abilityPower' }]
+};
 
 const ENEMIES = {
   iron_vaults: {
+    attackTpl: ENEMY_PHYS_ATTACK_TPL,
     bosses: [
       { name: 'Iron Sentinel',  baseHp: 60,  baseDmg: 6, basePdef: 8,  baseMdef: 4 },
       { name: 'Castellan',      baseHp: 75,  baseDmg: 7, basePdef: 10, baseMdef: 4 },
@@ -26,6 +32,19 @@ const ENEMIES = {
     minions: [
       { name: 'Fortress Soldier',   baseHp: 24, baseDmg: 3, basePdef: 4, baseMdef: 2 },
       { name: 'Crossbow Conscript', baseHp: 20, baseDmg: 4, basePdef: 3, baseMdef: 2 }
+    ]
+  },
+  shattered_spire: {
+    attackTpl: ENEMY_MAG_ATTACK_TPL,
+    bosses: [
+      { name: 'Aetheric Construct', baseHp: 80,  baseDmg: 7,  basePdef: 4, baseMdef: 12 },
+      { name: 'Reality Twister',    baseHp: 100, baseDmg: 8,  basePdef: 5, baseMdef: 14 },
+      { name: 'Spire Anomaly',      baseHp: 120, baseDmg: 9,  basePdef: 6, baseMdef: 16 },
+      { name: 'Warden of the Spire',baseHp: 140, baseDmg: 10, basePdef: 7, baseMdef: 18 }
+    ],
+    minions: [
+      { name: 'Echo Wisp',    baseHp: 22, baseDmg: 4, basePdef: 2, baseMdef: 5 },
+      { name: 'Fractal Imp',  baseHp: 26, baseDmg: 5, basePdef: 3, baseMdef: 4 }
     ]
   }
 };
@@ -238,18 +257,17 @@ function spawnFloor(dungeonId, floor) {
   const boss = set.bosses[floor % set.bosses.length];
   const minionCount = floor < 5 ? 0 : floor < 15 ? 1 : floor < 30 ? 2 : 3;
   const out = [];
-  // boss in center-front
-  out.push(buildEnemy(boss, floor, 'front', 1));
+  out.push(buildEnemy(boss, floor, 'front', 1, set.attackTpl));
   for (let i = 0; i < minionCount; i++) {
     const m = set.minions[i % set.minions.length];
     const positions = [{ row: 'front', col: 0 }, { row: 'front', col: 2 }, { row: 'back', col: 1 }];
     const pos = positions[i] || { row: 'back', col: i };
-    out.push(buildEnemy(m, floor, pos.row, pos.col));
+    out.push(buildEnemy(m, floor, pos.row, pos.col, set.attackTpl));
   }
   return out;
 }
 
-function buildEnemy(template, floor, row, col) {
+function buildEnemy(template, floor, row, col, attackTpl) {
   const hp = Math.round(F.enemyHP(template.baseHp, floor));
   const dmg = Math.round(F.enemyDmg(template.baseDmg, floor));
   const pdef = Math.round(F.enemyDef(template.basePdef, floor));
@@ -263,7 +281,7 @@ function buildEnemy(template, floor, row, col) {
     hp, maxHp: hp, mp: 0, maxMp: 0,
     stats: { hp, mp: 0, patk: dmg, matk: dmg, pdef, mdef },
     abilities: {
-      attack: { id: 'enemy_attack', ability: ENEMY_ATTACK_TPL, stoneLevel: Math.min(100, floor + 10), cooldown: 0 }
+      attack: { id: 'enemy_attack', ability: attackTpl ?? ENEMY_PHYS_ATTACK_TPL, stoneLevel: Math.min(100, floor + 10), cooldown: 0 }
     },
     buffs: [], hots: [], regen: [],
     dots: [], shields: [], marks: [],

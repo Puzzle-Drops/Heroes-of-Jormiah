@@ -251,9 +251,12 @@ button:disabled:hover { background: var(--bg-panel-hi); color: var(--ink); }
 .ability-chip .chip-name { font-family: var(--display); font-size: 13px; margin-top: 2px; }
 .ability-chip .chip-lvl  { font-family: var(--mono); font-size: 10px; color: var(--brass-hot); margin-top: 4px; }
 
-.stash-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-.stash-head h2 { margin: 0; }
-.stash-head button { margin-left: auto; }
+.stash-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.stash-head h2 { margin: 0; display: flex; align-items: baseline; gap: 8px; }
+.stash-head .stash-count { font-family: var(--mono); font-size: 11px; color: var(--ink-muted); font-weight: normal; letter-spacing: 0; }
+.stash-head .stash-actions { margin-left: auto; display: flex; gap: 6px; }
+.stash-head button.ghost { background: transparent; color: var(--ink-muted); border-color: #2a2c4a; font-size: 10px; padding: 6px 10px; }
+.stash-head button.ghost:hover { color: var(--ink); border-color: var(--brass); background: var(--bg-panel-hi); }
 .stash-list { display: flex; flex-direction: column; gap: 6px; }
 .stash-list .empty { color: var(--ink-muted); font-style: italic; font-size: 12px; padding: 12px; }
 .stash-row {
@@ -283,7 +286,14 @@ button:disabled:hover { background: var(--bg-panel-hi); color: var(--ink); }
 .stash-row .name.r-radiant   { color: var(--r-radiant); }
 .stash-row .stats { font-family: var(--mono); font-size: 10px; color: var(--ink-muted); display: flex; flex-wrap: wrap; gap: 6px; }
 .stash-row .meta { font-family: var(--mono); font-size: 10px; color: var(--brass-hot); }
+.stash-row .act { display: flex; gap: 4px; }
 .stash-row button.equip-btn { padding: 5px 10px; font-size: 10px; }
+.stash-row button.salvage-btn { padding: 5px 8px; font-size: 10px; background: transparent; border-color: #3a2424; color: var(--ink-muted); }
+.stash-row button.salvage-btn:hover { background: rgba(214, 59, 59, 0.15); border-color: var(--ember); color: var(--ember); }
+.stash-row.incompat { opacity: 0.55; }
+.stash-row.incompat .name { color: var(--ink-muted) !important; }
+.stash-row .stone-tag { font-family: var(--mono); font-size: 9px; color: var(--azure); letter-spacing: 1px; text-transform: uppercase; margin-left: 6px; }
+.stash-row .stone-tag.incompat { color: var(--ember); }
 
 /* ============ TOOLTIPS ============ */
 .tooltip {

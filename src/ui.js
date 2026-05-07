@@ -1,6 +1,8 @@
 import {
   getData, getState, persist, resetSave,
   dropItemToStash, equipItem, unequipSlot, equipBestByScore, slotsForItem,
+  canEquip, isItemUsableBy,
+  salvageItem, salvageValue, bulkSalvage,
   isInParty, addToParty, removeFromParty, swapPartyAt, getNextUnlock,
   processFloorUnlocks, FLOOR_UNLOCKS
 } from './state.js';
@@ -72,19 +74,28 @@ export function showHub() {
       </div>
       <div class="dungeon-bar">
         <div class="dungeon-list">
-          <button class="dungeon-btn active">
-            <div class="name">${dungeon.name}</div>
-            <div class="meta">Highest floor: ${highest} · Drops: armor</div>
-          </button>
+          ${renderDungeonBtn('iron_vaults',     state, 'armor')}
+          ${renderDungeonBtn('shattered_spire', state, 'stones')}
           <button class="dungeon-btn" disabled><div class="name">Whispering Spires</div><div class="meta">Locked (M2)</div></button>
           <button class="dungeon-btn" disabled><div class="name">Hollowed Wilds</div><div class="meta">Locked (M2)</div></button>
-          <button class="dungeon-btn" disabled><div class="name">Shattered Spire</div><div class="meta">Locked (M2)</div></button>
         </div>
-        <button class="enter-btn" id="enter-btn">Enter Dungeon ▸</button>
+        <button class="enter-btn" id="enter-btn">Enter ${getData().dungeonsById[state.settings.selectedDungeon]?.name ?? 'Dungeon'} ▸</button>
       </div>
     </div>
   `;
   bindHub();
+}
+
+function renderDungeonBtn(dungeonId, state, dropLabel) {
+  const dungeon = getData().dungeonsById[dungeonId];
+  const isActive = state.settings.selectedDungeon === dungeonId;
+  const ds = state.dungeons[dungeonId] ?? { highestFloor: 0 };
+  return `
+    <button class="dungeon-btn ${isActive ? 'active' : ''}" data-dungeon="${dungeonId}">
+      <div class="name">${dungeon.name}</div>
+      <div class="meta">Highest floor: ${ds.highestFloor} · Drops: ${dropLabel}</div>
+    </button>
+  `;
 }
 
 function renderTopbar() {
@@ -134,7 +145,9 @@ function renderPartySlot(classId) {
 }
 
 function bindHub() {
-  document.getElementById('enter-btn').addEventListener('click', () => enterDungeon('iron_vaults'));
+  document.getElementById('enter-btn').addEventListener('click', () => {
+    enterDungeon(getState().settings.selectedDungeon || 'iron_vaults');
+  });
   document.getElementById('reset-btn').addEventListener('click', () => {
     if (confirm('Reset save and return to fresh state?')) {
       resetSave();
@@ -149,6 +162,13 @@ function bindHub() {
   for (const slot of document.querySelectorAll('.party-slot[data-class]')) {
     const id = slot.dataset.class;
     attachTooltip(slot, () => buildClassTooltip(id));
+  }
+  for (const btn of document.querySelectorAll('.dungeon-btn[data-dungeon]')) {
+    btn.addEventListener('click', () => {
+      getState().settings.selectedDungeon = btn.dataset.dungeon;
+      persist();
+      showHub();
+    });
   }
 }
 
@@ -209,12 +229,16 @@ export function showUnitDetail(classId) {
         </div>
         <div class="panel">
           <div class="stash-head">
-            <h2>Shared Stash</h2>
-            <button id="best-btn">Equip Best by Score</button>
+            <h2>Shared Stash <span class="stash-count">${sortedStash.length}</span></h2>
+            <div class="stash-actions">
+              <button id="salvage-rusted-btn" class="ghost">Salvage Rusted</button>
+              <button id="salvage-common-btn" class="ghost">Salvage Rusted+Common</button>
+              <button id="best-btn">Equip Best by Score</button>
+            </div>
           </div>
           <div class="stash-list">
             ${sortedStash.length
-              ? sortedStash.map(it => renderStashRow(it)).join('')
+              ? sortedStash.map(it => renderStashRow(it, classId)).join('')
               : `<div class="empty">No items yet — clear floors to fill the stash.</div>`}
           </div>
         </div>
@@ -275,15 +299,28 @@ function renderAbilityChip(cls, unit, slot) {
   `;
 }
 
-function renderStashRow(item) {
+function renderStashRow(item, classId) {
+  const usable = isItemUsableBy(item, classId);
+  const dust = salvageValue(item);
+  const stoneTag = item.kind === 'stone'
+    ? `<span class="stone-tag${usable ? '' : ' incompat'}">${stoneLabel(item)}</span>`
+    : '';
   return `
-    <div class="stash-row r-${item.rarity}" data-item="${item.id}">
-      <div class="rcol name r-${item.rarity}">${item.displayName}</div>
+    <div class="stash-row r-${item.rarity}${usable ? '' : ' incompat'}" data-item="${item.id}">
+      <div class="rcol name r-${item.rarity}">${item.displayName} ${stoneTag}</div>
       <div class="rcol stats">${itemStatsLine(item)}</div>
       <div class="rcol meta">Q ${(item.qualityScore * 100).toFixed(0)}%</div>
-      <div class="rcol act"><button class="equip-btn" data-item="${item.id}">Equip</button></div>
+      <div class="rcol act">
+        <button class="equip-btn" data-item="${item.id}" ${usable ? '' : 'disabled title="not compatible with this class"'}>Equip</button>
+        <button class="salvage-btn" data-item="${item.id}" title="Salvage for ${dust} dust">↯ ${dust}</button>
+      </div>
     </div>
   `;
+}
+
+function stoneLabel(item) {
+  const cls = getData().classesById[item.forClassId];
+  return `for ${cls?.displayName ?? '?'}`;
 }
 
 function itemStatsLine(item) {
@@ -327,13 +364,35 @@ function bindUnitDetail(classId) {
   }
 
   // stash rows
+  const salvageRusted = document.getElementById('salvage-rusted-btn');
+  if (salvageRusted) salvageRusted.addEventListener('click', () => {
+    const r = bulkSalvage(['rusted']);
+    showUnitDetail(classId);
+    if (r.count) flash(`Salvaged ${r.count} item(s) for ${r.dust} dust.`);
+    else flash('No rusted items to salvage.');
+  });
+  const salvageCommon = document.getElementById('salvage-common-btn');
+  if (salvageCommon) salvageCommon.addEventListener('click', () => {
+    if (!confirm('Salvage all Rusted and Common items?')) return;
+    const r = bulkSalvage(['rusted', 'common']);
+    showUnitDetail(classId);
+    if (r.count) flash(`Salvaged ${r.count} item(s) for ${r.dust} dust.`);
+  });
   for (const row of document.querySelectorAll('.stash-row')) {
     const id = row.dataset.item;
     const item = getState().sharedStash.find(s => s.id === id);
     if (!item) continue;
-    row.querySelector('.equip-btn').addEventListener('click', () => {
+    const equipBtn = row.querySelector('.equip-btn');
+    if (equipBtn && !equipBtn.disabled) equipBtn.addEventListener('click', () => {
       equipItem(classId, item);
       showUnitDetail(classId);
+    });
+    const salvageBtn = row.querySelector('.salvage-btn');
+    if (salvageBtn) salvageBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const dust = salvageItem(item.id);
+      showUnitDetail(classId);
+      flash(`Salvaged for ${dust} dust.`);
     });
     attachTooltip(row, () => buildStashTooltip(item, classId));
   }
@@ -380,6 +439,21 @@ function currentSlotScore(unit, slotId) {
 
 function buildStashTooltip(item, classId) {
   const unit = getState().roster[classId];
+  const usable = isItemUsableBy(item, classId);
+  const dust = salvageValue(item);
+  const stoneSection = item.kind === 'stone' ? buildStoneSection(item, classId, usable) : '';
+
+  if (!usable) {
+    return `
+      <div class="t-title r-${item.rarity}">${item.displayName}</div>
+      <div class="t-sub">${item.rarity.toUpperCase()} · ${item.kind}</div>
+      ${stoneSection}
+      <div class="t-section">STAT ROLLS</div>
+      <div class="t-grid">${STAT_KEYS.map(s => `<div class="t-row"><span>${STAT_LABEL[s]}</span><span>${item.stats[s] ?? 0}</span></div>`).join('')}</div>
+      <div class="t-foot">Not equippable on this class · Salvage for ${dust} dust</div>
+    `;
+  }
+
   const slot = bestSlotForItem(item, unit);
   const cur = unit.equipment[slot];
   const showStarter = cur && cur.isStarter;
@@ -394,8 +468,23 @@ function buildStashTooltip(item, classId) {
   return `
     <div class="t-title r-${item.rarity}">${item.displayName}</div>
     <div class="t-sub">${item.rarity.toUpperCase()} · target slot: ${SLOT_LABEL[slot] ?? slot}</div>
+    ${stoneSection}
+    <div class="t-section">STAT DIFF vs EQUIPPED</div>
     <div class="t-grid">${lines}</div>
-    <div class="t-foot">${showStarter ? 'Replaces starter (no stats lost)' : (cur ? `Replaces ${cur.displayName}` : 'Equips into empty slot')}</div>
+    <div class="t-foot">${showStarter ? 'Replaces starter (no stats lost)' : (cur ? `Replaces ${cur.displayName}` : 'Equips into empty slot')} · Salvage ${dust} dust</div>
+  `;
+}
+
+function buildStoneSection(item, classId, usable) {
+  const data = getData();
+  const cls = data.classesById[item.forClassId];
+  const ability = data.abilitiesById[item.abilityId];
+  if (!ability) return '';
+  return `
+    <div class="t-section">STONE</div>
+    <div class="t-row"><span>For class</span><span>${cls?.displayName ?? item.forClassId} ${usable ? '' : '<span class="dim">(not this unit)</span>'}</span></div>
+    <div class="t-row"><span>Boosts ability</span><span>${prettyAbility(item.abilityId)}</span></div>
+    <div class="t-row"><span>Ability level</span><span>${item.abilityLevel} / 100</span></div>
   `;
 }
 

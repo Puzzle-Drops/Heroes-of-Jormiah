@@ -42,14 +42,17 @@ function defaultSave(data) {
     if (cls) roster[id] = makeFreshUnit(cls);
   }
   return {
-    saveVersion: 3,
+    saveVersion: 4,
     currencies: { gold: 0, dust: 0, spirit: 0 },
     roster,
     sharedStash: [],
     unlockedClasses: starters.slice(),
     party: starters.slice(0, 6),
-    dungeons: { iron_vaults: { highestFloor: 0, currentRunFloor: null } },
-    settings: { speed: 1, autoCast: true }
+    dungeons: {
+      iron_vaults:     { highestFloor: 0, currentRunFloor: null },
+      shattered_spire: { highestFloor: 0, currentRunFloor: null }
+    },
+    settings: { speed: 1, autoCast: true, selectedDungeon: 'iron_vaults' }
   };
 }
 
@@ -69,11 +72,12 @@ function ensureRosterCovers(state, data) {
     }
     delete u.inventory;
   }
-  // v0.2 -> v0.3 migration: unlockedClasses set
-  if (!Array.isArray(state.unlockedClasses)) {
-    state.unlockedClasses = Object.keys(state.roster);
-  }
-  state.saveVersion = 3;
+  // v0.2 -> v0.3 migration
+  if (!Array.isArray(state.unlockedClasses)) state.unlockedClasses = Object.keys(state.roster);
+  // v0.3 -> v0.4 migration: shattered_spire dungeon + selectedDungeon
+  if (!state.dungeons.shattered_spire) state.dungeons.shattered_spire = { highestFloor: 0, currentRunFloor: null };
+  if (!state.settings.selectedDungeon) state.settings.selectedDungeon = 'iron_vaults';
+  state.saveVersion = 4;
 }
 
 function makeFreshUnit(cls) {
@@ -114,10 +118,25 @@ export function slotsForItem(item) {
   return [item.slotId];
 }
 
+// Stones are class-locked: a Fireball Stone (Pyromancer's spell1 ability) only
+// fits Pyromancer's stone_spell1 slot. Non-stone items are class-agnostic.
+export function canEquip(item, classId, slotId) {
+  if (!slotsForItem(item).includes(slotId)) return false;
+  if (item.kind !== 'stone') return true;
+  const cls = _data.classesById[classId];
+  if (!cls) return false;
+  const slotKey = slotId.replace('stone_', '');
+  return cls.abilities[slotKey] === item.abilityId;
+}
+
+export function isItemUsableBy(item, classId) {
+  return slotsForItem(item).some(slot => canEquip(item, classId, slot));
+}
+
 export function equipItem(classId, item, preferredSlot) {
   const unit = _state.roster[classId];
   if (!unit) return false;
-  const candidates = slotsForItem(item);
+  const candidates = slotsForItem(item).filter(slot => canEquip(item, classId, slot));
   const slot = candidates.includes(preferredSlot) ? preferredSlot : candidates[0];
   if (!slot) return false;
   // remove from stash
@@ -150,7 +169,7 @@ export function equipBestByScore(classId) {
   // Sort stash by quality desc so we eat the best items first.
   const sorted = _state.sharedStash.slice().sort((a, b) => (b.qualityScore ?? 0) - (a.qualityScore ?? 0));
   for (const item of sorted) {
-    const candidates = slotsForItem(item);
+    const candidates = slotsForItem(item).filter(slot => canEquip(item, classId, slot));
     for (const slot of candidates) {
       const cur = unit.equipment[slot];
       const curScore = cur && !cur.isStarter ? (cur.qualityScore ?? 0) : -1;
@@ -161,6 +180,42 @@ export function equipBestByScore(classId) {
     }
   }
   return changes;
+}
+
+// ============================================================================
+// Salvage — convert stash items to Dust per GDD §15.2
+// ============================================================================
+const SALVAGE_MULT = {
+  rusted: 0.20, common: 0.50, rare: 1.00,
+  epic:   2.50, mythic: 6.00, legendary: 15.0, radiant: 40.0
+};
+
+export function salvageValue(item) {
+  const mult = SALVAGE_MULT[item.rarity] ?? 0.5;
+  return Math.max(1, Math.round((item.level || 1) * mult));
+}
+
+export function salvageItem(itemId) {
+  const idx = _state.sharedStash.findIndex(s => s.id === itemId);
+  if (idx === -1) return 0;
+  const item = _state.sharedStash[idx];
+  const dust = salvageValue(item);
+  _state.sharedStash.splice(idx, 1);
+  _state.currencies.dust += dust;
+  persist();
+  return dust;
+}
+
+export function bulkSalvage(rarities) {
+  let totalDust = 0;
+  let count = 0;
+  // iterate copy so we don't mutate the array we're iterating
+  const ids = _state.sharedStash.filter(it => rarities.includes(it.rarity)).map(it => it.id);
+  for (const id of ids) {
+    const got = salvageItem(id);
+    if (got > 0) { totalDust += got; count++; }
+  }
+  return { count, dust: totalDust };
 }
 
 // ============================================================================

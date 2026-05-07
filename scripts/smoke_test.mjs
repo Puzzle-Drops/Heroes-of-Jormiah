@@ -132,6 +132,59 @@ const nextUnlock = await page.$eval('.next-unlock b', el => el.textContent).catc
 console.log(`next unlock: ${nextUnlock ?? 'none'}`);
 await page.screenshot({ path: 'scripts/smoke_hub.png' });
 
+// ---- Shattered Spire: pick the dungeon, fight, expect a stone to eventually drop.
+const shatteredBtn = await page.$('.dungeon-btn[data-dungeon="shattered_spire"]');
+if (shatteredBtn) {
+  await shatteredBtn.click();
+  await new Promise(r => setTimeout(r, 200));
+  const enterText = await page.$eval('#enter-btn', el => el.textContent);
+  console.log(`enter button now: ${enterText.trim()}`);
+  if (!/Shattered/.test(enterText)) throw new Error(`expected Shattered in enter button, got: ${enterText}`);
+
+  await page.click('#enter-btn');
+  await page.waitForSelector('#battle-canvas', { timeout: 5000 });
+  await page.click('.speed-controls button[data-speed="4"]');
+
+  // Fight a couple of floors — stones drop randomly, but with multiple drops we
+  // should see one within 3-4 floors.
+  let sawStone = false;
+  for (let i = 0; i < 4; i++) {
+    await new Promise(r => setTimeout(r, 7000));
+    const lootRow = await page.$('.loot-overlay');
+    if (lootRow) {
+      const lootName = await page.$eval('.loot-card .name', el => el.textContent).catch(() => '');
+      if (/Stone/.test(lootName)) sawStone = true;
+      await page.click('#loot-continue');
+      await new Promise(r => setTimeout(r, 600));
+      // dismiss class-unlock card if it appears
+      const unlockBtn = await page.$('#unlock-continue');
+      if (unlockBtn) { await unlockBtn.click(); await new Promise(r => setTimeout(r, 400)); }
+    } else {
+      break;
+    }
+  }
+  console.log(`saw stone drop: ${sawStone}`);
+  await page.screenshot({ path: 'scripts/smoke_shattered.png' });
+
+  // Return to hub, salvage everything Rusted+Common, expect dust to grow.
+  page.removeAllListeners('dialog');
+  page.on('dialog', d => d.accept());
+  await page.click('#hub-btn');
+  await page.waitForSelector('.roster-card', { timeout: 3000 });
+  const dustBefore = await page.$$eval('.cur b', els => Number(els[1]?.textContent ?? 0));
+  await page.click('.roster-card');
+  await page.waitForSelector('.paper-doll', { timeout: 3000 });
+  const salvageBtn = await page.$('#salvage-common-btn');
+  if (salvageBtn) {
+    await salvageBtn.click();
+    await new Promise(r => setTimeout(r, 400));
+  }
+  await page.click('#back-btn');
+  await page.waitForSelector('.roster-card', { timeout: 3000 });
+  const dustAfter = await page.$$eval('.cur b', els => Number(els[1]?.textContent ?? 0));
+  console.log(`dust before/after salvage: ${dustBefore} → ${dustAfter}`);
+}
+
 if (errors.length) {
   console.error('ERRORS:');
   for (const e of errors) console.error('  ' + e);
