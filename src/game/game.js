@@ -11636,14 +11636,17 @@ performPartyAttack(member, aliveEnemies) {
                     }
                 }
 
-                // Regular attack if no skill — Phase 4 routes through GDD's
-                // 6-stat axis: pAtk for physical attackers, mAtk for magical,
-                // averaged for mixed (Paladin). Falls back to legacy single-axis
-                // if a class hasn't declared a damageType.
+                // Regular attack — Phase 7 routes through gddAbilities.attack.
+                // Falls back to the Phase-4 damageType axis if no ability slot
+                // is defined (e.g. enemies, summons), then to the legacy
+                // single-axis getter for fully pre-GDD callers.
 if (!performedAction) {
-    damage = member.getEffectiveAtk
-        ? member.getEffectiveAtk(member.damageType || 'physical')
-        : member.getTotalAttack();
+    const atkAbility = member.gddAbilities && member.gddAbilities.attack;
+    const school = atkAbility ? atkAbility.school : (member.damageType || 'physical');
+    const power  = atkAbility ? (atkAbility.power ?? 1.0) : 1.0;
+    const baseAtk = member.getEffectiveAtk ? member.getEffectiveAtk(school) : member.getTotalAttack();
+    damage = baseAtk * power;
+    member._lastAttackSchool = school;
 }
 
                 // Deal damage and handle movement
@@ -11835,12 +11838,12 @@ if (member.className === 'Healer') {
                             damage = Math.floor(damage * (1 + target.markedDamageBonus));
                         }
 
-                        // Phase 4: route through GDD §4.3 mitigation. Pass the
-                        // attacker's damageType so target uses pDef/mDef
-                        // appropriately, with floor scaling for late-content depth.
+                        // GDD §4.3 mitigation. Phase 7 prefers the basic-attack
+                        // school recorded by the attack pipeline above; falls
+                        // back to the class's default damageType.
                         const dealt = target.takeDamage(
                             damage,
-                            member.damageType || 'physical',
+                            member._lastAttackSchool || member.damageType || 'physical',
                             this.dungeonFloor
                         );
                         
@@ -15639,6 +15642,36 @@ this.party.forEach((member, index) => {
 </div>
                             </div>
 <div class="abilities-view ${currentView === 'abilities' ? 'active' : ''}">
+    <!-- GDD §6.2 four-slot layout. Phase 7 ships the metadata + tooltips;
+         Phase 8 (Stones) wires the actual scaling into each slot. -->
+    ${(() => {
+        const a = member.gddAbilities;
+        if (!a) return '';
+        const SCHOOL_COLOR = { physical: '#fda4af', magical: '#a5b4fc', mixed: '#fde68a' };
+        const slot = (label, ab, slotColor) => {
+            if (!ab) return '';
+            const sc = SCHOOL_COLOR[ab.school] || '#94a3b8';
+            return `
+                <div style="display:flex;gap:10px;align-items:flex-start;padding:8px;border-radius:6px;background:rgba(15,23,42,0.4);border-left:3px solid ${slotColor};margin-bottom:6px;">
+                    <div style="flex:0 0 64px;font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;color:${slotColor};letter-spacing:1px;">${label}</div>
+                    <div style="flex:1;">
+                        <div style="font-size:13px;font-weight:700;color:#e2e8f0;">${ab.name || '—'}</div>
+                        <div style="font-size:10px;color:${sc};text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">${ab.school || ''}</div>
+                        ${ab.manaCost !== undefined ? `<div style="font-size:10px;color:#94a3b8;">Mana ${ab.manaCost} · CD ${ab.baseCooldown ?? 0}s${ab.power && ab.power !== 1 ? ` · ×${ab.power}` : ''}</div>` : ''}
+                        ${ab.description ? `<div style="font-size:10px;color:#cbd5e1;margin-top:3px;font-style:italic;">${ab.description}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        };
+        return `
+        <div style="padding:8px;background:rgba(15,23,42,0.6);border-radius:8px;border:1px solid rgba(99,102,241,0.15);margin-bottom:10px;">
+            <div style="font-size:10px;color:#71717a;letter-spacing:1px;margin-bottom:6px;">GDD §6.2 ABILITY SLOTS</div>
+            ${slot('ATTACK',  a.attack,  '#fda4af')}
+            ${slot('SPELL I', a.spell1,  '#a855f7')}
+            ${slot('SPELL II',a.spell2,  '#a855f7')}
+            ${slot('PASSIVE', a.passive, '#10b981')}
+        </div>`;
+    })()}
     <div style="padding: 10px; background: rgba(15, 23, 42, 0.5); border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.1);">
         ${(() => {
             const charKey = member.className.toLowerCase();

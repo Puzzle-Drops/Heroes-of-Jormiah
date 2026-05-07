@@ -5,6 +5,16 @@ class Tank extends Character {
         this.pAtk = 5; this.mAtk = 0;
         this.pDef = 10; this.mDef = 4;
         this.damageType = 'physical';
+        // GDD §6.2 4-slot ability data. The actual mechanics for spell1
+        // still flow through the legacy useSkill() below; this block exposes
+        // metadata for tooltips, the upcoming stone system (Phase 8), and
+        // routing the basic-attack school through the GDD damage path.
+        this.gddAbilities = {
+            attack:  { name: 'Shield Bash',     school: 'physical', power: 1.0, manaCost: 0,  baseCooldown: 0 },
+            spell1:  { name: 'Provoke',         school: 'physical', power: 0.0, manaCost: 15, baseCooldown: 14, effects: ['taunt','buff_pdef'] },
+            spell2:  { name: 'Shield Wall',     school: 'physical', power: 0.0, manaCost: 25, baseCooldown: 30, effects: ['damage_reduction'] },
+            passive: { name: 'Vigilant Guard',  description: '+P.DEF; regen 1% HP when struck.' },
+        };
         this.skillName = 'Taunt';
         this.baseManaSkillCost = 15;
         this.skillCost = 15;
@@ -81,6 +91,12 @@ class Rogue extends Character {
         this.pAtk = 8; this.mAtk = 0;
         this.pDef = 5; this.mDef = 2;
         this.damageType = 'physical';
+        this.gddAbilities = {
+            attack:  { name: 'Backstab',     school: 'physical', power: 1.0, manaCost: 0,  baseCooldown: 0,  description: '+200% crit damage on rear strikes (when crit lands).' },
+            spell1:  { name: 'Double Strike', school: 'physical', power: 1.4, manaCost: 15, baseCooldown: 6,  effects: ['double_hit'] },
+            spell2:  { name: 'Vanish',       school: 'physical', power: 0.0, manaCost: 30, baseCooldown: 18, effects: ['untargetable_3s','double_dmg_next'], description: 'Untargetable 3s; next attack deals double damage.' },
+            passive: { name: 'Shadow Step',  description: 'After a kill, +100% attack speed for 2s.' },
+        };
         this.skillName = 'Double Strike';
         this.baseManaSkillCost = 15;
         this.skillCost = 15;
@@ -132,6 +148,12 @@ class Mage extends Character {
                 this.pAtk = 0; this.mAtk = 10;
                 this.pDef = 3; this.mDef = 6;
                 this.damageType = 'magical';
+                this.gddAbilities = {
+                    attack:  { name: 'Firebolt',    school: 'magical', power: 1.0, manaCost: 0,  baseCooldown: 0,  effects: ['ignite_4s'] },
+                    spell1:  { name: 'Fireball',    school: 'magical', power: 1.6, manaCost: 20, baseCooldown: 6,  effects: ['aoe','burn_stack'] },
+                    spell2:  { name: 'Combustion',  school: 'magical', power: 0.0, manaCost: 35, baseCooldown: 14, effects: ['detonate_burns'], description: 'Detonates all burns: damage = remaining DoT × 1.5.' },
+                    passive: { name: 'Heat Wave',   description: 'Each ignited enemy grants +5% M.ATK.' },
+                };
                 this.skillName = 'Fireball';
                 this.baseManaSkillCost = 20;
                 this.skillCost = 20;
@@ -182,6 +204,12 @@ class Healer extends Character {
         this.pAtk = 0; this.mAtk = 4;
         this.pDef = 5; this.mDef = 6;
         this.damageType = 'magical';
+        this.gddAbilities = {
+            attack:  { name: 'Holy Bolt',     school: 'magical', power: 1.0, manaCost: 0,  baseCooldown: 0 },
+            spell1:  { name: 'Greater Heal',  school: 'magical', power: 0.0, manaCost: 20, baseCooldown: 8,  effects: ['heal_target'] },
+            spell2:  { name: 'Group Mend',    school: 'magical', power: 0.0, manaCost: 35, baseCooldown: 18, effects: ['heal_party'], description: 'Small heal to all (1–2% max HP).' },
+            passive: { name: 'Devout',        description: 'Overhealing converts to MP at 50%.' },
+        };
         this.skillName = 'Heal';
         this.baseManaSkillCost = 20;
         this.skillCost = 20;
@@ -242,6 +270,12 @@ class Archer extends Character {
         this.pAtk = 9; this.mAtk = 0;
         this.pDef = 4; this.mDef = 3;
         this.damageType = 'physical';
+        this.gddAbilities = {
+            attack:  { name: 'Quick Shot',      school: 'physical', power: 1.0, manaCost: 0,  baseCooldown: 0 },
+            spell1:  { name: 'Multishot',       school: 'physical', power: 0.8, manaCost: 20, baseCooldown: 8,  effects: ['hits_3_random'] },
+            spell2:  { name: 'Piercing Arrow',  school: 'physical', power: 1.5, manaCost: 30, baseCooldown: 12, effects: ['line_aoe','ignore_50_pdef'], description: 'Line AoE; ignores 50% P.DEF.' },
+            passive: { name: 'Eagle Eye',       description: '+crit chance vs enemies above 80% HP.' },
+        };
         this.skillName = 'Multi-Shot';
         this.baseManaSkillCost = 18;
         this.skillCost = 18;
@@ -295,6 +329,12 @@ class Paladin extends Character {
         this.pAtk = 4; this.mAtk = 4;
         this.pDef = 8; this.mDef = 6;
         this.damageType = 'mixed';
+        this.gddAbilities = {
+            attack:  { name: 'Smite',          school: 'mixed',    power: 1.0, manaCost: 0,  baseCooldown: 0 },
+            spell1:  { name: 'Word of Glory',  school: 'magical',  power: 0.0, manaCost: 25, baseCooldown: 12, effects: ['heal_party_small','aura_taunt_2s'] },
+            spell2:  { name: 'Divine Shield',  school: 'magical',  power: 0.0, manaCost: 35, baseCooldown: 24, effects: ['party_damage_reduction'], description: 'Brief party-wide damage reduction.' },
+            passive: { name: 'Aura of Valor',  description: 'Party +5% all attack while alive.' },
+        };
         this.skillName = 'Divine Shield';
         this.baseManaSkillCost = 20;
         this.skillCost = 20;

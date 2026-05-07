@@ -78,7 +78,13 @@ await page.evaluate(() => {
   const visible = all.find(el => el.offsetParent !== null);
   (visible || all[0])?.click();
 });
-await new Promise(r => setTimeout(r, 2000));
+// Poll up to 5s for the dungeon to actually spawn enemies — this varies
+// with sprite preload, dungeon layout generation, and async setTimeouts.
+for (let i = 0; i < 25; i++) {
+  await new Promise(r => setTimeout(r, 200));
+  const count = await page.evaluate(() => window.game?.enemies?.length ?? 0);
+  if (count > 0) break;
+}
 
 const stage3 = await page.evaluate(() => {
   const g = window.game;
