@@ -18,6 +18,8 @@ export function executeAbility(ctx) {
   }
 }
 
+export function getHandler(type) { return HANDLERS[type] ?? null; }
+
 function scalar(value, ability, stoneLevel) {
   if (typeof value === 'number') return value;
   if (typeof value === 'string') {
@@ -118,25 +120,114 @@ function hasKeystone(unit, flag) {
 }
 
 function rollDodge(target, now) {
-  const chance = sumBuffPct(target, 'dodgePct', now);
+  let chance = sumBuffPct(target, 'dodgePct', now);
+  // Parry-from-stat (Bushido / Parry Stance): adds chance scaling with caster stat.
+  if (target.parryChanceFromStat) {
+    chance += effectiveStat(target, target.parryChanceFromStat.stat, now) * target.parryChanceFromStat.factor;
+  }
+  // Auto-dodge charges (Smoke Step): always succeed and consume a charge.
+  if (target._autoDodgeCharges > 0) {
+    target._autoDodgeCharges--;
+    return true;
+  }
   if (chance <= 0) return false;
   return Math.random() * 100 < chance;
 }
 
-function rollCritMultiplier(caster, now) {
+function rollCritMultiplier(caster, now, extraChance = 0, extraDmg = 0) {
   // Resolute Technique: hits cannot crit. (The +25% damage is applied separately
   // in the damage handler so the trade-off is visible.)
   if (hasKeystone(caster, 'resolute_technique')) return 1;
   // Point Blank: first attack of the fight always crits.
   if (hasKeystone(caster, 'point_blank') && (caster.castedThisFight ?? 0) === 0) {
-    const bonus = sumBuffPct(caster, 'critDamagePct', now);
+    const bonus = sumBuffPct(caster, 'critDamagePct', now) + extraDmg;
     return 1.5 + bonus / 100;
   }
-  const chance = sumBuffPct(caster, 'critChancePct', now);
+  const chance = sumBuffPct(caster, 'critChancePct', now) + extraChance;
   if (chance <= 0) return 1;
   if (Math.random() * 100 >= chance) return 1;
-  const bonus = sumBuffPct(caster, 'critDamagePct', now);
+  const bonus = sumBuffPct(caster, 'critDamagePct', now) + extraDmg;
   return 1.5 + bonus / 100;
+}
+
+// One-shot self-buff-next-hit consumed by the next damage cast. Returns
+// merged crit-chance / crit-damage / damage-multiplier additions and removes
+// them from the queue.
+function consumeNextHitDamageMods(caster) {
+  const out = { critChance: 0, critDamage: 0, damageMultiplier: 1 };
+  if (!caster?.nextHitMods?.length) return out;
+  const remaining = [];
+  for (const m of caster.nextHitMods) {
+    if (m.kind === 'damage') {
+      if (m.stat === 'critChancePct')   out.critChance += m.amountPct;
+      else if (m.stat === 'critDamagePct') out.critDamage += m.amountPct;
+      else if (m.stat === 'damageMultiplier') out.damageMultiplier *= (m.amountPct ?? 1);
+      // consumed
+    } else {
+      remaining.push(m);
+    }
+  }
+  caster.nextHitMods = remaining;
+  return out;
+}
+
+function consumeNextHitHealMod(caster, dmg, ctx) {
+  if (!caster?.nextHitMods?.length) return;
+  const remaining = [];
+  for (const m of caster.nextHitMods) {
+    if (m.kind === 'healFromDamage') {
+      const amt = Math.round(dmg * (m.amountPct ?? 0) / 100);
+      applyHeal(caster, amt, ctx);
+      // consumed
+    } else {
+      remaining.push(m);
+    }
+  }
+  caster.nextHitMods = remaining;
+}
+
+function hasAnyCurse(unit, now) {
+  if (!unit?.buffs) return false;
+  return unit.buffs.some(b => b.expires > now && (b.amountPct ?? 0) < 0);
+}
+
+function tryDeathSave(target, ctx) {
+  // Find an ally with a deathSave handler still available.
+  const allies = (ctx.battle.playerUnits ?? []).filter(u => !u.dead && u !== target);
+  for (const a of allies) {
+    if (!a._deathSaveSpec || a._deathSaveCooldownUntil > ctx.now) continue;
+    const cost = Math.round(a.maxHp * a._deathSaveSpec.transferPct / 100);
+    if (a.hp <= cost) continue;
+    a.hp = Math.max(1, a.hp - cost);
+    target.hp = cost; // recipient gets the transferred HP
+    target.dead = false;
+    a._deathSaveCooldownUntil = ctx.now + a._deathSaveSpec.cooldown;
+    ctx.fx?.push({ type: 'heal', target, amount: cost, t: ctx.now });
+    ctx.battle.log?.push({ type: 'heal', text: `${a.displayName} sacrificed to save ${target.displayName}.`, t: ctx.now });
+    return true;
+  }
+  return false;
+}
+
+function evaluateConditionAgainst(when, caster, target) {
+  if (!when || typeof when !== 'string') return false;
+  const m = when.match(/^(targetHpPct|targetMpPct|hpPct|mpPct|enemyCount|secondsSinceLastAttack|targetHp)\s*(<=|>=|<|>)\s*([a-zA-Z0-9_]+)/);
+  if (!m) return false;
+  const [, lhsKey, op, rhsRaw] = m;
+  const rhs = isNaN(Number(rhsRaw)) ? Number(rhsRaw) || 30 : Number(rhsRaw);
+  let lhs = 0;
+  switch (lhsKey) {
+    case 'hpPct':       lhs = (caster.hp / caster.maxHp) * 100; break;
+    case 'mpPct':       lhs = caster.maxMp ? (caster.mp / caster.maxMp) * 100 : 0; break;
+    case 'targetHpPct': lhs = target ? (target.hp / target.maxHp) * 100 : 100; break;
+    case 'targetMpPct': lhs = target?.maxMp ? (target.mp / target.maxMp) * 100 : 0; break;
+    default: return false;
+  }
+  if (op === '<=') return lhs <= rhs;
+  if (op === '>=') return lhs >= rhs;
+  if (op === '<')  return lhs <  rhs;
+  if (op === '>')  return lhs >  rhs;
+  return false;
 }
 
 // ============================================================================
@@ -157,11 +248,33 @@ function applyDamage(target, raw, ctx) {
       raw = reduced;
     }
   }
+  // Reflect: physical / magical / all reflectors push damage back at attacker.
+  // Buff stat is reflect_<school>; we apply when appropriate.
+  if (ctx.caster && !ctx.caster.dead && ctx.caster !== target) {
+    const reflectAll = sumBuffPct(target, 'reflect_all', ctx.now);
+    const reflectPhys = sumBuffPct(target, 'reflect_physical', ctx.now);
+    const reflectMag = sumBuffPct(target, 'reflect_magical', ctx.now);
+    const refTotal = reflectAll + reflectPhys + reflectMag;
+    if (refTotal > 0 && raw > 0 && !ctx._isReflected) {
+      const back = Math.max(1, Math.round(raw * refTotal / 100));
+      ctx._isReflected = true;
+      // recurse once with caster <-> target swapped
+      applyDamage(ctx.caster, back, { ...ctx, caster: target, _isReflected: true });
+    }
+  }
   let amount = raw;
 
   // damage taken modifier (e.g. Shield Wall reduces; Frozen amplifies via tag)
   amount *= buffMultiplier(target, 'damageTakenPct', ctx.now);
   if ((target.statuses?.frozen ?? 0) > ctx.now) amount *= 1.30;
+  // Sentinel's Mana Armor: DR scales with current MP%.
+  if (target.drFromStat) {
+    let scale = 0;
+    if (target.drFromStat.stat === 'mpCurrentPct') scale = target.maxMp ? (target.mp / target.maxMp) * 100 : 0;
+    else if (target.drFromStat.stat === 'hpCurrentPct') scale = (target.hp / target.maxHp) * 100;
+    const dr = scale * target.drFromStat.factor / 100;
+    amount *= Math.max(0.1, 1 - dr);
+  }
   amount = Math.max(1, Math.round(amount));
 
   // shields absorb first
@@ -193,19 +306,40 @@ function applyDamage(target, raw, ctx) {
       const evt = { target, attacker: ctx.caster, amount: remaining, ctx };
       for (const h of target.onHitTakenHandlers) h(evt);
     }
+    // fire on-party-hit-cursed (when caster is player and target carries any debuff)
+    if (ctx.caster && !ctx.caster.isEnemy && hasAnyCurse(target, ctx.now)) {
+      const allies = ctx.allies ?? (ctx.battle?.playerUnits ?? []);
+      for (const ally of allies) {
+        if (!ally.onPartyHitHandlers?.length) continue;
+        for (const h of ally.onPartyHitHandlers) h({ target, attacker: ctx.caster, ctx });
+      }
+    }
+    // markNextStrikeHealsTarget: caster's next strike (this one) heals caster.
+    if (ctx.caster?.nextHitMods?.length) {
+      consumeNextHitHealMod(ctx.caster, remaining, ctx);
+    }
 
     if (target.hp <= 0) {
-      target.dead = true;
-      ctx.fx?.push({ type: 'death', target, t: ctx.now });
-      ctx.onKill?.(ctx.caster, target);
-      ctx.killsThisCast = (ctx.killsThisCast ?? 0) + 1;
-      // fire on-kill passives on the killer
-      if (ctx.caster?.onKillHandlers?.length) {
-        const evt = { caster: ctx.caster, target, ctx };
-        for (const h of ctx.caster.onKillHandlers) h(evt);
+      // Tethered Souls / deathSave: an ally with a charge sacrifices % HP to save.
+      if (ctx.battle && tryDeathSave(target, ctx)) {
+        // saved — exit without death.
+      } else {
+        target.dead = true;
+        ctx.fx?.push({ type: 'death', target, t: ctx.now });
+        ctx.onKill?.(ctx.caster, target);
+        ctx.killsThisCast = (ctx.killsThisCast ?? 0) + 1;
+        // fire on-kill passives on the killer
+        if (ctx.caster?.onKillHandlers?.length) {
+          const evt = { caster: ctx.caster, target, ctx };
+          for (const h of ctx.caster.onKillHandlers) h(evt);
+        }
+        // fire on-minion-death passives on the minion's owner (if any)
+        if (target.minionOwner && target.minionOwner.onMinionDeathHandlers?.length) {
+          for (const h of target.minionOwner.onMinionDeathHandlers) h({ minion: target, ctx });
+        }
+        // fire boss death special (e.g. summon_on_death) — engine attaches a hook
+        if (target.onDeathHandler) target.onDeathHandler(ctx);
       }
-      // fire boss death special (e.g. summon_on_death) — engine attaches a hook
-      if (target.onDeathHandler) target.onDeathHandler(ctx);
     }
   } else {
     ctx.fx?.push({ type: 'absorb', target, amount, t: ctx.now });
@@ -218,10 +352,18 @@ function applyHeal(target, amount, ctx) {
   target.hp = Math.min(target.maxHp, target.hp + amount);
   const healed = target.hp - before;
   if (healed > 0) ctx.fx?.push({ type: 'heal', target, amount: healed, t: ctx.now });
+  const overheal = amount - healed;
   // Vital Spring keystone: overheal converts 1:1 to MP.
-  if (hasKeystone(target, 'vital_spring') && target.maxMp > 0) {
-    const overheal = amount - healed;
-    if (overheal > 0) target.mp = Math.min(target.maxMp, target.mp + overheal);
+  if (hasKeystone(target, 'vital_spring') && target.maxMp > 0 && overheal > 0) {
+    target.mp = Math.min(target.maxMp, target.mp + overheal);
+  }
+  // Devout / Spell Eater passive: target convertOverhealPct.
+  if (target.overhealConvertPct > 0 && target.maxMp > 0 && overheal > 0) {
+    target.mp = Math.min(target.maxMp, target.mp + Math.round(overheal * target.overhealConvertPct / 100));
+  }
+  // Fire on-heal handlers on the caster (so Cleric / Templar passives work).
+  if (ctx.caster?.onHealHandlers?.length) {
+    for (const h of ctx.caster.onHealHandlers) h({ target, healed, ctx });
   }
 }
 
@@ -251,6 +393,11 @@ const HANDLERS = {
     const effectiveIgnorePct = shadowStrikeBypass ? 100 : ignorePct;
     // Resolute Technique: +25% damage trade-off (the can't-crit half is in rollCritMultiplier).
     const resoluteMul = hasKeystone(ctx.caster, 'resolute_technique') ? 1.25 : 1;
+    // Sibling conditionalBonus / one-shot nextHitMods (selfBuffNextHit) consumed once for this cast.
+    const selfBuffNextHit = consumeNextHitDamageMods(ctx.caster);
+    const critChanceFromBuff = selfBuffNextHit.critChance;
+    const critDmgFromBuff = selfBuffNextHit.critDamage;
+    const dmgMulFromBuff = selfBuffNextHit.damageMultiplier;
 
     for (const t of targets) {
       // dodge gates the entire hit (single roll covers all sub-hits for clarity)
@@ -260,6 +407,12 @@ const HANDLERS = {
           const evt = { target: t, attacker: ctx.caster, ctx };
           for (const h of t.onDodgeHandlers) h(evt);
         }
+        // Bushido-style parry: reflect a fraction of the would-be damage back.
+        if (t.parryChanceFromStat && ctx.caster && !ctx.caster.dead) {
+          const reflectAmount = Math.max(1, Math.round(power * effectiveStat(ctx.caster, stat, ctx.now) * 0.4));
+          applyDamage(ctx.caster, reflectAmount, { ...ctx, caster: t, _isReflected: true });
+          if (t.onParryHandlers?.length) for (const h of t.onParryHandlers) h({ ctx });
+        }
         continue;
       }
       const def = effectiveStat(t, defStat, ctx.now) * (1 - effectiveIgnorePct / 100);
@@ -267,11 +420,19 @@ const HANDLERS = {
       let crit = false;
       for (let i = 0; i < hits; i++) {
         let dmg = F.damage(power, atk, def, ctx.floor);
-        const critMul = rollCritMultiplier(ctx.caster, ctx.now);
+        const critMul = rollCritMultiplier(ctx.caster, ctx.now, critChanceFromBuff, critDmgFromBuff);
         if (critMul > 1) { dmg = Math.round(dmg * critMul); crit = true; }
         total += dmg;
       }
-      total = Math.round(total * resoluteMul);
+      total = Math.round(total * resoluteMul * dmgMulFromBuff);
+      // sibling conditionalBonus effects in the same ability
+      for (const sib of ctx.ability.effects ?? []) {
+        if (sib.type !== 'conditionalBonus') continue;
+        if (evaluateConditionAgainst(sib.when, ctx.caster, t)) {
+          const bonus = scalar(sib.amountPct ?? 0, ctx.ability, ctx.stoneLevel);
+          total = Math.round(total * (1 + bonus / 100));
+        }
+      }
       if (crit) ctx.fx?.push({ type: 'crit', target: t, t: ctx.now });
       applyDamage(t, total, ctx);
     }
@@ -546,6 +707,269 @@ const HANDLERS = {
     for (const t of targets) t.buffs.push({ stat: `reflect_${effect.school ?? 'all'}`, amountPct: pct, expires: ctx.now + dur });
   },
 
+  // ----- v0.23 expansion: more effect types -----
+
+  bleed(effect, ctx) {
+    // Alias of dot with a 'bleed' tag — keeps abilities.json clean.
+    HANDLERS.dot({ ...effect, tag: 'bleed' }, ctx);
+  },
+
+  debuff(effect, ctx) {
+    // Negative buff. Same shape as buff but the amountPct is negated when positive.
+    const targets = resolveTargets(effect.targets, ctx);
+    const amountPct = -Math.abs(scalar(effect.amountPct ?? effect.amount ?? 0, ctx.ability, ctx.stoneLevel));
+    const dur = scalar(effect.duration ?? 4, ctx.ability, ctx.stoneLevel);
+    for (const t of targets) {
+      t.buffs.push({
+        stat: effect.stat,
+        amountPct,
+        expires: dur > 0 ? ctx.now + dur : Infinity,
+        tag: effect.tag ?? 'debuff'
+      });
+    }
+  },
+
+  selfDebuff(effect, ctx) {
+    HANDLERS.debuff({ ...effect, targets: 'self' }, ctx);
+  },
+
+  threatMod() { /* threat is implicit via tauntedBy; no-op ok for v0.23 */ },
+
+  aura(effect, ctx) {
+    // Periodic effect around the caster (e.g. Consecrated Ground heal pulse).
+    const duration = scalar(effect.duration ?? 4, ctx.ability, ctx.stoneLevel);
+    const tickInt = scalar(effect.tick ?? 1, ctx.ability, ctx.stoneLevel) || 1;
+    ctx.caster.auras = ctx.caster.auras ?? [];
+    ctx.caster.auras.push({
+      until: ctx.now + duration,
+      tickInterval: tickInt,
+      nextTick: ctx.now + tickInt,
+      healPctMax: scalar(effect.healPctMax ?? 0, ctx.ability, ctx.stoneLevel)
+    });
+  },
+
+  burst(effect, ctx) {
+    // Used by Repeater Burst — multiple shots with a short gap. Implement as
+    // a single multi-hit damage (close enough for v0.23 semantics).
+    const inner = { ...effect, type: 'damage', hits: effect.shots ?? 5, targets: effect.targets ?? 'single_enemy' };
+    HANDLERS.damage(inner, ctx);
+  },
+
+  ricochet(effect, ctx) {
+    // After a primary hit, hit one extra random enemy at the same power.
+    const enemies = targetable(ctx.enemies, ctx.now);
+    if (enemies.length < 2) return;
+    const extra = enemies[Math.floor(Math.random() * enemies.length)];
+    const power = scalar(effect.powerScalar ?? 0.5, ctx.ability, ctx.stoneLevel);
+    const stat = effect.stat ?? 'patk';
+    const atk = effectiveStat(ctx.caster, stat, ctx.now);
+    const def = effectiveStat(extra, stat === 'matk' ? 'mdef' : 'pdef', ctx.now);
+    applyDamage(extra, F.damage(power, atk, def, ctx.floor), ctx);
+  },
+
+  random(effect, ctx) {
+    // Volatile Mixture: pick one outcome at random.
+    const outcomes = effect.outcomes ?? [];
+    if (!outcomes.length) return;
+    const pick = outcomes[Math.floor(Math.random() * outcomes.length)];
+    const handler = HANDLERS[pick.type];
+    if (handler) handler(pick, ctx);
+  },
+
+  randomCurse(effect, ctx) {
+    // Witch's Hex Bolt — apply a single random debuff (slow / weaken / etc.).
+    const targets = resolveTargets(effect.targets, ctx);
+    const dur = scalar(effect.duration ?? 4, ctx.ability, ctx.stoneLevel);
+    const stats = ['pdef', 'mdef', 'patk', 'matk', 'attackSpeedPct'];
+    const stat = stats[Math.floor(Math.random() * stats.length)];
+    for (const t of targets) {
+      t.buffs.push({ stat, amountPct: -20, expires: ctx.now + dur, tag: 'curse' });
+    }
+  },
+
+  randomDebuff(effect, ctx) {
+    HANDLERS.randomCurse(effect, ctx);
+  },
+
+  gapClose(effect, ctx) {
+    // Visual lunge only — formation stays. Bumping lungeT does the animation.
+    if (ctx.caster) ctx.caster.lungeT = ctx.now;
+  },
+
+  teleportBehind(effect, ctx) {
+    // No real positioning yet — visual lunge.
+    if (ctx.caster) ctx.caster.lungeT = ctx.now;
+  },
+
+  polymorph(effect, ctx) {
+    // Hex Toad — silenced + can't act, modeled via stunned status (engine
+    // already blocks ability ticks while stunned).
+    const targets = resolveTargets(effect.targets, ctx);
+    const dur = scalar(effect.duration ?? 3, ctx.ability, ctx.stoneLevel);
+    for (const t of targets) {
+      setStatus(t, 'stunned',  ctx.now + dur);
+      setStatus(t, 'silenced', ctx.now + dur);
+    }
+  },
+
+  dodgeNext(effect, ctx) {
+    // Foresight / Smoke Step — give X dodge charges over a window.
+    const targets = resolveTargets(effect.targets, ctx);
+    const charges = Math.max(1, Math.round(scalar(effect.window ?? 1, ctx.ability, ctx.stoneLevel)));
+    for (const t of targets) {
+      t._autoDodgeCharges = (t._autoDodgeCharges ?? 0) + charges;
+    }
+  },
+
+  autoDodgeCharges(effect, ctx) {
+    HANDLERS.dodgeNext({ ...effect, window: effect.count ?? 1 }, ctx);
+  },
+
+  resourceGain(effect, ctx) {
+    // Reaving Strike (rage), Flurry (combo). Track on caster.resources.
+    const r = ctx.caster.resources ??= { rage: 0, combo: 0, charges: 0 };
+    const key = effect.resource ?? 'rage';
+    const amt = scalar(effect.amount ?? 1, ctx.ability, ctx.stoneLevel);
+    r[key] = (r[key] ?? 0) + amt;
+  },
+
+  selfDamagePctMax(effect, ctx) {
+    // Voidcaller: self-cost on cast.
+    const pct = scalar(effect.amountPct ?? 1, ctx.ability, ctx.stoneLevel) / 100;
+    const dmg = Math.max(1, Math.round(ctx.caster.maxHp * pct));
+    ctx.caster.hp = Math.max(1, ctx.caster.hp - dmg);
+    ctx.fx?.push({ type: 'dmg', target: ctx.caster, amount: dmg, t: ctx.now });
+  },
+
+  selfDamagePctMaxPerTick() { /* tracked by channel state, applied in tickChannel */ },
+
+  chargeOnCast(effect, ctx) {
+    // Stormcaller's Static Field: stack a charge; threshold = next cast free.
+    const r = ctx.caster.resources ??= { rage: 0, combo: 0, charges: 0 };
+    r.charges = (r.charges ?? 0) + 1;
+    const threshold = scalar(effect.threshold ?? 3, ctx.ability, ctx.stoneLevel);
+    if (r.charges >= threshold) {
+      r.charges = 0;
+      ctx.caster._nextCastFree = true;
+    }
+  },
+
+  link(effect, ctx) {
+    // Communion / Sanguine Bond / Honor Duel. v0.23 implementation: tag both
+    // units with a "linked" flag for the duration; applyDamage can reference.
+    // For now, light implementation: apply a small mutual buff.
+    const targets = resolveTargets(effect.targets, ctx);
+    const dur = scalar(effect.duration ?? 6, ctx.ability, ctx.stoneLevel);
+    for (const t of targets) {
+      t.buffs.push({ stat: 'mdef', amountPct: 10, expires: ctx.now + dur, tag: 'linked' });
+      ctx.caster.buffs.push({ stat: 'mdef', amountPct: 10, expires: ctx.now + dur, tag: 'linked' });
+    }
+  },
+
+  markNextStrikeHealsTarget(effect, ctx) {
+    // Hemorrhage — caster's next strike heals caster.
+    const pct = scalar(effect.amountPct ?? 50, ctx.ability, ctx.stoneLevel);
+    ctx.caster.nextHitMods = ctx.caster.nextHitMods ?? [];
+    ctx.caster.nextHitMods.push({ kind: 'healFromDamage', amountPct: pct });
+  },
+
+  selfBuffNextHit(effect, ctx) {
+    // Backstab / Iaijutsu / Vanish: damage-only one-shot stat injection on
+    // the next damage cast.
+    const amountPct = scalar(effect.amountPct ?? effect.amount ?? 0, ctx.ability, ctx.stoneLevel);
+    ctx.caster.nextHitMods = ctx.caster.nextHitMods ?? [];
+    ctx.caster.nextHitMods.push({ kind: 'damage', stat: effect.stat ?? 'critChancePct', amountPct });
+  },
+
+  conditionalBonus() { /* applied inline by the damage handler when present */ },
+
+  resetCooldowns(effect, ctx) {
+    // Chronomancer's Rewind: reset target ally's cooldowns.
+    const targets = resolveTargets(effect.targets, ctx);
+    for (const t of targets) {
+      for (const k of Object.keys(t.abilities ?? {})) t.abilities[k].cooldown = 0;
+    }
+  },
+
+  phaseAlternator(effect, ctx) {
+    // Astromancer cosmic cycle. Light implementation: tag a marker so the
+    // engine could react. v0.23 just registers the period; phase-specific
+    // bonuses are not yet wired into damage formulas.
+    ctx.caster._cosmicPeriod = scalar(effect.duration ?? 8, ctx.ability, ctx.stoneLevel);
+  },
+
+  consumeSong(effect, ctx) {
+    // Crescendo — consumes the most recent active song buff. We don't track
+    // songs as a separate list yet; clear party-targeted permanent-ish buffs
+    // tagged 'song' from the caster.
+    const allies = ctx.allies ?? [];
+    for (const a of allies) {
+      a.buffs = a.buffs.filter(b => b.tag !== 'song');
+    }
+  },
+
+  cleanseStatus(effect, ctx) {
+    HANDLERS.cleanse(effect, ctx);
+  },
+
+  channeled(effect, ctx) {
+    // Set up a channel state on the caster. The engine tickChannel function
+    // re-fires the inner damage / heal effect on a cadence.
+    const dur = scalar(effect.duration ?? 3, ctx.ability, ctx.stoneLevel);
+    const tickInt = scalar(effect.tick ?? 0.5, ctx.ability, ctx.stoneLevel) || 0.5;
+    const innerEffect = {
+      type: 'damage',
+      targets: effect.targets ?? 'all_enemies',
+      stat: effect.stat ?? 'matk',
+      powerScalar: effect.powerScalar ?? 0.3,
+      lifestealPct: effect.lifestealPct
+    };
+    ctx.caster.channelState = {
+      ability: ctx.ability,
+      stoneLevel: ctx.stoneLevel,
+      until: ctx.now + dur,
+      nextTick: ctx.now + tickInt,
+      tickInterval: tickInt,
+      innerEffect,
+      selfHpCostPctPerTick: effect.selfHpCostPctPerTick
+        ? scalar(effect.selfHpCostPctPerTick, ctx.ability, ctx.stoneLevel)
+        : 0
+    };
+    // Apply a first hit immediately so the cast feels responsive.
+    const handler = HANDLERS.damage;
+    if (handler) handler(innerEffect, ctx);
+  },
+
+  signalPets() { /* no-op until summon system lands */ },
+  consumeCorpse() { /* no-op until corpse system lands */ },
+  leaveCorpse() { /* placeholder */ },
+
+  onPartyHitCursed() { /* registered in applyPassiveBuffs */ },
+  onMinionDeath() { /* registered in applyPassiveBuffs */ },
+  onParry() { /* registered in applyPassiveBuffs */ },
+  onHeal() { /* registered in applyPassiveBuffs */ },
+  onHotComplete() { /* registered in applyPassiveBuffs */ },
+  refundCdOnDodge() { /* registered in applyPassiveBuffs */ },
+  scaledChance() { /* registered in applyPassiveBuffs */ },
+  scaledDR() { /* registered in applyPassiveBuffs */ },
+  convertOverheal() { /* registered in applyPassiveBuffs */ },
+  conditionalScaledBuff() { /* registered as dynamic spec in applyPassiveBuffs */ },
+  conditionalStack() { /* see stack — same machinery */ },
+  stack(effect, ctx) {
+    // Permanent stack on caster (Harvest, Hot Hand). On each hit /kill, increment
+    // a stat buff. v0.23 sets a static buff equal to maxStack/2 as approximation.
+    const max = scalar(effect.maxStack ?? effect.maxAtkSpdPct ?? 30, ctx.ability, ctx.stoneLevel);
+    ctx.caster.buffs.push({
+      stat: effect.stat ?? 'attackSpeedPct',
+      amountPct: max / 2,
+      expires: Infinity,
+      tag: 'stack_approx'
+    });
+  },
+  lootMod() { /* applied at loot-roll time; passive registration only */ },
+  deathSave() { /* registered in applyPassiveBuffs */ },
+  critHeal() { /* implemented via probabilistic crit on heal: TBD; non-blocking */ },
+
   // Cast-scoped trigger: fires only if a damage effect in the same ability
   // killed something this cast. Lets Soul Cleave heal on kill, Shadow Step
   // proc when the cast itself secures a kill, etc. Passive onKill (Harvest,
@@ -643,6 +1067,89 @@ export function applyPassiveBuffs(caster, allParty) {
         stat: effect.stat, perUnit: amountPct, scaledBy: '__conditional__',
         condition: effect.when
       });
+    } else if (effect.type === 'conditionalScaledBuff') {
+      // Scales further when condition met (e.g. From Below: +M.ATK = (% HP missing)).
+      const perUnit = F.scaleParam(slot.ability.scaling, effect.amountPct ?? 0, slot.stoneLevel);
+      caster.dynamicBuffSpecs.push({
+        stat: effect.stat, perUnit, scaledBy: 'hpMissingPct',
+        condition: effect.when
+      });
+    } else if (effect.type === 'scaledChance') {
+      // Parry Stance / Bushido: chance scales with caster's stat (e.g. PATK).
+      caster.parryChanceFromStat = {
+        tag: effect.tag ?? 'parry',
+        stat: effect.scaledBy ?? 'patk',
+        factor: F.scaleParam(slot.ability.scaling, effect.factor ?? 0, slot.stoneLevel)
+      };
+    } else if (effect.type === 'scaledDR') {
+      caster.drFromStat = {
+        stat: effect.scaledBy ?? 'mpCurrentPct',
+        factor: F.scaleParam(slot.ability.scaling, effect.factor ?? 0, slot.stoneLevel)
+      };
+    } else if (effect.type === 'convertOverheal') {
+      caster.overhealConvertPct = F.scaleParam(slot.ability.scaling, effect.convPct ?? 0, slot.stoneLevel);
+    } else if (effect.type === 'refundCdOnDodge') {
+      caster.refundCdOnDodgePct = F.scaleParam(slot.ability.scaling, effect.amountPct ?? 100, slot.stoneLevel);
+      caster.onDodgeHandlers.push((evt) => {
+        // Refund the most recent cooldown (highest remaining) by the configured pct.
+        const ab = caster.abilities;
+        let best = null;
+        for (const k of ['attack','spell1','spell2']) {
+          if (!ab[k]) continue;
+          if (!best || ab[k].cooldown > best.cooldown) best = ab[k];
+        }
+        if (best && best.cooldown > 0) {
+          best.cooldown = best.cooldown * (1 - caster.refundCdOnDodgePct / 100);
+        }
+      });
+    } else if (effect.type === 'onPartyHitCursed') {
+      caster.onPartyHitHandlers.push((evt) => {
+        const action = effect.action;
+        if (action === 'manaRegenPct') {
+          const pct = F.scaleParam(slot.ability.scaling, effect.amountPct ?? 0, slot.stoneLevel) / 100;
+          caster.mp = Math.min(caster.maxMp, caster.mp + Math.round(caster.maxMp * pct));
+        }
+      });
+    } else if (effect.type === 'onMinionDeath') {
+      caster.onMinionDeathHandlers.push((evt) => {
+        // Implement: e.g. Necromancer's exploding minions (deals AoE around corpse).
+        if (effect.action === 'damage') {
+          const power = F.scaleParam(slot.ability.scaling, effect.powerScalar ?? 0, slot.stoneLevel);
+          const ctx = evt.ctx;
+          if (!ctx) return;
+          const enemies = caster.isEnemy ? ctx.battle.playerUnits : ctx.battle.enemyUnits;
+          for (const e of enemies) {
+            if (e.dead) continue;
+            const def = effectiveStat(e, 'mdef', ctx.now);
+            applyDamage(e, F.damage(power, effectiveStat(caster, 'matk', ctx.now), def, ctx.floor), ctx);
+          }
+        }
+      });
+    } else if (effect.type === 'onParry') {
+      caster.onParryHandlers.push((evt) => {
+        if (effect.action === 'reflectDamagePct') {
+          // The parry mechanic itself handles damage attribution; this is an
+          // amplifier hook. For v0.23 we just buff next damage cast slightly
+          // (visual + light feedback).
+          caster.nextHitMods.push({ kind: 'damage', stat: 'damageMultiplier', amountPct: 1.10 });
+        }
+      });
+    } else if (effect.type === 'onHotComplete') {
+      caster.onHotCompleteHandlers.push((evt) => {
+        if (effect.action === 'healPct') {
+          const pct = F.scaleParam(slot.ability.scaling, effect.amountPct ?? 0, slot.stoneLevel) / 100;
+          // Heal nearest ally for pct of the tick value.
+          const target = evt.tickAmount * pct;
+          const nearest = (evt.ctx?.allies ?? []).find(a => !a.dead && a !== caster);
+          if (nearest) applyHeal(nearest, Math.round(target), evt.ctx);
+        }
+      });
+    } else if (effect.type === 'deathSave') {
+      caster._deathSaveSpec = {
+        transferPct: F.scaleParam(slot.ability.scaling, effect.selfHpCostPct ?? 25, slot.stoneLevel),
+        cooldown:    F.scaleParam(slot.ability.scaling, effect.cooldown ?? 60, slot.stoneLevel)
+      };
+      caster._deathSaveCooldownUntil = -1;
     }
   }
 }

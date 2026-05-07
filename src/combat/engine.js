@@ -2,7 +2,7 @@ import { getData, getState } from '../state.js';
 import {
   executeAbility, buffMultiplier, effectiveStat, pruneExpired,
   isIncapacitated, isSilenced, tickDots, applyPassiveBuffs,
-  recomputeDynamicBuffs
+  recomputeDynamicBuffs, getHandler
 } from './abilities.js';
 import { applyTreeToBaseStats, treePctBuffs, treeKeystoneFlags } from '../tree.js';
 import * as F from './formulas.js';
@@ -161,9 +161,11 @@ function stepBattle(battle, dt) {
     tickHots(u, battle);
     tickRegen(u, battle);
     tickDots(u, battle);
+    tickChannel(u, battle);
+    tickAuras(u, battle);
     if (u.dead) continue;
     if (u.isBoss && u.special) tickBossSpecial(u, battle);
-    if (!isIncapacitated(u, battle.now)) tickAbilities(u, battle, dt);
+    if (!isIncapacitated(u, battle.now) && !isChanneling(u, battle.now)) tickAbilities(u, battle, dt);
   }
   // expire floating fx
   battle.fx = battle.fx.filter(f => battle.now - f.t < 1.4);
@@ -318,8 +320,23 @@ function buildPlayerUnit(cls, unit, slotPos) {
     onHitTakenHandlers: [],
     onKillHandlers: [],
     onDodgeHandlers: [],
+    onHealHandlers: [],
+    onParryHandlers: [],
+    onHotCompleteHandlers: [],
+    onMinionDeathHandlers: [],
+    onPartyHitHandlers: [],
     dynamicBuffSpecs: [],
-    castedThisFight: 0
+    castedThisFight: 0,
+    resources: { rage: 0, combo: 0, charges: 0 },
+    songs: [],
+    channelState: null,
+    auras: [],
+    nextHitMods: [],
+    deathSavesUsed: 0,
+    parryChanceFromStat: null,
+    drFromStat: null,
+    overhealConvertPct: 0,
+    refundCdOnDodgePct: 0
   };
 }
 
@@ -335,6 +352,70 @@ function computeStats(cls, level, equipment, allocatedNodes) {
   }
   if (allocatedNodes && allocatedNodes.length) out = applyTreeToBaseStats(allocatedNodes, out);
   return out;
+}
+
+// ============================================================================
+// Channeled spells & auras
+// ============================================================================
+export function isChanneling(unit, now) {
+  return unit.channelState && unit.channelState.until > now;
+}
+
+function tickChannel(unit, battle) {
+  const cs = unit.channelState;
+  if (!cs) return;
+  if (battle.now >= cs.until) {
+    unit.channelState = null;
+    return;
+  }
+  // Re-fire the inner damage/heal/tick effect periodically.
+  if (battle.now >= cs.nextTick) {
+    cs.nextTick += cs.tickInterval;
+    const ctx = {
+      ability: cs.ability,
+      caster: unit,
+      allies: unit.isEnemy ? battle.enemyUnits : battle.playerUnits,
+      enemies: unit.isEnemy ? battle.playerUnits : battle.enemyUnits,
+      stoneLevel: cs.stoneLevel,
+      floor: battle.floor,
+      now: battle.now,
+      fx: battle.fx,
+      battle,
+      onKill: battle.onKill,
+      killsThisCast: 0,
+      _channelTick: true
+    };
+    const innerEffect = cs.innerEffect;
+    const handler = getHandler(innerEffect.type);
+    if (handler) handler(innerEffect, ctx);
+    // Channel HP-cost tick (e.g. Abyssal Maw drains caster).
+    if (cs.selfHpCostPctPerTick) {
+      const cost = Math.round(unit.maxHp * cs.selfHpCostPctPerTick / 100);
+      unit.hp = Math.max(1, unit.hp - cost);
+    }
+  }
+}
+
+function tickAuras(unit, battle) {
+  if (!unit.auras || !unit.auras.length) return;
+  for (const aura of unit.auras) {
+    if (battle.now >= aura.until) continue;
+    if (battle.now >= aura.nextTick) {
+      aura.nextTick += aura.tickInterval;
+      // Heal allies in range.
+      if (aura.healPctMax > 0) {
+        const allies = unit.isEnemy ? battle.enemyUnits : battle.playerUnits;
+        for (const a of allies) {
+          if (a.dead) continue;
+          const amt = Math.round(a.maxHp * aura.healPctMax / 100);
+          const before = a.hp;
+          a.hp = Math.min(a.maxHp, a.hp + amt);
+          if (a.hp - before > 0) battle.fx?.push({ type: 'heal', target: a, amount: a.hp - before, t: battle.now });
+        }
+      }
+    }
+  }
+  unit.auras = unit.auras.filter(a => a.until > battle.now);
 }
 
 function tickBossSpecial(boss, battle) {
@@ -423,8 +504,19 @@ function buildEnemy(template, floor, row, col, attackTpl, opts = {}) {
     onHitTakenHandlers: [],
     onKillHandlers: [],
     onDodgeHandlers: [],
+    onHealHandlers: [],
+    onParryHandlers: [],
+    onHotCompleteHandlers: [],
+    onMinionDeathHandlers: [],
+    onPartyHitHandlers: [],
     dynamicBuffSpecs: [],
-    castedThisFight: 0
+    castedThisFight: 0,
+    resources: { rage: 0, combo: 0, charges: 0 },
+    songs: [],
+    channelState: null,
+    auras: [],
+    nextHitMods: [],
+    deathSavesUsed: 0
   };
   // Iron Skin special: apply at spawn — passive +30% to defenses (already
   // visible in the buffMultiplier path).
@@ -469,8 +561,14 @@ export function reviveSurvivors(playerUnits) {
     u.mp = u.maxMp;
     u.buffs = []; u.hots = []; u.regen = []; u.tauntedBy = null;
     u.dots = []; u.shields = []; u.marks = []; u.statuses = {};
-    u.onHitTakenHandlers = []; u.onKillHandlers = []; u.onDodgeHandlers = []; u.dynamicBuffSpecs = [];
+    u.onHitTakenHandlers = []; u.onKillHandlers = []; u.onDodgeHandlers = [];
+    u.onHealHandlers = []; u.onParryHandlers = []; u.onHotCompleteHandlers = [];
+    u.onMinionDeathHandlers = []; u.onPartyHitHandlers = [];
+    u.dynamicBuffSpecs = [];
     u.castedThisFight = 0;
+    u.resources = { rage: 0, combo: 0, charges: 0 };
+    u.songs = []; u.channelState = null; u.auras = [];
+    u.nextHitMods = []; u.deathSavesUsed = 0;
     for (const slot of Object.keys(u.abilities)) u.abilities[slot].cooldown = 0;
   }
 }
