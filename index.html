@@ -256,6 +256,8 @@
                 <canvas id="dungeon-canvas"></canvas>
 <div id="top-ui-container">
     <div id="game-title-display" style="position: absolute; top: 10px; left: 10px; font-family: 'Orbitron', sans-serif; font-size: 14px; font-weight: 700; color: rgba(168, 85, 247, 0.8); text-shadow: 0 0 10px rgba(168, 85, 247, 0.5); letter-spacing: 1px;">HEROES OF JORMIAH</div>
+    <!-- Phase 9.y: roster browser open from anywhere in the hub. -->
+    <button id="open-roster-btn" onclick="window.openRosterBrowser && window.openRosterBrowser()" style="position: absolute; top: 36px; left: 10px; padding: 5px 12px; background: rgba(168, 85, 247, 0.18); border: 1px solid #a855f7; border-radius: 5px; color: #e9d5ff; font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; cursor: pointer;">📜 ROSTER</button>
     <div id="room-label" style="display: none;">Dungeon Name - Floor 1</div>
     <div id="currency-container" style="display: flex; gap: 12px; align-items: center;">
         <div id="gold-display-top">0g</div>
@@ -856,6 +858,7 @@
     <script src="src/entities/effects.js"></script>
     <script src="src/entities/class_registry.js"></script>
     <script src="src/ui/tree_view.js"></script>
+    <script src="src/ui/roster_browser.js"></script>
     <script src="src/entities/enemy.js"></script>
     <script src="src/entities/boss.js"></script>
     <script src="src/entities/pet.js"></script>

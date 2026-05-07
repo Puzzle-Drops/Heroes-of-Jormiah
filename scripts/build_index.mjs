@@ -53,6 +53,16 @@ const REPLACEMENTS = [
             </div>`,
   ],
   ['SELECT 4 HEROES', 'SELECT 6 HEROES'],
+  // Phase 9.y: roster button injected below the (already-renamed) title.
+  // This replacement runs AFTER the Phase-2 brand swap, so the source
+  // string already says "HEROES OF JORMIAH".
+  [
+    `letter-spacing: 1px;">HEROES OF JORMIAH</div>
+    <div id="room-label"`,
+    `letter-spacing: 1px;">HEROES OF JORMIAH</div>
+    <button id="open-roster-btn" onclick="window.openRosterBrowser && window.openRosterBrowser()" style="position: absolute; top: 36px; left: 10px; padding: 5px 12px; background: rgba(168, 85, 247, 0.18); border: 1px solid #a855f7; border-radius: 5px; color: #e9d5ff; font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; cursor: pointer;">📜 ROSTER</button>
+    <div id="room-label"`,
+  ],
   // Phase 6: GDD §10.1 dungeon-loot specialty swaps. The original everfall
   // (now Hollowed Wilds) source labelled itself as armor; per GDD that
   // specialty belongs to the Iron Vaults (formerly stoneforge) and weapons
@@ -121,6 +131,7 @@ const scripts = [
   'src/entities/effects.js',
   'src/entities/class_registry.js',
   'src/ui/tree_view.js',
+  'src/ui/roster_browser.js',
   'src/entities/enemy.js',
   'src/entities/boss.js',
   'src/entities/pet.js',
