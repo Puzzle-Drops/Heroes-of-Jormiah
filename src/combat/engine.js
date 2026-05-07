@@ -47,7 +47,7 @@ const ENEMIES = {
       { name: 'Reality Twister',       baseHp: 100, baseDmg: 8,  basePdef: 5, baseMdef: 14 },
       { name: 'Spire Anomaly',         baseHp: 120, baseDmg: 9,  basePdef: 6, baseMdef: 16 },
       { name: 'Warden of the Spire',   baseHp: 140, baseDmg: 10, basePdef: 7, baseMdef: 18 },
-      { name: 'Reality Shifter',       baseHp: 130, baseDmg: 11, basePdef: 6, baseMdef: 17 },
+      { name: 'Reality Shifter',       baseHp: 130, baseDmg: 11, basePdef: 6, baseMdef: 17, special: 'phase_shift' },
       { name: 'Echo Phantom',          baseHp: 110, baseDmg: 10, basePdef: 4, baseMdef: 26 },
       { name: 'Spire Crystal',         baseHp: 90,  baseDmg: 9,  basePdef: 16, baseMdef: 22, special: 'ironskin' },
       { name: 'Anomaly Spawn',         baseHp: 115, baseDmg: 10, basePdef: 6, baseMdef: 14, special: 'spawner' }
@@ -64,7 +64,7 @@ const ENEMIES = {
       { name: 'Crystal Wraith',        baseHp: 85,  baseDmg: 9,  basePdef: 4, baseMdef: 16 },
       { name: 'Aether Conjurer',       baseHp: 100, baseDmg: 10, basePdef: 5, baseMdef: 18 },
       { name: 'Archon of Whispers',    baseHp: 130, baseDmg: 11, basePdef: 6, baseMdef: 22 },
-      { name: 'Tower Magister',        baseHp: 120, baseDmg: 12, basePdef: 5, baseMdef: 20 },
+      { name: 'Tower Magister',        baseHp: 120, baseDmg: 12, basePdef: 5, baseMdef: 20, special: 'phase_shift' },
       { name: 'Crystal Sage',          baseHp: 95,  baseDmg: 10, basePdef: 4, baseMdef: 28 },
       { name: 'Aether Adept',          baseHp: 110, baseDmg: 11, basePdef: 5, baseMdef: 18, special: 'spawner' },
       { name: 'Sky Reaver',            baseHp: 105, baseDmg: 11, basePdef: 5, baseMdef: 17, special: 'enrage' }
@@ -342,6 +342,16 @@ function tickBossSpecial(boss, battle) {
     boss.buffs.push({ stat: 'patk', amountPct: 50, expires: Infinity, source: 'enrage' });
     boss.buffs.push({ stat: 'matk', amountPct: 50, expires: Infinity, source: 'enrage' });
     battle.log.push({ type: 'kill', text: `${boss.displayName} enrages!`, t: battle.now });
+  }
+
+  if (boss.special === 'phase_shift' && !state.phaseShifted && hpPct <= 0.50) {
+    state.phaseShifted = true;
+    const cur = boss.abilities.attack.ability;
+    const flipped = cur === ENEMY_PHYS_ATTACK_TPL ? ENEMY_MAG_ATTACK_TPL : ENEMY_PHYS_ATTACK_TPL;
+    boss.abilities.attack.ability = flipped;
+    boss.abilities.attack.cooldown = 0;
+    const newSchool = flipped === ENEMY_MAG_ATTACK_TPL ? 'magical' : 'physical';
+    battle.log.push({ type: 'kill', text: `${boss.displayName} shifts to ${newSchool} attacks!`, t: battle.now });
   }
 
   if (boss.special === 'spawner' && !state.spawned && hpPct <= 0.50) {

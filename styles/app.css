@@ -424,9 +424,25 @@ button:disabled:hover { background: var(--bg-panel-hi); color: var(--ink); }
 .battle-stage { position: relative; overflow: hidden; background: linear-gradient(180deg, #0a0b14 0%, #1a1428 60%, #0a0b14 100%); }
 #battle-canvas { display: block; width: 100%; height: 100%; }
 
-.combat-log {
+.combat-log-pane {
   background: var(--bg-panel);
   border-left: 1px solid var(--brass);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+}
+.log-filter {
+  display: flex; gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #2a2c4a;
+}
+.log-filter .log-chip {
+  padding: 4px 10px; font-size: 9px; letter-spacing: 1.5px;
+  background: transparent; color: var(--ink-muted); border: 1px solid #2a2c4a;
+}
+.log-filter .log-chip.on { background: var(--bg-panel-hi); color: var(--brass-hot); border-color: var(--brass); }
+.log-filter .log-chip.off { opacity: 0.45; }
+.combat-log {
   padding: 16px;
   overflow-y: auto;
   font-family: var(--mono);

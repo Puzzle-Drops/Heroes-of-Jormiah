@@ -17,6 +17,7 @@ import { humanizeEffect, prettyAbility, statLabel, humanizeScalingKey, formatSca
 import { scaleParam } from './combat/formulas.js';
 import { effectiveStat, sumBuffPct } from './combat/abilities.js';
 import { createTreeView } from './tree_render.js';
+import * as Sfx from './audio.js';
 import { allocateNode, refundAll, refundNode, canRefundNode, REFUND_NODE_COST_SPIRIT, REFUND_ALL_COST_SPIRIT, refundableCount, pointsAvailable, getAllocated, canAllocate, startNodeFor } from './tree.js';
 
 const root = () => document.getElementById('app');
@@ -635,6 +636,7 @@ function flash(msg) {
 }
 
 function toastAchievement(a) {
+  Sfx.playUnlock();
   const el = document.createElement('div');
   el.className = 'toast achievement';
   el.innerHTML = `<div class="ach-eyebrow">ACHIEVEMENT UNLOCKED</div><div class="ach-name">${a.name}</div><div class="ach-desc">${a.desc}</div>`;
@@ -1012,7 +1014,12 @@ function renderBattleScreen() {
         <div class="battle-stage" id="stage">
           <canvas id="battle-canvas"></canvas>
         </div>
-        <div class="combat-log" id="log"></div>
+        <div class="combat-log-pane">
+          <div class="log-filter">
+            ${['cast','kill','heal','floor'].map(t => `<button class="log-chip ${_logFilter[t] ? 'on' : 'off'}" data-tag="${t}">${t}</button>`).join('')}
+          </div>
+          <div class="combat-log" id="log"></div>
+        </div>
       </div>
       <div class="battle-bar">
         <div class="speed-controls">
@@ -1062,6 +1069,17 @@ function bindBattle() {
   });
   window.addEventListener('resize', resizeCanvas);
 
+  // log filter chips
+  for (const chip of document.querySelectorAll('.log-chip')) {
+    chip.addEventListener('click', () => {
+      const t = chip.dataset.tag;
+      _logFilter[t] = !_logFilter[t];
+      chip.classList.toggle('on', _logFilter[t]);
+      chip.classList.toggle('off', !_logFilter[t]);
+      _lastLogLen = -1; // force re-render
+    });
+  }
+
   // canvas hover → battle tooltip (live-updated by render loop)
   const canvas = document.getElementById('battle-canvas');
   canvas.addEventListener('mousemove', onCanvasMove);
@@ -1074,6 +1092,7 @@ function bindBattle() {
 
 let _hoveredUnit = null;
 let _hoverEvent = null;
+const _logFilter = { cast: true, kill: true, heal: true, floor: true };
 
 function onCanvasMove(e) {
   const canvas = e.currentTarget;
@@ -1121,11 +1140,22 @@ function resizeCanvas() {
 function startRenderLoop() {
   cancelAnimationFrame(_renderHandle);
   _lastFrame = performance.now();
+  let lastFxSeen = 0;
   const frame = (now) => {
     const dt = Math.min(0.1, (now - _lastFrame) / 1000);
     _lastFrame = now;
     if (_activeBattle) {
       tickBattle(_activeBattle, dt);
+      // play sounds for any fx pushed this tick
+      const fx = _activeBattle.fx ?? [];
+      for (let i = lastFxSeen; i < fx.length; i++) {
+        const f = fx[i];
+        if (f.type === 'crit')   Sfx.playCrit();
+        else if (f.type === 'dodge')  Sfx.playDodge();
+        else if (f.type === 'heal')   Sfx.playHeal();
+        else if (f.type === 'dmg' && f.amount >= 30) Sfx.playImpact();
+      }
+      lastFxSeen = fx.length;
       const canvas = document.getElementById('battle-canvas');
       if (canvas) {
         const ctx = canvas.getContext('2d');
@@ -1157,11 +1187,15 @@ function stopBattle() {
 }
 
 let _lastLogLen = 0;
+let _lastLogFilterKey = '';
 function updateLog() {
   const log = document.getElementById('log');
-  if (!log || _activeBattle.log.length === _lastLogLen) return;
+  if (!log) return;
+  const filterKey = JSON.stringify(_logFilter);
+  if (_activeBattle.log.length === _lastLogLen && filterKey === _lastLogFilterKey) return;
   _lastLogLen = _activeBattle.log.length;
-  const tail = _activeBattle.log.slice(-30);
+  _lastLogFilterKey = filterKey;
+  const tail = _activeBattle.log.filter(e => _logFilter[e.type] !== false).slice(-30);
   log.innerHTML = tail.map(e => `<div class="entry ${e.type}">${escapeHtml(e.text)}</div>`).join('');
   log.scrollTop = log.scrollHeight;
 }
@@ -1242,6 +1276,7 @@ function onWipe() {
 }
 
 function showLootCard(item, onClose) {
+  Sfx.playRarity(item.rarity);
   const stage = document.getElementById('stage');
   const overlay = document.createElement('div');
   overlay.className = 'loot-overlay';
