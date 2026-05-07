@@ -1,256 +1,129 @@
         class Item {
-            constructor(type, rarity, level) {
+            constructor(type, rarityHint, level) {
+                // GDD §8.1 — itemLevel = floor it dropped on. All 6 stats roll
+                // independently in [0, lvl]; the namesake stat in [0, 2*lvl].
+                // Rarity is computed *after* rolls per §9 (transparent function
+                // of how well the item rolled), not seeded by the caller.
+                // The 3rd-arg rarityHint is preserved only as a *minimum-quality*
+                // floor for backwards-compat with existing roll sites that pass
+                // 'epic'/'mythic'/etc. — final rarity is still the higher of
+                // the rolled tier and the hint.
                 this.type = type;
-                this.rarity = rarity;
                 this.level = level;
+                this.itemLevel = level; // GDD-spec name
                 this.levelReq = Math.max(1, level - 1);
-                
-// Stat pools by slot type
-                const statPools = {
-    helmet: ['defense', 'hp', 'mana', 'cdr'],
-    gloves: ['attack', 'attackSpeed', 'hp', 'defense'],
-    belt: ['hp', 'defense', 'lifesteal', 'hpRegen'],
-    chest: ['defense', 'hp', 'mana', 'dodgeChance'],
-    boots: ['attackSpeed', 'hp', 'defense', 'dodgeChance'],
-    amulet: ['attack', 'hp', 'critDamage', 'manaRegen'],
-    ring: ['attack', 'attackSpeed', 'critChance', 'critDamage'],
-    wand: ['attack', 'manaRegen', 'critChance', 'cdr'],
-    dagger: ['attack', 'attackSpeed', 'critChance', 'lifesteal'],
-    greatsword: ['attack', 'hp', 'defense', 'lifesteal'],
-    staff: ['attack', 'mana', 'manaRegen', 'cdr'],
-    bow: ['attack', 'attackSpeed', 'critChance', 'critDamage'],
-    warhammer: ['attack', 'hp', 'mana', 'lifesteal']
-};
-                
-                // Number of stats based on rarity
-const statCount = {
-    common: 1,
-    uncommon: 2,
-    rare: 3,
-    epic: 4,
-    legendary: 4,
-    mythic: 4
-};
-                
-// Stat value ranges (base values that scale with level)
-                // Lower bases and slower scaling for longer progression
-                // Weapon-specific ranges will override these defaults
-                const statRanges = {
-    // Core stats - slower growth
-    attack: { min: 0.5, max: 3 },
-    hp: { min: 4, max: 12.5 },
-    mana: { min: 2.5, max: 7.5 },
-    defense: { min: 1, max: 4 },
-    
-    // Secondary stats - moderate growth
-    attackSpeed: { min: 0.025, max: 0.09 },
-    critChance: { min: 0.5, max: 3 },
-    
-    // Late-game stats - slow growth
-    critDamage: { min: 2, max: 8 },
-    dodgeChance: { min: 1, max: 3 },
-    lifesteal: { min: 0.5, max: 2 },
-    cdr: { min: 0.5, max: 3 },
-    
-    // Regen stats - flat values (stat ÷ 2 = regen per 3 seconds)
-    hpRegen: { min: 2.5, max: 15 },         // 1.25-7.5 HP per 3 seconds
-    manaRegen: { min: 5, max: 25 }        // 2.5-12.5 mana per 3 seconds
-};
-                
-                // Get appropriate stat pool
-                let pool = statPools[type] || statPools.ring;
-                
-                // Select random stats from pool - only pick stats that have valid ranges
-                const numStats = statCount[rarity];
-                const validPool = pool.filter(stat => statRanges[stat]);
-                
-                // Shuffle and take the required number
-                const shuffled = [...validPool].sort(() => Math.random() - 0.5);
-                const selectedStats = shuffled.slice(0, Math.min(numStats, validPool.length));
-                
-                // If we still need more stats, allow duplicates from valid pool
-                while (selectedStats.length < numStats && validPool.length > 0) {
-                    const randomStat = validPool[Math.floor(Math.random() * validPool.length)];
-                    if (!selectedStats.includes(randomStat)) {
-                        selectedStats.push(randomStat);
-                    }
+
+                // Pick namesake per slot weighting (GDD §8.3 loose convention).
+                // Weapons can be any namesake; armor leans HP/P.DEF/M.DEF; jewelry
+                // leans P.ATK/M.ATK/MP/HP. Stones (Phase 8) override later.
+                const namesakeWeights = (() => {
+                    const armor = ['hp','hp','pDef','mDef'];
+                    const jewelry = ['pAtk','mAtk','mp','hp'];
+                    const weapons = ['hp','mp','pAtk','mAtk','pDef','mDef'];
+                    if (['helmet','chest','gloves','belt','boots'].includes(type)) return armor;
+                    if (['amulet','ring','ring1','ring2'].includes(type)) return jewelry;
+                    return weapons;
+                })();
+                this.namesake = namesakeWeights[Math.floor(Math.random() * namesakeWeights.length)];
+
+                // GDD §8.2 — every item has all 6 stats. Each non-namesake rolls
+                // [0, lvl]; namesake rolls [0, 2*lvl]. We snap to integers so the
+                // numbers display cleanly.
+                const rollAxis = (max) => Math.floor(Math.random() * (max + 1));
+                this.hp   = rollAxis(this.namesake === 'hp'   ? 2*level : level);
+                this.mp   = rollAxis(this.namesake === 'mp'   ? 2*level : level);
+                this.pAtk = rollAxis(this.namesake === 'pAtk' ? 2*level : level);
+                this.mAtk = rollAxis(this.namesake === 'mAtk' ? 2*level : level);
+                this.pDef = rollAxis(this.namesake === 'pDef' ? 2*level : level);
+                this.mDef = rollAxis(this.namesake === 'mDef' ? 2*level : level);
+
+                // GDD §9.2 quality score — average of each stat's roll-pct of
+                // its max-possible. Namesake max is 2*lvl, others are lvl.
+                const pct = (val, max) => max <= 0 ? 0 : Math.min(1, val / max);
+                const rolls = [
+                    pct(this.hp,   this.namesake === 'hp'   ? 2*level : level),
+                    pct(this.mp,   this.namesake === 'mp'   ? 2*level : level),
+                    pct(this.pAtk, this.namesake === 'pAtk' ? 2*level : level),
+                    pct(this.mAtk, this.namesake === 'mAtk' ? 2*level : level),
+                    pct(this.pDef, this.namesake === 'pDef' ? 2*level : level),
+                    pct(this.mDef, this.namesake === 'mDef' ? 2*level : level),
+                ];
+                this.qualityScore = rolls.reduce((a,b) => a+b, 0) / rolls.length;
+
+                // GDD §9.3 — 7 tiers thresholded on qualityScore. Note the
+                // ordering: Mythic (≥80) sits BETWEEN Epic and Legendary, then
+                // Legendary (≥90), then Radiant (≥95) caps the tree.
+                const TIERS = [
+                    { id: 'rusted',    threshold: 0.00, name: 'Rusted',    color: '#6b6b78' },
+                    { id: 'common',    threshold: 0.20, name: 'Common',    color: '#e4e4e7' },
+                    { id: 'rare',      threshold: 0.40, name: 'Rare',      color: '#3b82f6' },
+                    { id: 'epic',      threshold: 0.60, name: 'Epic',      color: '#a855f7' },
+                    { id: 'mythic',    threshold: 0.80, name: 'Mythic',    color: '#ec4899' },
+                    { id: 'legendary', threshold: 0.90, name: 'Legendary', color: '#f59e0b' },
+                    { id: 'radiant',   threshold: 0.95, name: 'Radiant',   color: '#fde68a' },
+                ];
+                let tier = TIERS[0];
+                for (const t of TIERS) if (this.qualityScore >= t.threshold) tier = t;
+
+                // Honor a minimum-rarity hint from existing roll sites (chests,
+                // boss drops). We DON'T downgrade — the rolled tier wins if higher.
+                if (rarityHint) {
+                    const hintIdx = TIERS.findIndex(t => t.id === rarityHint);
+                    const tierIdx = TIERS.findIndex(t => t.id === tier.id);
+                    if (hintIdx > tierIdx) tier = TIERS[hintIdx];
                 }
-                
-                // Assign stat values
-selectedStats.forEach(stat => {
-    let range = statRanges[stat];
-    
-    // Weapon-specific stat range overrides - ALL weapons get attack bonuses
-    if (stat === 'attack') {
-        if (type === 'dagger') {
-            range = { min: 1, max: 9 }; // High attack (80% bonus) - Fast assassin
-        } else if (type === 'greatsword') {
-            range = { min: 1, max: 7 }; // Decent attack (40% bonus) - Tank weapon
-        } else if (type === 'wand') {
-            range = { min: 1, max: 8 }; // Good attack (60% bonus) - AOE caster
-        } else if (type === 'staff') {
-            range = { min: 1, max: 7 }; // Decent attack (40% bonus) - Healer weapon
-        } else if (type === 'bow') {
-            range = { min: 1, max: 8.5 }; // Good attack (70% bonus) - Ranged DPS
-        } else if (type === 'warhammer') {
-            range = { min: 1, max: 7.5 }; // Good attack (50% bonus) - Holy warrior
-        }
-    }
-    
-    // Keep existing special stat bonuses
-    if (type === 'greatsword' && stat === 'hp') {
-        range = { min: 8, max: 40 }; // +60% hp ceiling
-    }
-    if (type === 'warhammer' && stat === 'hp') {
-        range = { min: 7, max: 35 }; // +40% hp ceiling - Slightly less tanky than greatsword
-    }
-    if (type === 'staff' && stat === 'mana') {
-        range = { min: 5, max: 25 }; // +67% mana ceiling
-    }
-    if (type === 'warhammer' && stat === 'mana') {
-        range = { min: 3.5, max: 12.5 }; // +25% mana ceiling - Helps with keystones
-    }
-    
-    // Mana regen nerf - 60% reduction for staffs, wands, and amulets
-    if (stat === 'manaRegen' && (type === 'staff' || type === 'wand' || type === 'amulet')) {
-        range = { min: 4, max: 20 }; // 60% nerf from 10-50
-    }
-    
-    // EXPONENTIAL SCALING: Level is now the DOMINANT factor
-    // 1.018^level = ~1.8% compound growth per level
-    // Cap stat scaling at level 100 to prevent Divine Arena items from being absurdly overpowered
-    const effectiveLevel = Math.min(level, 100);
-    const levelScaling = Math.pow(1.018, effectiveLevel);
-    
-    if (rarity === 'legendary') {
-        // Legendary = perfect max values
-        this[stat] = Math.round(range.max * levelScaling * 100) / 100;
-    } else if (rarity === 'mythic') {
-        // Mythic = perfect max values (200% will be applied to one stat after loop)
-        this[stat] = Math.round(range.max * levelScaling * 100) / 100;
-    } else {
-        // Random value in range with rarity-based minimum guarantees
-        const rangeSize = range.max - range.min;
-        
-        // Rarity guarantees - minimum % of max roll
-        let minRollPercent = 0; // Common/Uncommon: 0-100% of range
-        if (rarity === 'rare') {
-            minRollPercent = 0.50; // Rare: 50-100% of range
-        } else if (rarity === 'epic') {
-            minRollPercent = 0.70; // Epic: 70-100% of range
-        }
-        
-        const guaranteedMin = range.min + (rangeSize * minRollPercent);
-        const guaranteedRange = range.max - guaranteedMin;
-        const value = guaranteedMin + Math.random() * guaranteedRange;
-        
-        this[stat] = Math.round(value * levelScaling * 100) / 100;
-    }
-});
+                this.rarity = tier.id;
+                this.rarityName = tier.name;
+                this.rarityColor = tier.color;
 
-// Mythic: Double random stat(s) based on weighted chances (200% instead of 100%)
-if (rarity === 'mythic' && selectedStats.length > 0) {
-    const roll = Math.random() * 100;
-    let numMythicStats = 1; // Default: 1 stat at 200%
-    
-    if (roll < 1) {
-        // 1% chance: ALL 4 stats at 200%
-        numMythicStats = 4;
-    } else if (roll < 5) {
-        // 4% chance: 3 stats at 200%
-        numMythicStats = 3;
-    } else if (roll < 15) {
-        // 10% chance: 2 stats at 200%
-        numMythicStats = 2;
-    }
-    // else 85% chance: 1 stat at 200%
-    
-    // Randomly select which stats to make mythic
-    const shuffledStats = [...selectedStats].sort(() => Math.random() - 0.5);
-    const mythicStats = shuffledStats.slice(0, numMythicStats);
-    
-    // Double the selected stats
-    mythicStats.forEach(stat => {
-        this[stat] = Math.round(this[stat] * 2 * 100) / 100;
-    });
-    
-    // Track which stats are mythic (for tooltip display)
-    if (mythicStats.length === 1) {
-        this.mythicStat = mythicStats[0]; // Single stat - keep old property for compatibility
-    } else {
-        this.mythicStats = mythicStats; // Multiple stats - use array
-    }
-}
+                // Equipment payload still routes through legacy fields too so
+                // pre-Phase-5 combat paths (rune percent bonuses keyed off
+                // 'attack', tooltip code, etc.) keep functioning. These are the
+                // *aggregate* of the new p/m fields.
+                this.attack = this.pAtk + this.mAtk;
+                this.defense = this.pDef + this.mDef;
 
-
-                // Set name: "Lvl X [Rarity] [Slot]"
-                const slotNames = {
-                    helmet: 'Helmet',
-                    gloves: 'Gloves',
-                    belt: 'Belt',
-                    chest: 'Chestplate',
-                    boots: 'Boots',
-                    amulet: 'Amulet',
-                    ring: 'Ring',
-                    wand: 'Wand',
-                    dagger: 'Dagger',
-                    greatsword: 'Greatsword',
-                    staff: 'Staff',
-                    bow: 'Bow',
-                    warhammer: 'Warhammer',
-                    weapon: 'Weapon'
+                this.equipment = {
+                    weapon: null, chest: null, helmet: null, gloves: null,
+                    boots: null, amulet: null, belt: null, ring1: null, ring2: null,
                 };
-                
-                const rarityNames = {
-    common: 'Common',
-    uncommon: 'Uncommon',
-    rare: 'Rare',
-    epic: 'Epic',
-    legendary: 'Legendary',
-    mythic: 'Mythic'
-};
 
-// Check if this is a Perfect Mythic (all 4 stats at 200%)
-let rarityDisplayName = rarityNames[rarity];
-if (rarity === 'mythic' && this.mythicStats && this.mythicStats.length === 4) {
-    rarityDisplayName = 'Perfect Mythic';
-    this.isPerfectMythic = true; // Flag for special handling
-}
-
-this.name = `Lvl ${level} ${rarityDisplayName} ${slotNames[type]}`;
-                
-                this.name = `Lvl ${level} ${rarityNames[rarity]} ${slotNames[type]}`;
-                
-                // Normalize weapon type to 'weapon' for equipment slot
-                if (['wand', 'dagger', 'greatsword', 'staff', 'bow', 'warhammer'].includes(type)) {
-                    this.type = 'weapon';
+                // Slot/normalize.
+                if (['wand','dagger','greatsword','staff','bow','warhammer'].includes(type)) {
                     this.weaponType = type;
+                    this.type = 'weapon';
                 }
+
+                // Item name per GDD §7.5 / §8.3 spirit:
+                //  "Lvl <X> <Rarity> <Namesake-prefix> <Slot>"
+                const NAMESAKE_PREFIX = {
+                    hp:'Vital', mp:'Spry', pAtk:'Brutal', mAtk:'Arcane',
+                    pDef:'Stalwart', mDef:'Warded',
+                };
+                const SLOT_NAME = {
+                    helmet:'Helmet', gloves:'Gloves', belt:'Belt', chest:'Chestplate',
+                    boots:'Boots', amulet:'Amulet', ring:'Ring',
+                    wand:'Wand', dagger:'Dagger', greatsword:'Greatsword',
+                    staff:'Staff', bow:'Bow', warhammer:'Warhammer', weapon:'Weapon',
+                };
+                const slotName = SLOT_NAME[this.weaponType || type] || SLOT_NAME[type] || 'Item';
+                this.name = `Lvl ${level} ${tier.name} ${NAMESAKE_PREFIX[this.namesake]} ${slotName}`;
             }
-            
-getStatsDisplay() {
-                const stats = [];
-                if (this.attack) stats.push(`ATK +${this.attack}`);
-                if (this.attackSpeed) stats.push(`ATK SPD +${this.attackSpeed}`);
-                if (this.hp) stats.push(`HP +${this.hp}`);
-                if (this.mana) stats.push(`MANA +${this.mana}`);
-                if (this.defense) stats.push(`DEF +${this.defense}`);
-                if (this.critChance) stats.push(`CRIT +${this.critChance}%`);
-                if (this.critDamage) stats.push(`CRIT DMG +${this.critDamage}%`);
-                if (this.dodgeChance) stats.push(`DODGE +${this.dodgeChance}%`);
-                if (this.lifesteal) stats.push(`LIFESTEAL +${this.lifesteal}%`);
-                if (this.hpRegen) stats.push(`HP REGEN +${this.hpRegen}`);
-if (this.manaRegen) stats.push(`MANA REGEN +${this.manaRegen}`);
-                if (this.cdr) stats.push(`CDR +${this.cdr}%`);
-                
-                // Add blessed status
-                if (this.blessed) {
-                    stats.push(`✨ BLESSED`);
-                }
-                
-                return stats.join(', ');
+
+            getStatsDisplay() {
+                const parts = [];
+                const fmt = (label, v, color) =>
+                    v ? `<span style="color:${color}">${label} +${v}</span>` : null;
+                const phys = '#fda4af', mag = '#a5b4fc', neutral = '#e2e8f0';
+                parts.push(fmt('HP',    this.hp,   neutral));
+                parts.push(fmt('MP',    this.mp,   '#3b82f6'));
+                parts.push(fmt('P.ATK', this.pAtk, phys));
+                parts.push(fmt('M.ATK', this.mAtk, mag));
+                parts.push(fmt('P.DEF', this.pDef, phys));
+                parts.push(fmt('M.DEF', this.mDef, mag));
+                if (this.blessed) parts.push(`<span style="color:#fde68a">✨ BLESSED</span>`);
+                return parts.filter(Boolean).join(', ');
             }
         }
-        
-        window.Item = Item;
 
+        window.Item = Item;

@@ -244,37 +244,73 @@ getTotalDefense() {
     return parseFloat(total.toFixed(2));
 }
 
-// GDD §4.1 core stats — these route the new physical/magical split.
-// Each falls back through the legacy single-axis getters so existing
-// equipment/runes/debuffs still apply until items roll p/m natively.
-getTotalPAtk() {
-    // Physical attack: pAtk base + everything getTotalAttack() already accumulates.
-    // Subclasses/items will diverge in Phase 5 when items roll p/m separately.
-    const legacy = this.getTotalAttack();
-    const physShare = this.pAtk / Math.max(1, this.attack || 1);
-    return parseFloat((legacy * physShare).toFixed(2));
+// GDD §4.1 core stats — sum base + skill tree + equipment + rune bonuses.
+// Phase 5 items roll pAtk/mAtk/pDef/mDef natively. Legacy items only carry
+// the old single-axis attack/defense fields; we fall those over to pAtk/pDef
+// (route to magical for magical-typed wearers) so old gear still functions.
+_sumEquipStat(field, legacyField, legacyToMagical = false) {
+    let total = 0;
+    for (const slot in this.equipment) {
+        const it = this.equipment[slot];
+        if (!it) continue;
+        if (it[field] !== undefined && it[field] !== 0) {
+            total += it[field] || 0;
+        } else if (legacyField && it[legacyField] !== undefined) {
+            // Pre-Phase-5 item: route legacy attack/defense to whichever axis
+            // matches the wearer's damageType.
+            const isMagicalAxis = (field === 'mAtk' || field === 'mDef');
+            const wantsMagical = (this.damageType === 'magical');
+            if ((isMagicalAxis && wantsMagical) || (!isMagicalAxis && !wantsMagical)) {
+                total += it[legacyField] || 0;
+            } else if (this.damageType === 'mixed') {
+                total += (it[legacyField] || 0) / 2;
+            }
+        }
+    }
+    return total;
 }
-getTotalMAtk() {
-    // Magical attack: mAtk base. Equipment doesn't carry mAtk yet (Phase 5).
-    let total = this.mAtk + (this.skillTreeMAtk || 0);
+getTotalPAtk() {
+    let total = (this.pAtk || 0) + (this.skillTreePAtk || this.skillTreeAttack || 0);
+    total += this._sumEquipStat('pAtk', 'attack');
     if (this.runePercentBonuses && this.runePercentBonuses.attack) {
         total = total * (1 + this.runePercentBonuses.attack / 100);
+    }
+    if (this.attackDebuff && this.attackDebuff > 0 && this.attackDebuff < 1) {
+        total = total * this.attackDebuff;
+    }
+    return parseFloat(total.toFixed(2));
+}
+getTotalMAtk() {
+    let total = (this.mAtk || 0) + (this.skillTreeMAtk || 0);
+    total += this._sumEquipStat('mAtk', 'attack');
+    if (this.runePercentBonuses && this.runePercentBonuses.attack) {
+        total = total * (1 + this.runePercentBonuses.attack / 100);
+    }
+    if (this.attackDebuff && this.attackDebuff > 0 && this.attackDebuff < 1) {
+        total = total * this.attackDebuff;
     }
     return parseFloat(total.toFixed(2));
 }
 getTotalPDef() {
-    // Physical defense: pDef share of legacy total defense.
-    const legacy = this.getTotalDefense();
-    const physShare = this.pDef / Math.max(1, this.defense || 1);
-    return parseFloat((legacy * physShare).toFixed(2));
-}
-getTotalMDef() {
-    // Magical defense: mDef base. Equipment doesn't carry mDef yet (Phase 5).
-    let total = this.mDef + (this.skillTreeMDef || 0);
+    let total = (this.pDef || 0) + (this.skillTreePDef || this.skillTreeDefense || 0);
+    total += this._sumEquipStat('pDef', 'defense');
+    if (this.className === 'Tank' && this.tauntActive) total += this.tauntDefenseBonus || 10;
     if (this.runePercentBonuses && this.runePercentBonuses.defense) {
         total = total * (1 + this.runePercentBonuses.defense / 100);
     }
-    return parseFloat(total.toFixed(2));
+    if (this.sacredBarrierDefense) total = total * (1 + this.sacredBarrierDefense);
+    if (this.defenseDebuff && this.defenseDebuff > 0) total = Math.max(0, total - this.defenseDebuff / 2);
+    return parseFloat(Math.min(total, 999).toFixed(2));
+}
+getTotalMDef() {
+    let total = (this.mDef || 0) + (this.skillTreeMDef || 0);
+    total += this._sumEquipStat('mDef', 'defense');
+    if (this.runePercentBonuses && this.runePercentBonuses.defense) {
+        total = total * (1 + this.runePercentBonuses.defense / 100);
+    }
+    if (this.sacredBarrierDefense) total = total * (1 + this.sacredBarrierDefense);
+    if (this.defenseDebuff && this.defenseDebuff > 0) total = Math.max(0, total - this.defenseDebuff / 2);
+    return parseFloat(Math.min(total, 999).toFixed(2));
 }
 // Returns the attacker's effective ATK for the given damage type.
 getEffectiveAtk(damageType) {

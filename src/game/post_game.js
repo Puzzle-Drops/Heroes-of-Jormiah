@@ -906,10 +906,21 @@ Click OK to start fresh, or Cancel to try manually recovering.`;
                         type: itemData.type,
                         weaponType: itemData.weaponType,
                         rarity: itemData.rarity,
+                        rarityName: itemData.rarityName,
+                        rarityColor: itemData.rarityColor,
                         level: itemData.level,
+                        itemLevel: itemData.itemLevel || itemData.level,
                         levelReq: itemData.levelReq || Math.max(1, (itemData.level || 1) - 1),
                         name: itemData.name,
-                        // All possible stat properties
+                        namesake: itemData.namesake,
+                        qualityScore: itemData.qualityScore,
+                        // GDD §8.2 6-stat axis (Phase 5 native fields)
+                        pAtk: itemData.pAtk,
+                        mAtk: itemData.mAtk,
+                        pDef: itemData.pDef,
+                        mDef: itemData.mDef,
+                        mp: itemData.mp,
+                        // Legacy fields kept for backward-compat with pre-Phase-5 saves
                         attack: itemData.attack,
                         defense: itemData.defense,
                         hp: itemData.hp,
@@ -935,22 +946,34 @@ Click OK to start fresh, or Cancel to try manually recovering.`;
                         subtitle: itemData.subtitle,
                         _statsCapped: itemData._statsCapped,
                         
-                        // Restore the getStatsDisplay method
+                        // GDD §8.2 display — pre-Phase-5 items don't carry the
+                        // p/m fields so we fall back to legacy lines for those.
                         getStatsDisplay: function() {
                             const stats = [];
-                            if (this.attack) stats.push(`ATK +${this.attack}`);
+                            const phys = '#fda4af', mag = '#a5b4fc';
+                            if (this.pAtk !== undefined || this.mAtk !== undefined ||
+                                this.pDef !== undefined || this.mDef !== undefined) {
+                                if (this.hp)   stats.push(`HP +${this.hp}`);
+                                if (this.mp)   stats.push(`<span style="color:#3b82f6">MP +${this.mp}</span>`);
+                                if (this.pAtk) stats.push(`<span style="color:${phys}">P.ATK +${this.pAtk}</span>`);
+                                if (this.mAtk) stats.push(`<span style="color:${mag}">M.ATK +${this.mAtk}</span>`);
+                                if (this.pDef) stats.push(`<span style="color:${phys}">P.DEF +${this.pDef}</span>`);
+                                if (this.mDef) stats.push(`<span style="color:${mag}">M.DEF +${this.mDef}</span>`);
+                            } else {
+                                if (this.attack)      stats.push(`ATK +${this.attack}`);
+                                if (this.hp)          stats.push(`HP +${this.hp}`);
+                                if (this.mana)        stats.push(`MANA +${this.mana}`);
+                                if (this.defense)     stats.push(`DEF +${this.defense}`);
+                            }
                             if (this.attackSpeed) stats.push(`ATK SPD +${this.attackSpeed}`);
-                            if (this.hp) stats.push(`HP +${this.hp}`);
-                            if (this.mana) stats.push(`MANA +${this.mana}`);
-                            if (this.defense) stats.push(`DEF +${this.defense}`);
-                            if (this.critChance) stats.push(`CRIT +${this.critChance}%`);
-                            if (this.critDamage) stats.push(`CRIT DMG +${this.critDamage}%`);
+                            if (this.critChance)  stats.push(`CRIT +${this.critChance}%`);
+                            if (this.critDamage)  stats.push(`CRIT DMG +${this.critDamage}%`);
                             if (this.dodgeChance) stats.push(`DODGE +${this.dodgeChance}%`);
-                            if (this.lifesteal) stats.push(`LIFESTEAL +${this.lifesteal}%`);
-                            if (this.hpRegen) stats.push(`HP REGEN +${this.hpRegen}`);
-                            if (this.manaRegen) stats.push(`MANA REGEN +${this.manaRegen}`);
-                            if (this.cdr) stats.push(`CDR +${this.cdr}%`);
-                            if (this.blessed) stats.push(`✨ BLESSED`);
+                            if (this.lifesteal)   stats.push(`LIFESTEAL +${this.lifesteal}%`);
+                            if (this.hpRegen)     stats.push(`HP REGEN +${this.hpRegen}`);
+                            if (this.manaRegen)   stats.push(`MANA REGEN +${this.manaRegen}`);
+                            if (this.cdr)         stats.push(`CDR +${this.cdr}%`);
+                            if (this.blessed)     stats.push(`<span style="color:#fde68a">✨ BLESSED</span>`);
                             return stats.join(', ');
                         }
                     };
