@@ -947,16 +947,19 @@ Object.entries(nameInputs).forEach(([className, inputId]) => {
                     combatStatsContainer.style.display = 'none';
                 }
                 
-                // Create the banner selector using individual banner images
+                // Create the banner selector using individual banner images.
+                // Banner art still has legacy names baked in; the .dungeon-banner-label
+                // overlay declares the canonical Heroes-of-Jormiah name on top.
+                const bannerLabelStyle = `position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); font-family: 'Cinzel', 'Orbitron', serif; font-weight: 800; font-size: 16px; letter-spacing: 1px; color: #fff8e1; text-shadow: 0 2px 6px rgba(0,0,0,0.95), 0 0 12px rgba(0,0,0,0.7); text-align: center; white-space: nowrap; pointer-events: none;`;
                 const selectorHTML = `
                     <div id="dungeon-banner-selector">
                         <div id="select-dungeon-title">SELECT YOUR DUNGEON</div>
                         <div id="dungeon-banner-container">
-                            <div class="dungeon-banner everfall" data-dungeon="everfall" style="background: url('https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/everfall%20banner.png') center/cover;"></div>
-                            <div class="dungeon-banner stoneforge" data-dungeon="stoneforge" style="background: url('https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/stoneforge%20banner.png') center/cover;"></div>
-                            <div class="dungeon-banner umbral" data-dungeon="umbral" style="background: url('https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/umbral%20depths.png') center/cover;"></div>
-                            <div class="dungeon-banner vault" data-dungeon="vault" style="background: url('https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/the%20vault.png') center/cover; ${this.vaultKeys.length === 0 ? 'filter: grayscale(100%) brightness(0.5); opacity: 0.6;' : ''}"></div>
-                            <div class="dungeon-banner runetrial" data-dungeon="runetrial" style="background: url('https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/rune%20trials.png') center/cover; ${this.runeTrialKeys.length === 0 ? 'filter: grayscale(100%) brightness(0.5); opacity: 0.6;' : ''}"></div>
+                            <div class="dungeon-banner everfall" data-dungeon="everfall" style="position: relative; background: url('https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/everfall%20banner.png') center/cover;"><div class="dungeon-banner-label" style="${bannerLabelStyle}">The Hollowed Wilds</div></div>
+                            <div class="dungeon-banner stoneforge" data-dungeon="stoneforge" style="position: relative; background: url('https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/stoneforge%20banner.png') center/cover;"><div class="dungeon-banner-label" style="${bannerLabelStyle}">The Iron Vaults</div></div>
+                            <div class="dungeon-banner umbral" data-dungeon="umbral" style="position: relative; background: url('https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/umbral%20depths.png') center/cover;"><div class="dungeon-banner-label" style="${bannerLabelStyle}">The Whispering Spires</div></div>
+                            <div class="dungeon-banner vault" data-dungeon="vault" style="position: relative; background: url('https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/the%20vault.png') center/cover; ${this.vaultKeys.length === 0 ? 'filter: grayscale(100%) brightness(0.5); opacity: 0.6;' : ''}"><div class="dungeon-banner-label" style="${bannerLabelStyle}">The Vault</div></div>
+                            <div class="dungeon-banner runetrial" data-dungeon="runetrial" style="position: relative; background: url('https://raw.githubusercontent.com/Graphic37/RPG-Dungeon-Simulator/main/rune%20trials.png') center/cover; ${this.runeTrialKeys.length === 0 ? 'filter: grayscale(100%) brightness(0.5); opacity: 0.6;' : ''}"><div class="dungeon-banner-label" style="${bannerLabelStyle}">Rune Trials</div></div>
                         </div>
                     </div>
                 `;
