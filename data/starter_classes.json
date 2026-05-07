@@ -1,0 +1,18 @@
+{
+  "$comment": "GDD §11.1, §20. Player picks 6 starters from 8 family representatives at game start.",
+  "model": "pick_6_of_8",
+  "candidates": [
+    { "classId": "knight",     "family": "tank"     },
+    { "classId": "berserker",  "family": "fighter"  },
+    { "classId": "cleric",     "family": "healer"   },
+    { "classId": "archer",     "family": "marksman" },
+    { "classId": "assassin",   "family": "rogue"    },
+    { "classId": "pyromancer", "family": "magician" },
+    { "classId": "bard",       "family": "mystic"   },
+    { "classId": "engineer",   "family": "farlands" }
+  ],
+  "verticalSlice_M1": {
+    "$comment": "GDD §20 Milestone 1 explicit list — 6 of 8 starter candidates.",
+    "classIds": ["knight", "berserker", "cleric", "archer", "assassin", "pyromancer"]
+  }
+}

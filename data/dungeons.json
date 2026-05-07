@@ -1,0 +1,45 @@
+{
+  "$comment": "GDD §10. One boss encounter per floor, 0–3 minions scaling with floor. All dungeons start at floor 1 every run.",
+  "structure": {
+    "encountersPerFloor": 1,
+    "minionsPerFloor": { "min": 0, "max": 3 },
+    "resetOnRunStart": true,
+    "midRunPartySwap": false,
+    "voluntaryExitBetweenFloors": true,
+    "highestFloorRecorded": "per dungeon"
+  },
+  "dungeons": [
+    {
+      "id": "iron_vaults",
+      "name": "The Iron Vaults",
+      "theme": "Fortress, soldiers, war machines",
+      "enemyLean": "physical",
+      "lootSpecialty": "armor",
+      "drops": ["helm", "chest", "legs", "gloves", "boots"]
+    },
+    {
+      "id": "whispering_spires",
+      "name": "The Whispering Spires",
+      "theme": "Floating arcane towers",
+      "enemyLean": "magical",
+      "lootSpecialty": "jewelry",
+      "drops": ["ring1", "ring2", "amulet"]
+    },
+    {
+      "id": "hollowed_wilds",
+      "name": "The Hollowed Wilds",
+      "theme": "Overgrown ruin, swarms",
+      "enemyLean": "aoe",
+      "lootSpecialty": "weapons",
+      "drops": ["weapon"]
+    },
+    {
+      "id": "shattered_spire",
+      "name": "The Shattered Spire",
+      "theme": "Reality-warped peak",
+      "enemyLean": "mixed",
+      "lootSpecialty": "stones",
+      "drops": ["stone_attack", "stone_spell1", "stone_spell2", "stone_passive"]
+    }
+  ]
+}

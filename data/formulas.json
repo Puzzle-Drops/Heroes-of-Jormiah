@@ -1,0 +1,30 @@
+{
+  "$comment": "GDD §4.3, §4.4, §10.3. Numbers are starting values for tuning, per GDD reading notes.",
+  "damage": {
+    "formula": "finalDamage = max(1, abilityPower * attackerStat * (1 - mitigation))",
+    "mitigation": "defenderDef / (defenderDef + 100 + 5 * floorLevel)",
+    "minimumDamage": 1
+  },
+  "mana": {
+    "regenPerSecondPctMax": 0.05,
+    "fullRestoreBetweenFloors": true
+  },
+  "floorScaling": {
+    "enemyHP":  "baseHP  * pow(1.10, floor) * (1 + floor * 0.05)",
+    "enemyDmg": "baseDmg * pow(1.08, floor) * (1 + floor * 0.04)",
+    "enemyDef": "baseDef * pow(1.07, floor)"
+  },
+  "wipeBehavior": {
+    "downedAtZeroHP": true,
+    "fullPartyWipe": "kicked to hub, dungeon resets to floor 1, no item loss",
+    "reviveOnFloorClear": { "hpPct": 0.25 }
+  },
+  "speedToggles": [1, 2, 4],
+  "abilityScaling": {
+    "stoneLevelMin": 1,
+    "stoneLevelMax": 100,
+    "interpolation": "linear",
+    "level1": "ability functions but provides 0 stats",
+    "level100": "max parameters; stats continue to scale via itemStatLevel beyond 100"
+  }
+}
