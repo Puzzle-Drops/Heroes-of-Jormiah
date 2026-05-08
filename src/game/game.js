@@ -59,7 +59,12 @@ this.keystoneSlots = {
     paladin: true
 };
                 
-                // Rune system
+                // Rune system. The 6 starter ids stay hardcoded for legacy
+                // saves; Phase 9 added 42 more classes from the registry,
+                // and any of them can be in the party — so seed an empty
+                // 5-slot array for every registry id too. Without this,
+                // rebuildUI throws on `equippedRunes[charKey][0]` for any
+                // non-starter member.
                 this.runes = [];
                 this.equippedRunes = {
                     tank: [null, null, null, null, null],
@@ -77,6 +82,13 @@ this.keystoneSlots = {
                     archer: [false, false, false, false, false],
                     paladin: [false, false, false, false, false]
                 };
+                if (window.CLASS_REGISTRY) {
+                    for (const entry of window.CLASS_REGISTRY) {
+                        const k = entry.id;
+                        if (!this.equippedRunes[k]) this.equippedRunes[k] = [null, null, null, null, null];
+                        if (!this.runeSlots[k])    this.runeSlots[k]    = [false, false, false, false, false];
+                    }
+                }
                 
                 // Rune Trial Keys
                 this.runeTrialKeys = [];
@@ -15759,10 +15771,13 @@ this.party.forEach((member, index) => {
         ${(() => {
             const charKey = member.className.toLowerCase();
             
-            // Check for equipped ability rune
+            // Check for equipped ability rune. equippedRunes[charKey] may
+            // be undefined for registry-only classes if the constructor
+            // ran before CLASS_REGISTRY loaded (defensive default below).
             let abilityRune = null;
+            const charRunes = this.equippedRunes[charKey] || [];
             for (let i = 0; i < 5; i++) {
-                const rune = this.equippedRunes[charKey][i];
+                const rune = charRunes[i];
                 if (rune && rune.isAbilityRune) {
                     // Check if this rune matches the character's ability
                     const abilityMatch = {
